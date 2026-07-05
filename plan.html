@@ -271,7 +271,9 @@ function setStartInputs(){
 }
 function saveState(){
   readStart();
-  try{ fetch('/api/plan',{method:'POST',body:JSON.stringify(data)}).catch(()=>{}); }catch(e){}
+  data.rev=(data.rev||0)+1;
+  try{ fetch('/api/plan',{method:'POST',body:JSON.stringify(data)})
+    .then(r=>{ if(r.status===409) location.reload(); }).catch(()=>{}); }catch(e){}
   try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
 }
 setStartInputs();

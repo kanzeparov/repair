@@ -142,6 +142,17 @@ class H(http.server.SimpleHTTPRequestHandler):
             self.path = "/index.html"
         return super().do_GET()
 
+    def _rev_ok(self, path_file, body):
+        """Анти-перезапись: отклоняем POST от устаревших вкладок (rev меньше серверного)."""
+        try:
+            cur = 0
+            if os.path.exists(path_file):
+                with open(path_file, encoding="utf-8") as f:
+                    cur = json.load(f).get("rev", 0)
+        except Exception:
+            cur = 0
+        return body.get("rev", -1) >= cur
+
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(n) or b"{}")
@@ -155,12 +166,16 @@ class H(http.server.SimpleHTTPRequestHandler):
             save(d); git_commit("tracker: delete tx")
             return self._json({"ok": True})
         if self.path == "/api/tasks":
+            if not self._rev_ok(TASKS, body):
+                return self._json({"error": "stale rev — обнови вкладку"}, 409)
             with open(TASKS + ".tmp", "w", encoding="utf-8") as fh:
                 json.dump(body, fh, ensure_ascii=False, indent=1)
             os.replace(TASKS + ".tmp", TASKS)
             git_commit_tasks("tasks: change")
             return self._json({"ok": True})
         if self.path == "/api/plan":
+            if not self._rev_ok(PLAN, body):
+                return self._json({"error": "stale rev — обнови вкладку"}, 409)
             tmp = PLAN + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(body, f, ensure_ascii=False, indent=1)

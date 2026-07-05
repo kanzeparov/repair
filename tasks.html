@@ -110,8 +110,10 @@ function logEv(k,t,extra){
 }
 let saveT=null;
 function save(){ clearTimeout(saveT); saveT=setTimeout(()=>{
+  data.rev=(data.rev||0)+1;
   try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
-  try{ fetch('/api/tasks',{method:'POST',body:JSON.stringify(data)}).catch(()=>{}); }catch(e){}
+  try{ fetch('/api/tasks',{method:'POST',body:JSON.stringify(data)})
+    .then(r=>{ if(r.status===409) location.reload(); }).catch(()=>{}); }catch(e){}
 },300); }
 function rollover(){
   const t=iso(new Date(new Date().setHours(12,0,0,0)));
