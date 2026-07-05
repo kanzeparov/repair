@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>✅ Задачи — неделя</title>
+<style>
+  :root { --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE;
+    --warn:#8A5A18; --warn-bg:#F7EFDC; --crit:#96382C; --crit-bg:#F6E8E4;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace; --serif:Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A;
+      --warn:#D9A85C; --warn-bg:#322A18; --crit:#D98876; --crit-bg:#37231F; } }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;
+    padding:26px 14px 80px;font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+  .bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .bar a,.bar button{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none;cursor:pointer}
+  .bar b{font-family:var(--mono);font-size:13px}
+  #newtask{flex:1;min-width:200px;padding:8px 12px;font-size:13.5px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);color:var(--ink)}
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media(max-width:900px){.board{grid-template-columns:repeat(2,1fr)}}
+  .col{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:10px;min-height:120px}
+  .col.today{border-color:var(--accent);border-width:1.5px}
+  .col h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between}
+  .col.today h3{color:var(--accent)}
+  .task{background:var(--paper);border:1px solid var(--line);border-radius:8px;
+    padding:8px 10px;margin-bottom:6px;font-size:12.5px;display:grid;
+    grid-template-columns:20px 1fr 18px;gap:7px;align-items:start;cursor:grab}
+  .task.fin{border-left:3px solid var(--accent)}
+  .task.over{border-left:3px solid var(--crit)}
+  .task input{width:16px;height:16px;accent-color:var(--accent);margin-top:1px;cursor:pointer}
+  .task.done{opacity:.45}
+  .task.done .t{text-decoration:line-through}
+  .task .x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0}
+  .task .x:hover{color:var(--crit)}
+  .task .meta{display:block;font-family:var(--mono);font-size:10px;color:var(--warn);margin-top:2px}
+  .col.drag{outline:2px dashed var(--accent)}
+  .note{margin-top:14px;color:var(--muted);font-size:11.5px;max-width:86ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>✅ Задачи — неделя</h1>
+  <div class="sub">Финансовые задачи из твоего бота + аудита. Зелёная кромка — фин, красная — просроченные. Drag&drop между днями. В финплан-карточки НЕ входит.</div>
+  <div class="bar">
+    <button id="prev">‹</button><b id="wlabel"></b><button id="next">›</button>
+    <button id="todaybtn">Сегодня</button>
+    <input id="newtask" placeholder="Новая задача… (Enter — в Бэклог)">
+    <a id="navHome" href="🗂 ГЛАВНАЯ.html">🏠</a>
+    <span id="sync" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+  </div>
+  <div class="board" id="board"></div>
+  <p class="note">Первая колонка — Бэклог (без даты). Перетащи задачу на день — назначится дата. ✓ — выполнено (остаётся, зачёркнута). Данные: сервер (tasks.json, шифруется в GitHub) или браузер.</p>
+</div>
+<script>
+const SEED=[
+ // из бота may_goals (невыполненные финансовые) + аудит
+ {txt:'Закрыть 7к по кладовой', fin:1, date:'2026-07-03'},
+ {txt:'Вытащить крипту с Bybit на холодный кошелёк', fin:1, date:'2026-07-07'},
+ {txt:'Консультация налоговика (студия/кладовые/крипта) — ДО листинга', fin:1, date:'2026-07-08'},
+ {txt:'Предодобрение Райфа: вторая ипотека 8 млн @7,8%', fin:1, date:'2026-07-09'},
+ {txt:'Выложить кладовую Павелецкая за 1,8 млн', fin:1, date:'2026-07-07'},
+ {txt:'Выложить кладовую Алтуфьево', fin:1, date:'2026-07-08'},
+ {txt:'SberPrime: вернуть двойное списание июня (399×2) + решить нужен ли', fin:1, date:'2026-07-06'},
+ {txt:'Ревизия подписок: Claude 17,9к → Max 5×? Codex, Premier, движ, плюс', fin:1, date:'2026-07-06'},
+ {txt:'Сохранить .secret (ключ шифрования) в менеджер паролей', fin:1, date:'2026-07-06'},
+ {txt:'Оценка студии у 2–3 риелторов; комиссия в договор Владис (п.7.1)', fin:1, date:'2026-07-10'},
+ {txt:'Окно страх: продлить личное страхование (иначе 4,6% → 5,3%)', fin:1},
+ {txt:'ИИС: внести до 88к до 31.12 (вычет)', fin:1},
+ {txt:'Мой налог: ежемесячный чек (правило с 05.06)', fin:1},
+ {txt:'Крипту на карту: аренда + подписки (правило из бота)', fin:1},
+ {txt:'Уточнить «Прочее 16.08 = 42 000» в финплане', fin:1},
+ {txt:'Кредитки Райф 355к — погасить до 16.08 (конец грейса)', fin:1, date:'2026-08-14'},
+ {txt:'Зубной на июль (из бота)'},
+ {txt:'Курс Архитектуры — до 15 июля (из бота)', date:'2026-07-12'},
+];
+const LS='tasks26';
+const F=['вс','пн','вт','ср','чт','пт','сб'];
+const MN=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+let data=null, SRV=false, weekStart=null;
+function monday(d){ const x=new Date(d); x.setDate(x.getDate()-((x.getDay()+6)%7)); x.setHours(12,0,0,0); return x; }
+function iso(d){ return d.toISOString().slice(0,10); }
+async function boot(){
+  try{ const r=await fetch('/api/tasks',{cache:'no-store'});
+    if(r.ok){ const j=await r.json(); if(j&&j.tasks){ data=j; SRV=true; } else if(j) SRV=true; } }catch(e){}
+  if(!data){ try{ data=JSON.parse(localStorage.getItem(LS)); }catch(e){} }
+  if(!data||!data.tasks){ data={tasks:SEED.map((t,i)=>({id:Date.now()+i,txt:t.txt,fin:!!t.fin,date:t.date||null,done:false}))}; save(); }
+  weekStart=monday(new Date());
+  render();
+  if(SRV) document.getElementById('sync').textContent='vault+git';
+}
+let saveT=null;
+function save(){ clearTimeout(saveT); saveT=setTimeout(()=>{
+  try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
+  try{ fetch('/api/tasks',{method:'POST',body:JSON.stringify(data)}).catch(()=>{}); }catch(e){}
+},300); }
+function render(){
+  const todayISO=iso(new Date(new Date().setHours(12,0,0,0)));
+  const we=new Date(weekStart); we.setDate(we.getDate()+6);
+  document.getElementById('wlabel').textContent=
+    weekStart.getDate()+' '+MN[weekStart.getMonth()]+' — '+we.getDate()+' '+MN[we.getMonth()];
+  const cols=[{key:'backlog',title:'Бэклог'}];
+  for(let i=0;i<7;i++){ const d=new Date(weekStart); d.setDate(d.getDate()+i);
+    cols.push({key:iso(d),title:F[d.getDay()]+' '+d.getDate()+' '+MN[d.getMonth()]}); }
+  let h='';
+  cols.forEach(col=>{
+    const items=data.tasks.filter(t=> col.key==='backlog'
+      ? (!t.date || (t.date<iso(weekStart)&&!t.done) || t.date>iso(we))
+      : t.date===col.key);
+    // просроченные прошлых недель показываем в бэклоге; будущие вне недели тоже там
+    h+=`<div class="col ${col.key===todayISO?'today':''}" data-col="${col.key}">
+      <h3>${col.title}<span>${items.filter(t=>!t.done).length}</span></h3>`;
+    items.sort((a,b)=>(a.done-b.done));
+    items.forEach(t=>{
+      const over=t.date && t.date<todayISO && !t.done;
+      h+=`<div class="task ${t.fin?'fin':''} ${t.done?'done':''} ${over?'over':''}" draggable="true" data-id="${t.id}">
+        <input type="checkbox" ${t.done?'checked':''} data-id="${t.id}">
+        <span class="t">${t.txt}${t.date&&col.key==='backlog'?`<span class="meta">${t.date}</span>`:''}</span>
+        <button class="x" data-id="${t.id}">×</button></div>`;
+    });
+    h+='</div>';
+  });
+  document.getElementById('board').innerHTML=h;
+  // события
+  document.querySelectorAll('.task input').forEach(cb=>cb.addEventListener('change',e=>{
+    const t=data.tasks.find(x=>x.id==e.target.dataset.id); t.done=e.target.checked; save(); render();
+  }));
+  document.querySelectorAll('.task .x').forEach(b=>b.addEventListener('click',e=>{
+    if(!confirm('Удалить задачу?')) return;
+    data.tasks=data.tasks.filter(x=>x.id!=e.target.dataset.id); save(); render();
+  }));
+  let dragId=null;
+  document.querySelectorAll('.task').forEach(t=>t.addEventListener('dragstart',()=>{dragId=t.dataset.id;}));
+  document.querySelectorAll('.col').forEach(c=>{
+    c.addEventListener('dragover',e=>{ if(dragId){e.preventDefault(); c.classList.add('drag');} });
+    c.addEventListener('dragleave',()=>c.classList.remove('drag'));
+    c.addEventListener('drop',e=>{ e.preventDefault(); c.classList.remove('drag');
+      if(!dragId) return;
+      const t=data.tasks.find(x=>x.id==dragId);
+      t.date = c.dataset.col==='backlog'? null : c.dataset.col;
+      dragId=null; save(); render();
+    });
+  });
+}
+document.getElementById('prev').onclick=()=>{ weekStart.setDate(weekStart.getDate()-7); render(); };
+document.getElementById('next').onclick=()=>{ weekStart.setDate(weekStart.getDate()+7); render(); };
+document.getElementById('todaybtn').onclick=()=>{ weekStart=monday(new Date()); render(); };
+document.getElementById('newtask').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.value.trim()){
+    data.tasks.push({id:Date.now(),txt:e.target.value.trim(),fin:/налог|кредит|ипотек|банк|крипт|вычет|страх|кладов|студи|подписк|деньг|вклад|ипот/i.test(e.target.value),date:null,done:false});
+    e.target.value=''; save(); render();
+  }
+});
+if(location.protocol!=='file:') document.getElementById('navHome').href='/';
+boot();
+</script>
+</body>
+</html>

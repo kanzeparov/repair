@@ -5,3 +5,4 @@ plan.json
 *.log
 *.tmp
 .DS_Store
+tasks.json

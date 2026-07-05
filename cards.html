@@ -74,8 +74,8 @@
   <h1>🗂 Финплан — карточки по дням</h1>
   <div class="sub">1 день = свои карточки. Еда и такси разбиты по дням, ресты — 2 раза в период, разовые — в свою дату. Синхронизировано с таблицей в обе стороны.</div>
   <div class="bar">
-    <a href="Интерактивный финплан (таблица).html">📅 Таблица</a>
-    <a href="🗂 ГЛАВНАЯ.html">🏠 Главная</a>
+    <a id="navPlan" href="Интерактивный финплан (таблица).html">📅 Таблица</a>
+    <a id="navHome" href="🗂 ГЛАВНАЯ.html">🏠 Главная</a>
     <button id="togglePaid">👁 Оплаченные: <span id="paidN">0</span></button>
     <span id="sync"></span>
   </div>
@@ -344,6 +344,10 @@ document.getElementById('togglePaid').addEventListener('click',()=>{
   document.getElementById('togglePaid').classList.toggle('on',showPaid);
   render();
 });
+if(location.protocol!=='file:'){
+  document.getElementById('navPlan').href='plan.html';
+  document.getElementById('navHome').href='/';
+}
 loadLS(); render();
 (async()=>{ try{
   const r=await fetch('/api/plan',{cache:'no-store'});

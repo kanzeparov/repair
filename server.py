@@ -13,7 +13,7 @@ def git(args):
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 SECRET = os.path.join(BASE, ".secret")
-ENC_FILES = ["data.json", "plan.json"]
+ENC_FILES = ["data.json", "plan.json", "tasks.json"]
 
 def _ossl(args):
     try:
@@ -79,9 +79,26 @@ class H(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
 
+    ALIASES = {
+        "/Финплан — карточки.html": "/cards.html",
+        "/✅ ЗАДАЧИ — неделя.html": "/tasks.html",
+        "/Интерактивный финплан (таблица).html": "/plan.html",
+        "/🗂 ГЛАВНАЯ.html": "/index.html",
+    }
+
     def do_GET(self):
+        from urllib.parse import unquote
+        decoded = unquote(self.path.split("?")[0])
+        if decoded in self.ALIASES:
+            self.path = self.ALIASES[decoded]
         if self.path == "/api/data":
             return self._json(load())
+        if self.path == "/api/tasks":
+            t = os.path.join(BASE, "tasks.json")
+            if os.path.exists(t):
+                with open(t, encoding="utf-8") as fh:
+                    return self._json(json.load(fh))
+            return self._json({})
         if self.path == "/api/plan":
             if os.path.exists(PLAN):
                 with open(PLAN, encoding="utf-8") as f:
@@ -102,6 +119,13 @@ class H(http.server.SimpleHTTPRequestHandler):
         if self.path == "/api/del":           # delete by id
             d["tx"] = [t for t in d["tx"] if t.get("id") != body.get("id")]
             save(d); git_commit("tracker: delete tx")
+            return self._json({"ok": True})
+        if self.path == "/api/tasks":
+            t = os.path.join(BASE, "tasks.json")
+            with open(t + ".tmp", "w", encoding="utf-8") as fh:
+                json.dump(body, fh, ensure_ascii=False, indent=1)
+            os.replace(t + ".tmp", t)
+            git_commit("tasks: change")
             return self._json({"ok": True})
         if self.path == "/api/plan":
             tmp = PLAN + ".tmp"
