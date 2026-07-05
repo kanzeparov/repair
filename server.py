@@ -35,6 +35,41 @@ def dec_all():
             _ossl(["enc","-d","-aes-256-cbc","-pbkdf2","-iter","100000",
                    "-in",fn+".enc","-out",fn,"-pass","file:.secret"])
 
+TDIR = os.path.join(BASE, "tasks_repo")
+TASKS = os.path.join(TDIR, "tasks.json")
+
+def git_t(args):
+    try:
+        return subprocess.run(["git"]+args, cwd=TDIR, capture_output=True, text=True, timeout=60)
+    except Exception:
+        return None
+
+def enc_tasks():
+    if os.path.exists(TASKS):
+        try:
+            subprocess.run(["openssl","enc","-aes-256-cbc","-pbkdf2","-iter","100000","-salt",
+                "-in","tasks.json","-out","tasks.json.enc","-pass","file:"+SECRET],
+                cwd=TDIR, capture_output=True, timeout=30)
+        except Exception: pass
+
+def dec_tasks():
+    e=TASKS+".enc"
+    if os.path.exists(e) and (not os.path.exists(TASKS) or os.path.getmtime(e)>os.path.getmtime(TASKS)+1):
+        try:
+            subprocess.run(["openssl","enc","-d","-aes-256-cbc","-pbkdf2","-iter","100000",
+                "-in","tasks.json.enc","-out","tasks.json","-pass","file:"+SECRET],
+                cwd=TDIR, capture_output=True, timeout=30)
+        except Exception: pass
+
+def git_commit_tasks(msg):
+    def w():
+        enc_tasks()
+        git_t(["add","-A"])
+        r=git_t(["commit","-m",msg])
+        if r and r.returncode==0 and os.path.exists(os.path.join(BASE,".push_enabled")):
+            git_t(["push","origin","main"])
+    threading.Thread(target=w, daemon=True).start()
+
 def git_commit(msg):
     def w():
         enc_all()
@@ -94,9 +129,8 @@ class H(http.server.SimpleHTTPRequestHandler):
         if self.path == "/api/data":
             return self._json(load())
         if self.path == "/api/tasks":
-            t = os.path.join(BASE, "tasks.json")
-            if os.path.exists(t):
-                with open(t, encoding="utf-8") as fh:
+            if os.path.exists(TASKS):
+                with open(TASKS, encoding="utf-8") as fh:
                     return self._json(json.load(fh))
             return self._json({})
         if self.path == "/api/plan":
@@ -121,11 +155,10 @@ class H(http.server.SimpleHTTPRequestHandler):
             save(d); git_commit("tracker: delete tx")
             return self._json({"ok": True})
         if self.path == "/api/tasks":
-            t = os.path.join(BASE, "tasks.json")
-            with open(t + ".tmp", "w", encoding="utf-8") as fh:
+            with open(TASKS + ".tmp", "w", encoding="utf-8") as fh:
                 json.dump(body, fh, ensure_ascii=False, indent=1)
-            os.replace(t + ".tmp", t)
-            git_commit("tasks: change")
+            os.replace(TASKS + ".tmp", TASKS)
+            git_commit_tasks("tasks: change")
             return self._json({"ok": True})
         if self.path == "/api/plan":
             tmp = PLAN + ".tmp"
@@ -141,7 +174,9 @@ class H(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     git(["pull","--rebase","origin","main"])   # подтянуть внешние изменения как из БД
-    dec_all()                                   # расшифровать свежие *.enc локальным паролем
+    dec_all()
+    git_t(["pull","--rebase","origin","main"])  # задачи: репо taskers
+    dec_tasks()                                   # расшифровать свежие *.enc локальным паролем
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), H) as srv:
         print(f"💸 Трекер трат: http://localhost:{PORT}  (данные: {DATA})")

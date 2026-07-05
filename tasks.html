@@ -57,11 +57,12 @@
     <button id="prev">‹</button><b id="wlabel"></b><button id="next">›</button>
     <button id="todaybtn">Сегодня</button>
     <input id="newtask" placeholder="Новая задача… (Enter — в Бэклог)">
+    <button id="toggleDone">👁 Выполненные: <span id="doneN">0</span></button>
     <a id="navHome" href="🗂 ГЛАВНАЯ.html">🏠</a>
     <span id="sync" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
   </div>
   <div class="board" id="board"></div>
-  <p class="note">Первая колонка — Бэклог (без даты). Перетащи задачу на день — назначится дата. ✓ — выполнено (остаётся, зачёркнута). Данные: сервер (tasks.json, шифруется в GitHub) или браузер.</p>
+  <p class="note">Первая колонка — Бэклог (без даты). Перетащи задачу на день — назначится дата. ✓ — выполнено (скрывается; вернуть — «👁 Выполненные»). Данные: сервер (tasks.json, шифруется в GitHub) или браузер. Все статусы/переносы логируются; незакрытые задачи прошедших дней автоматически уходят в Бэклог (перенос логируется).</p>
 </div>
 <script>
 const SEED=[
@@ -88,7 +89,7 @@ const SEED=[
 const LS='tasks26';
 const F=['вс','пн','вт','ср','чт','пт','сб'];
 const MN=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-let data=null, SRV=false, weekStart=null;
+let data=null, SRV=false, weekStart=null, showDone=false;
 function monday(d){ const x=new Date(d); x.setDate(x.getDate()-((x.getDay()+6)%7)); x.setHours(12,0,0,0); return x; }
 function iso(d){ return d.toISOString().slice(0,10); }
 async function boot(){
@@ -96,16 +97,37 @@ async function boot(){
     if(r.ok){ const j=await r.json(); if(j&&j.tasks){ data=j; SRV=true; } else if(j) SRV=true; } }catch(e){}
   if(!data){ try{ data=JSON.parse(localStorage.getItem(LS)); }catch(e){} }
   if(!data||!data.tasks){ data={tasks:SEED.map((t,i)=>({id:Date.now()+i,txt:t.txt,fin:!!t.fin,date:t.date||null,done:false}))}; save(); }
+  rollover();
   weekStart=monday(new Date());
   render();
+  setInterval(rollover, 10*60*1000);
   if(SRV) document.getElementById('sync').textContent='vault+git';
+}
+function logEv(k,t,extra){
+  if(!data.log) data.log=[];
+  data.log.push({ts:new Date().toISOString(),k,id:t&&t.id,txt:t?String(t.txt).slice(0,70):'',...(extra||{})});
+  if(data.log.length>3000) data.log.splice(0,data.log.length-3000);
 }
 let saveT=null;
 function save(){ clearTimeout(saveT); saveT=setTimeout(()=>{
   try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
   try{ fetch('/api/tasks',{method:'POST',body:JSON.stringify(data)}).catch(()=>{}); }catch(e){}
 },300); }
+function rollover(){
+  const t=iso(new Date(new Date().setHours(12,0,0,0)));
+  let moved=0;
+  (data.tasks||[]).forEach(x=>{
+    if(x.date && x.date<t && !x.done){
+      logEv('rollover',x,{from:x.date,to:'backlog'});
+      x.date=null; moved++;           // незакрытое прошлое → Бэклог текущей недели
+    }
+  });
+  if(moved){ save(); if(typeof weekStart!=='undefined'&&weekStart) render(); }
+}
+let lastDay=iso(new Date(new Date().setHours(12,0,0,0)));
 function render(){
+  const nowDay=iso(new Date(new Date().setHours(12,0,0,0)));
+  if(nowDay!==lastDay){ lastDay=nowDay; rollover(); }
   const todayISO=iso(new Date(new Date().setHours(12,0,0,0)));
   const we=new Date(weekStart); we.setDate(we.getDate()+6);
   document.getElementById('wlabel').textContent=
@@ -115,9 +137,10 @@ function render(){
     cols.push({key:iso(d),title:F[d.getDay()]+' '+d.getDate()+' '+MN[d.getMonth()]}); }
   let h='';
   cols.forEach(col=>{
-    const items=data.tasks.filter(t=> col.key==='backlog'
+    let items=data.tasks.filter(t=> col.key==='backlog'
       ? (!t.date || (t.date<iso(weekStart)&&!t.done) || t.date>iso(we))
       : t.date===col.key);
+    if(!showDone) items=items.filter(t=>!t.done);
     // просроченные прошлых недель показываем в бэклоге; будущие вне недели тоже там
     h+=`<div class="col ${col.key===todayISO?'today':''}" data-col="${col.key}">
       <h3>${col.title}<span>${items.filter(t=>!t.done).length}</span></h3>`;
@@ -132,12 +155,17 @@ function render(){
     h+='</div>';
   });
   document.getElementById('board').innerHTML=h;
+  const dn=document.getElementById('doneN');
+  if(dn) dn.textContent=data.tasks.filter(t=>t.done).length;
   // события
   document.querySelectorAll('.task input').forEach(cb=>cb.addEventListener('change',e=>{
-    const t=data.tasks.find(x=>x.id==e.target.dataset.id); t.done=e.target.checked; save(); render();
+    const t=data.tasks.find(x=>x.id==e.target.dataset.id); t.done=e.target.checked;
+    logEv(t.done?'done':'undone',t); save(); render();
   }));
   document.querySelectorAll('.task .x').forEach(b=>b.addEventListener('click',e=>{
     if(!confirm('Удалить задачу?')) return;
+    const t=data.tasks.find(x=>x.id==e.target.dataset.id);
+    logEv('delete',t);
     data.tasks=data.tasks.filter(x=>x.id!=e.target.dataset.id); save(); render();
   }));
   let dragId=null;
@@ -148,17 +176,24 @@ function render(){
     c.addEventListener('drop',e=>{ e.preventDefault(); c.classList.remove('drag');
       if(!dragId) return;
       const t=data.tasks.find(x=>x.id==dragId);
+      logEv('move',t,{from:t.date||'backlog',to:c.dataset.col});
       t.date = c.dataset.col==='backlog'? null : c.dataset.col;
       dragId=null; save(); render();
     });
   });
 }
+document.getElementById('toggleDone').onclick=()=>{
+  showDone=!showDone;
+  document.getElementById('toggleDone').style.background=showDone?'var(--accent-soft)':'';
+  render();
+};
 document.getElementById('prev').onclick=()=>{ weekStart.setDate(weekStart.getDate()-7); render(); };
 document.getElementById('next').onclick=()=>{ weekStart.setDate(weekStart.getDate()+7); render(); };
 document.getElementById('todaybtn').onclick=()=>{ weekStart=monday(new Date()); render(); };
 document.getElementById('newtask').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&e.target.value.trim()){
-    data.tasks.push({id:Date.now(),txt:e.target.value.trim(),fin:/налог|кредит|ипотек|банк|крипт|вычет|страх|кладов|студи|подписк|деньг|вклад|ипот/i.test(e.target.value),date:null,done:false});
+    const nt={id:Date.now(),txt:e.target.value.trim(),fin:/налог|кредит|ипотек|банк|крипт|вычет|страх|кладов|студи|подписк|деньг|вклад|ипот/i.test(e.target.value),date:null,done:false};
+    data.tasks.push(nt); logEv('add',nt);
     e.target.value=''; save(); render();
   }
 });

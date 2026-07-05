@@ -6,3 +6,4 @@ plan.json
 *.tmp
 .DS_Store
 tasks.json
+tasks_repo/
