@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🗂 Финплан — карточки по дням</title>
+<style>
+  :root {
+    --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE;
+    --crit:#96382C; --crit-bg:#F6E8E4;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A;
+      --crit:#D98876; --crit-bg:#37231F; }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;
+    padding:24px 14px 80px;font-size:14px}
+  .wrap{max-width:700px;margin:0 auto}
+  h1{font-family:Georgia,serif;font-weight:400;font-size:23px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .bar a{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--accent);text-decoration:none}
+  #sync{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;
+    background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;
+    margin-bottom:16px;font-family:var(--mono)}
+  .kpi div{background:var(--card);padding:10px 12px;font-size:11px;color:var(--muted)}
+  .kpi b{display:block;font-size:15px;color:var(--ink);margin-top:2px;font-variant-numeric:tabular-nums}
+  .day{font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+    color:var(--accent);margin:18px 0 7px;display:flex;justify-content:space-between;
+    align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:4px;
+    position:sticky;top:0;background:var(--paper);z-index:2}
+  .day .bal{font-size:11px;color:var(--muted)}
+  .day .bal b{color:var(--ink)}
+  .day .bal b.neg{color:var(--crit)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:9px 13px;margin-bottom:6px;display:grid;
+    grid-template-columns:1fr 120px 32px;gap:10px;align-items:center}
+  .card.inc{border-left:3px solid var(--accent)}
+  .card.exp{border-left:3px solid var(--crit)}
+  .card .t{font-size:13px}
+  .card .t small{color:var(--muted)}
+  .card input{width:100%;font-family:var(--mono);font-size:13.5px;text-align:right;
+    border:1px solid var(--line);border-radius:6px;padding:5px 8px;
+    background:var(--paper);color:var(--ink);font-variant-numeric:tabular-nums}
+  .card input:focus{outline:1.5px solid var(--accent)}
+  .card input::-webkit-inner-spin-button{-webkit-appearance:none}
+  .card .pd{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);
+    background:var(--card);cursor:pointer;font-size:13px;color:var(--muted);line-height:1}
+  .card.paid{opacity:.42}
+  .card.paid .t{text-decoration:line-through}
+  .card.paid .pd{background:var(--accent);border-color:var(--accent);color:#fff}
+  .mon{font-family:Georgia,serif;font-size:19px;margin:26px 0 4px;display:flex;
+    justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--accent);
+    padding-bottom:4px}
+  .mon .ms{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .wk{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;color:var(--muted);
+    margin:12px 0 4px;display:flex;justify-content:space-between;
+    background:var(--accent-soft);border-radius:5px;padding:4px 10px}
+  #togglePaid{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--ink);cursor:pointer}
+  #togglePaid.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .note{margin-top:16px;color:var(--muted);font-size:11.5px;max-width:80ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗂 Финплан — карточки по дням</h1>
+  <div class="sub">1 день = свои карточки. Еда и такси разбиты по дням, ресты — 2 раза в период, разовые — в свою дату. Синхронизировано с таблицей в обе стороны.</div>
+  <div class="bar">
+    <a href="Интерактивный финплан (таблица).html">📅 Таблица</a>
+    <a href="🗂 ГЛАВНАЯ.html">🏠 Главная</a>
+    <button id="togglePaid">👁 Оплаченные: <span id="paidN">0</span></button>
+    <span id="sync"></span>
+  </div>
+  <div class="kpi">
+    <div>Σ Доход<b id="kInc">—</b></div>
+    <div>Σ Расход<b id="kExp">—</b></div>
+    <div>Итог 31.12<b id="kDec">—</b></div>
+    <div style="color:var(--accent)">Итог янв.27<b id="kEnd">—</b></div>
+    <div>Ипотека-2<b id="kMort" style="font-size:11px">—</b></div>
+  </div>
+  <div id="feed"></div>
+  <p class="note">Правка суммы на дневной карточке меняет итог статьи в периоде (и в таблице — автоматически). ✓ — оплата: сумма карточки СПИСЫВАЕТСЯ из плана (ячейка периода в таблице уменьшается), карточка скрывается. Вернуть — «👁 Оплаченные» и снять ✓ (сумма вернётся в план). Балансы дней/недель/месяцев показывают остаток к оплате. Карточку можно перетащить на другой день (drag&drop на заголовок дня или на соседнюю карточку) — перенос запоминается. Разбиение: ежедневно — еда; такси — 3 поездки равномерно; ресты — 2 раза в период; раз в период (середина) — бады, здоровье, расходники; остальное — в дату периода.</p>
+</div>
+<script>
+const COLS=['1.07','16.07','1.08','16.08','1.09','15.09','1.10','16.10','1.11','16.11','1.12','16.12','31.12','янв.27'];
+const z=()=>Array(14).fill(0);
+function row(vals){const a=z();for(const[i,v]of Object.entries(vals))a[i]=v;return a;}
+const PLAN=[
+ ['inc','ЗП', row({1:200000,2:200000,3:200000,4:200000,5:200000,6:200000,7:200000,8:200000,9:200000,10:200000,11:200000,12:200000})],
+ ['inc','Аренда однушки (Дмитровская), окт–дек', row({7:39000,9:45000,11:45000})],
+ ['inc','Продажа студии Алтуфьевское 51', row({4:12000000})],
+ ['inc','Продажа кладовой Алтуфьево', row({6:1100000})],
+ ['inc','Продажа кладовой Павелецкая', row({12:1300000})],
+ ['inc','Продажа крипты (ликвидное ядро)', row({12:1535000})],
+ ['inc','Продажа акций ТБанк', row({12:385000})],
+ ['inc','Аренда кладовой Алтуфьево', row({1:7000,3:7000,5:7000})],
+ ['inc','Аренда кладовой Павелецкая', row({2:5000,4:5000,6:5000,8:5000,10:5000})],
+ ['inc','С хаты + krpt sell', row({2:6000})],
+ ['inc','Подписки за клод (друзья)', row({2:3000,4:3000,6:3000,8:3000,10:3000,12:3000})],
+ ['inc','С кредитки Райф (в длр)', row({3:100000})],
+ ['inc','Налоговый вычет за учёбу (Синергия, 13%)', row({13:13000})],
+ ['inc','Налоговый вычет основной (январь 2027)', row({13:70000})],
+ ['exp','НДФЛ с продажи студии (в плане 05.07 не выделен)', z()],
+ ['exp','Ресты + еда вне', [5000,5000,5000,5000,0,0,0,6000,4824,3987,3994,4000,3542,0]],
+ ['exp','Еда', [30000,30000,30000,30000,0,0,0,30000,30047,30000,30000,30000,30000,0]],
+ ['exp','Качалка', row({7:12000})],
+ ['exp','Бады + одежда', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
+ ['exp','Здоровье', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
+ ['exp','Квартплата (ма/па) + уборка', row({0:14300,2:14300,4:16800,6:16800,8:16800,10:16800,12:16800})],
+ ['exp','Ипотека (платёж)', row({1:38000,3:38000,5:66000,7:66000,9:66000,11:66000})],
+ ['exp','Такси', [6000,6000,6000,5700,0,0,0,5000,5000,5000,5000,5000,5000,0]],
+ ['exp','Путешествие + зубной (капа)', row({2:12000,7:12000,10:12000})],
+ ['exp','Расходники', [2000,2000,2000,2000,0,0,0,2000,2000,2000,2000,2000,2000,0]],
+ ['exp','Оплата за кладовую', row({1:6000,3:6000,5:6000,7:6000,9:6000,11:6000})],
+ ['exp','Кредитка ТКФ (гашение 01.09)', row({4:380000})],
+ ['exp','Платежи по кредитам Райф', row({1:75000,3:75000})],
+ ['exp','Анискин (лечение отца)', row({2:50000})],
+ ['exp','Прочее 16.08 (уточнить статью)', row({3:42000})],
+ ['exp','Гашение кредитов Райф (остатки)', row({4:3041387})],
+ ['exp','ПВ за объект (первоначальный взнос)', row({4:2000000})],
+ ['exp','Гашение ипотеки ДОМ.РФ 4,6%', row({5:6700000})],
+ ['exp','Доплата за объект (покупка)', row({12:8032000})],
+ ['exp','Гашение кредиток Райф (конец грейса)', row({3:355000})],
+ ['exp','Кредитка Райф — гашение №2', row({6:100000})],
+ ['exp','Учёба: Синергия (аспирантура)', row({8:100000})],
+ ['exp','Страхование жизни (обязательно для ставки 4,6%)', row({8:27000})],
+ ['exp','Страхование квартиры (ипотечное)', row({8:27000})],
+ ['exp','Отпуск: Китай', row({4:194000})],
+ ['exp','Транш (длр/прочее)', row({10:150000})],
+ ['exp','Линзы (покупка)', row({10:30000})],
+ ['exp','ДР, подарки, билеты, отложить', row({0:10000,1:10000,2:10000,3:10000,5:10000,7:10000,9:10000,11:10000})],
+];
+const LS='finplan-grid-26l';
+function logEv(k,ri,c,from,to,extra){
+  if(!data.log) data.log=[];
+  data.log.push({t:new Date().toISOString(),src:'cards',k,ri,c,
+    lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
+  if(data.log.length>5000) data.log.splice(0,data.log.length-5000);
+}
+const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
+const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));
+// диапазоны дней для каждой колонки
+const PERIODS=[
+ ['2026-07-01',15],['2026-07-16',16],['2026-08-01',15],['2026-08-16',16],
+ ['2026-09-01',14],['2026-09-15',16],['2026-10-01',15],['2026-10-16',16],
+ ['2026-11-01',15],['2026-11-16',15],['2026-12-01',15],['2026-12-16',15],
+ ['2026-12-31',1],['2027-01-01',31]];
+const DAILY=/Еда/, THRICE=/Такси/, TWICE=/Ресты/, MID=/Бады|Здоровье|Расходники/;
+const WD=['вс','пн','вт','ср','чт','пт','сб'];
+const MN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+let data;
+function loadLS(){
+  try{ data=JSON.parse(localStorage.getItem(LS)); }catch(e){}
+  if(!data||!data.rows) data={start:142000, rows:PLAN.map(r=>[...r[2]])};
+  if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+  while(data.rows.length<PLAN.length){ data.rows.push([...PLAN[data.rows.length][2]]); }
+  while(data.labels.length<PLAN.length){ data.labels.push(PLAN[data.labels.length][1]); }
+  if(!data.extraTypes) data.extraTypes=[];
+  if(!data.paid) data.paid={};
+  for(const k in data.paid){ if(data.paid[k]===true) delete data.paid[k]; }
+  if(!data.moves) data.moves={};
+}
+let saveT=null;
+function save(){ clearTimeout(saveT); saveT=setTimeout(()=>{
+  try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
+  try{ fetch('/api/plan',{method:'POST',body:JSON.stringify(data)}).catch(()=>{}); }catch(e){}
+  document.getElementById('sync').textContent='синхронизировано '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+},300); }
+
+let CARDS=[], DAYS=[], showPaid=false;
+const ckey=cd=>cd.ri+'_'+cd.c+'_'+cd.idx;
+const TYPE=ri=> ri<PLAN.length ? PLAN[ri][0] : ((data.extraTypes&&data.extraTypes[ri-PLAN.length])||'exp');
+const LBL=ri=> (data.labels&&data.labels[ri]) || (ri<PLAN.length?PLAN[ri][1]:'Статья');
+function paidOf(ri,c){ let s=0; for(const k in data.paid){
+  const p=k.split('_'); if(+p[0]===ri&&+p[1]===c) s+=data.paid[k].a||0; } return s; }
+function mondayISO(dt){ const d=new Date(dt); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d.toISOString().slice(0,10); }
+const MONF=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+function expand(){
+  CARDS=[]; const byDate={};
+  for(let c=0;c<COLS.length;c++){
+    const [startISO,nd]=PERIODS[c];
+    const d0=new Date(startISO+'T12:00:00');
+    data.rows.forEach((row,ri)=>{
+      const v=(row[c]||0)+paidOf(ri,c);
+      if(v<=0) return;
+      const lbl=LBL(ri);
+      let parts=[];
+      if(DAILY.test(lbl) && nd>1){
+        const per=Math.floor(v/nd);
+        for(let i=0;i<nd;i++) parts.push([i, i===nd-1 ? v-per*(nd-1) : per]);
+      } else if(THRICE.test(lbl) && nd>2){
+        const p3=Math.round(v/3);
+        parts=[[Math.floor(nd*0.15),p3],[Math.floor(nd*0.5),p3],[Math.floor(nd*0.85),v-2*p3]];
+      } else if(TWICE.test(lbl) && nd>7){
+        parts=[[Math.floor(nd*0.3), Math.round(v/2)],[Math.floor(nd*0.8), v-Math.round(v/2)]];
+      } else if(MID.test(lbl) && nd>1){
+        parts=[[Math.floor(nd/2), v]];
+      } else parts=[[0, v]];
+      parts.forEach(([off,amt],idx)=>{
+        let dt=new Date(d0); dt.setDate(d0.getDate()+off);
+        const key=ri+'_'+c+'_'+idx;
+        if(data.moves && data.moves[key]) dt=new Date(data.moves[key]+'T12:00:00');
+        const iso=dt.toISOString().slice(0,10);
+        const pk=data.paid[key];
+        const card={ri,c,idx,amt:pk?pk.a:amt,type:TYPE(ri),lbl,iso,dt,count:parts.length,paid:!!pk};
+        CARDS.push(card);
+        (byDate[iso]=byDate[iso]||[]).push(card);
+      });
+    });
+  }
+  DAYS=Object.keys(byDate).sort().map(iso=>({iso,cards:byDate[iso]}));
+}
+function kpis(){
+  const inc=z(),exp=z();
+  data.rows.forEach((row,ri)=>{ for(let c=0;c<COLS.length;c++){
+    if(TYPE(ri)==='inc') inc[c]+=row[c]||0; else exp[c]+=row[c]||0; } });
+  let run=data.start||0; const dif=[];
+  for(let c=0;c<COLS.length;c++){ run+=inc[c]-exp[c]; dif.push(run); }
+  document.getElementById('kInc').textContent=F(inc.reduce((a,b)=>a+b,0))+' ₽';
+  document.getElementById('kExp').textContent=F(exp.reduce((a,b)=>a+b,0))+' ₽';
+  document.getElementById('kDec').textContent=F(dif[12])+' ₽';
+  document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
+  const need=Math.max(0,-dif[12]);
+  document.getElementById('kMort').textContent=need>0?F(need)+' · ~'+F(annuity(need,0.078/12,240))+'/мес':'0 ₽';
+  // дневные балансы + агрегаты
+  let bal=data.start||0; const mAgg={}, wAgg={}; let paidN=0;
+  DAYS.forEach(d=>{
+    const ym=d.iso.slice(0,7), wk=mondayISO(new Date(d.iso+'T12:00:00'));
+    mAgg[ym]=mAgg[ym]||{i:0,e:0,end:0}; wAgg[wk]=wAgg[wk]||{i:0,e:0,end:0};
+    d.cards.forEach(cd=>{
+      if(cd.paid){ paidN++; wAgg[wk].p=(wAgg[wk].p||0)+cd.amt; mAgg[ym].p=(mAgg[ym].p||0)+cd.amt; return; }
+      bal += (cd.type==='inc'?cd.amt:-cd.amt);
+      if(cd.type==='inc'){ mAgg[ym].i+=cd.amt; wAgg[wk].i+=cd.amt; }
+      else { mAgg[ym].e+=cd.amt; wAgg[wk].e+=cd.amt; }
+    });
+    mAgg[ym].end=bal; wAgg[wk].end=bal;
+    const el=document.getElementById('bal'+d.iso);
+    if(el){ el.innerHTML='<b class="'+(bal<0?'neg':'')+'">'+F(bal)+' ₽</b>'; }
+  });
+  for(const ym in mAgg){ const el=document.getElementById('m'+ym);
+    if(el) el.textContent='+'+F(mAgg[ym].i)+' / −'+F(mAgg[ym].e)
+      +(mAgg[ym].p?' · оплачено '+F(mAgg[ym].p):'')+' → '+F(mAgg[ym].end); }
+  for(const wk in wAgg){ const el=document.getElementById('w'+wk);
+    if(el) el.textContent='+'+F(wAgg[wk].i)+' / −'+F(wAgg[wk].e)
+      +(wAgg[wk].p?' · оплачено '+F(wAgg[wk].p):'')+' → '+F(wAgg[wk].end); }
+  const pn=document.getElementById('paidN'); if(pn) pn.textContent=paidN;
+}
+function render(){
+  expand();
+  let h='', lastYM='', lastWK='';
+  DAYS.forEach(d=>{
+    const vis=d.cards.filter(cd=>showPaid||!cd.paid);
+    if(!vis.length) return;   // день без карточек (или всё оплачено) — скрыт целиком
+    const dt=new Date(d.iso+'T12:00:00');
+    const ym=d.iso.slice(0,7), wk=mondayISO(dt);
+    if(ym!==lastYM){ lastYM=ym; lastWK='';
+      h+=`<div class="mon"><span>${MONF[dt.getMonth()]} ${dt.getFullYear()}</span><span class="ms" id="m${ym}"></span></div>`; }
+    if(wk!==lastWK){ lastWK=wk;
+      const ws=new Date(wk+'T12:00:00'); const we=new Date(ws); we.setDate(ws.getDate()+6);
+      h+=`<div class="wk"><span>неделя: пн ${ws.getDate()} ${MN[ws.getMonth()]} — вс ${we.getDate()} ${MN[we.getMonth()]}</span><span id="w${wk}"></span></div>`; }
+    h+=`<div class="day" data-iso="${d.iso}"><span>${WD[dt.getDay()]}, ${dt.getDate()} ${MN[dt.getMonth()]} ${dt.getFullYear()===2027?'2027':''}</span><span class="bal" id="bal${d.iso}"></span></div>`;
+    vis.forEach(cd=>{
+      const k=ckey(cd), paid=cd.paid;
+      h+=`<div class="card ${cd.type} ${paid?'paid':''}" id="c${k}" draggable="true" data-iso="${cd.iso}" data-k="${k}">
+        <span class="t">${cd.lbl}${cd.count>1?' <small>('+(cd.idx+1)+'/'+cd.count+')</small>':''}</span>
+        <input type="number" value="${cd.amt}" data-k="${k}" ${paid?"disabled":""}>
+        <button class="pd" data-p="${k}">✓</button></div>`;
+    });
+  });
+  document.getElementById('feed').innerHTML=h;
+  document.querySelectorAll('#feed input').forEach(i=>{
+    i.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value; });
+    i.addEventListener('change',e=>{
+      const [ri,c,idx]=e.target.dataset.k.split('_').map(Number);
+      const o=parseFloat(e.target.dataset.orig)||0, nv=parseFloat(e.target.value)||0;
+      if(o!==nv) logEv('edit',ri,c,o,nv,{idx});
+    });
+  });
+  document.querySelectorAll('#feed input').forEach(i=>i.addEventListener('input',e=>{
+    const [ri,c,idx]=e.target.dataset.k.split('_').map(Number);
+    const card=CARDS.find(x=>x.ri===ri&&x.c===c&&x.idx===idx);
+    const nv=parseFloat(e.target.value)||0;
+    data.rows[ri][c]=Math.max(0,(data.rows[ri][c]||0)+(nv-card.amt));
+    card.amt=nv;
+    kpis(); save();
+  }));
+  // drag & drop переноса на другой день
+  let dragKey=null;
+  document.querySelectorAll('#feed .card').forEach(cd=>{
+    cd.addEventListener('dragstart',e=>{ dragKey=cd.dataset.k; e.dataTransfer.effectAllowed='move'; });
+  });
+  document.querySelectorAll('#feed .day, #feed .card').forEach(el=>{
+    el.addEventListener('dragover',e=>{ if(dragKey){ e.preventDefault(); el.style.outline='1.5px dashed var(--accent)'; } });
+    el.addEventListener('dragleave',()=>{ el.style.outline=''; });
+    el.addEventListener('drop',e=>{
+      e.preventDefault(); el.style.outline='';
+      if(!dragKey) return;
+      const iso=el.dataset.iso;
+      if(iso){
+        const [ri,c,idx]=dragKey.split('_').map(Number);
+        logEv('move',ri,c,(data.moves[dragKey]||''),iso,{idx});
+        data.moves[dragKey]=iso; save(); render(); }
+      dragKey=null;
+    });
+  });
+  document.querySelectorAll('#feed .pd').forEach(b=>b.addEventListener('click',e=>{
+    const k=e.target.dataset.p;
+    const cd=CARDS.find(x=>ckey(x)===k);
+    if(!cd) return;
+    const [ri,c]=[cd.ri,cd.c];
+    if(!data.paid[k]){                 // оплатить: списать из плана
+      data.paid[k]={a:cd.amt,iso:cd.iso};
+      data.rows[ri][c]=Math.max(0,(data.rows[ri][c]||0)-cd.amt);
+      logEv('paid',ri,c,cd.amt,0,{idx:cd.idx,iso:cd.iso});
+    } else {                           // откат: вернуть в план
+      data.rows[ri][c]=(data.rows[ri][c]||0)+data.paid[k].a;
+      logEv('unpaid',ri,c,0,data.paid[k].a,{idx:cd.idx,iso:cd.iso});
+      delete data.paid[k];
+    }
+    save(); render();
+  }));
+  kpis();
+}
+window.addEventListener('storage',e=>{
+  if(e.key===LS && e.newValue && document.activeElement.tagName!=='INPUT'){
+    try{ const d=JSON.parse(e.newValue); if(d&&d.rows){ data=d;
+      if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+      if(!data.paid) data.paid={};
+      render();
+      document.getElementById('sync').textContent='обновлено из таблицы';
+    } }catch(_){}
+  }
+});
+document.getElementById('togglePaid').addEventListener('click',()=>{
+  showPaid=!showPaid;
+  document.getElementById('togglePaid').classList.toggle('on',showPaid);
+  render();
+});
+loadLS(); render();
+(async()=>{ try{
+  const r=await fetch('/api/plan',{cache:'no-store'});
+  if(r.ok){ const j=await r.json();
+    if(j && j.rows){ data=j; loadLS.migrated=1;
+      if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+      if(!data.extraTypes) data.extraTypes=[];
+      if(!data.paid) data.paid={}; if(!data.moves) data.moves={};
+      render();
+      document.getElementById('sync').textContent='данные: money-tracker/plan.json (vault)'; } }
+}catch(e){} })();
+</script>
+</body>
+</html>

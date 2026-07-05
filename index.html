@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>💸 Трекер трат</title>
+<style>
+  :root {
+    --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE;
+    --warn:#8A5A18; --warn-bg:#F7EFDC; --crit:#96382C; --crit-bg:#F6E8E4;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --serif:Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A;
+      --warn:#D9A85C; --warn-bg:#322A18; --crit:#D98876; --crit-bg:#37231F; }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;
+    padding:28px 14px 90px;font-size:15px;line-height:1.45}
+  .wrap{max-width:680px;margin:0 auto}
+  h1{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:12.5px;margin-bottom:18px}
+
+  .entry{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+  .amount-row{display:flex;gap:10px;margin-bottom:12px}
+  #amount{flex:1;font-family:var(--mono);font-size:28px;padding:8px 14px;border:1.5px solid var(--line);
+    border-radius:8px;background:var(--paper);color:var(--ink);width:100%;font-variant-numeric:tabular-nums}
+  #amount:focus{outline:none;border-color:var(--accent)}
+  #note{width:100%;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:7px;
+    background:var(--paper);color:var(--ink);margin-top:10px}
+  .cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px}
+  .cats button{padding:9px 6px;font-size:12.5px;border:1px solid var(--line);border-radius:7px;
+    background:var(--paper);color:var(--ink);cursor:pointer;white-space:nowrap}
+  .cats button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  #savebtn{width:100%;margin-top:12px;padding:12px;font-size:15px;font-weight:600;border:none;
+    border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}
+  #savebtn:disabled{opacity:.4;cursor:default}
+  .flash{animation:fl .5s} @keyframes fl{0%{background:var(--accent-soft)}100%{background:var(--card)}}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:16px}
+  .st{background:var(--card);padding:12px 14px}
+  .st .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .st .v{font-family:var(--serif);font-size:20px;font-variant-numeric:tabular-nums;margin-top:3px}
+  .st .s{font-size:11px;color:var(--muted)}
+  .over{color:var(--crit)} .okc{color:var(--accent)}
+
+  h2{font-family:var(--serif);font-weight:400;font-size:18px;margin:22px 0 8px}
+  .lims{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 14px}
+  .lim{display:grid;grid-template-columns:110px 1fr 110px;gap:10px;align-items:center;
+    padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .lim:last-child{border-bottom:none}
+  .bar{height:7px;background:var(--paper);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .bar i.warn{background:var(--warn)} .bar i.crit{background:var(--crit)}
+  .lim .n{font-family:var(--mono);font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+
+  .hist{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px 14px}
+  .tx{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:baseline;
+    padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .tx:last-child{border-bottom:none}
+  .tx .d{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+  .tx .a{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tx .x{color:var(--muted);cursor:pointer;border:none;background:none;font-size:15px;padding:0 2px}
+  .tx .x:hover{color:var(--crit)}
+  .cat-tag{font-size:11px;color:var(--muted)}
+  .empty{color:var(--muted);font-size:13px;padding:14px 0;text-align:center}
+  .exp{margin-top:14px;font-size:12px;color:var(--muted)}
+  .exp a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💸 Трекер трат</h1>
+  <div style="display:flex;gap:8px;margin:4px 0 10px">
+    <a href="plan.html" style="font-size:12.5px;color:var(--accent)">📅 Финплан</a>
+    <a href="cards.html" style="font-size:12.5px;color:var(--accent)">🗂 Карточки</a>
+  </div>
+  <div class="sub">Данные: <code>money-tracker/data.json</code> в vault · план «Жизнь»: 130 000 ₽/мес</div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="entry" id="entry">
+    <div class="amount-row">
+      <input id="amount" type="number" inputmode="decimal" placeholder="Сумма, ₽" autofocus>
+    </div>
+    <div class="cats" id="cats"></div>
+    <input id="note" placeholder="Комментарий (необязательно)">
+    <button id="savebtn" disabled>Сохранить</button>
+  </div>
+
+  <h2>Лимиты месяца</h2>
+  <div class="lims" id="lims"></div>
+
+  <h2>Последние операции</h2>
+  <div class="hist" id="hist"></div>
+  <div class="exp"><a href="#" id="csv">Экспорт CSV</a> · всё сохраняется мгновенно, сервер можно закрывать</div>
+</div>
+
+<script>
+const CATS = ["Продукты","Кафе/ресты","Такси","Транспорт","Маркетплейсы","ЖКХ/связь",
+              "Здоровье","Спорт","Подписки","Родителям","Путешествия","Прочее"];
+const PLAN_MONTH = 130000;
+let DB = {tx:[], limits:{}};
+let selCat = null;
+
+const $ = id => document.getElementById(id);
+const F = n => new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const today = () => new Date().toISOString().slice(0,10);
+const ym = s => s.slice(0,7);
+
+async function api(path, body){
+  const r = await fetch(path, body ? {method:'POST', body: JSON.stringify(body)} : {});
+  return r.json();
+}
+
+function render(){
+  const now = new Date(), curYM = now.toISOString().slice(0,7);
+  const tD = today();
+  const monthTx = DB.tx.filter(t=>ym(t.date)===curYM);
+  const dayTx   = monthTx.filter(t=>t.date===tD);
+  const wStart = new Date(now); wStart.setDate(now.getDate()-((now.getDay()+6)%7));
+  const wISO = wStart.toISOString().slice(0,10);
+  const weekTx = DB.tx.filter(t=>t.date>=wISO);
+  const sum = a => a.reduce((s,t)=>s+t.amount,0);
+  const mSum=sum(monthTx), dSum=sum(dayTx), wSum=sum(weekTx);
+  const daysIn = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const dayPlan = PLAN_MONTH/daysIn;
+  const pace = dayPlan*now.getDate();
+
+  $('stats').innerHTML = `
+    <div class="st"><div class="l">Сегодня</div>
+      <div class="v ${dSum>dayPlan*1.3?'over':''}">${F(dSum)} ₽</div>
+      <div class="s">ориентир ~${F(dayPlan)}/день</div></div>
+    <div class="st"><div class="l">Неделя</div>
+      <div class="v">${F(wSum)} ₽</div><div class="s">с понедельника</div></div>
+    <div class="st"><div class="l">Месяц</div>
+      <div class="v ${mSum>pace?'over':'okc'}">${F(mSum)} ₽</div>
+      <div class="s">темп плана: ${F(pace)} · план ${F(PLAN_MONTH)}</div></div>`;
+
+  // limits
+  const byCat = {};
+  monthTx.forEach(t=>byCat[t.cat]=(byCat[t.cat]||0)+t.amount);
+  $('lims').innerHTML = CATS.map(c=>{
+    const lim = DB.limits[c]||0, got = byCat[c]||0;
+    const p = lim? Math.min(got/lim*100,100) : 0;
+    const cls = lim && got>lim ? 'crit' : (lim && got>lim*0.8 ? 'warn' : '');
+    return `<div class="lim"><span>${c}</span>
+      <div class="bar"><i class="${cls}" style="width:${p}%"></i></div>
+      <span class="n">${F(got)}${lim?' / '+F(lim):''}</span></div>`;
+  }).join('');
+
+  // history (last 25)
+  const last = [...DB.tx].sort((a,b)=>b.id-a.id).slice(0,25);
+  $('hist').innerHTML = last.length ? last.map(t=>`
+    <div class="tx"><span class="d">${t.date.slice(5)}</span>
+      <span>${t.note||''} <span class="cat-tag">· ${t.cat}</span></span>
+      <span class="a">−${F(t.amount)} ₽</span>
+      <button class="x" onclick="del(${t.id})">×</button></div>`).join('')
+    : '<div class="empty">Пока пусто — внеси первую трату 👆</div>';
+
+  $('savebtn').disabled = !(parseFloat($('amount').value)>0 && selCat);
+}
+
+function drawCats(){
+  $('cats').innerHTML = CATS.map(c=>`<button data-c="${c}">${c}</button>`).join('');
+  $('cats').onclick = e=>{
+    if(!e.target.dataset.c) return;
+    selCat = e.target.dataset.c;
+    [...$('cats').children].forEach(b=>b.classList.toggle('on', b.dataset.c===selCat));
+    render();
+  };
+}
+
+async function add(){
+  const amount = parseFloat($('amount').value);
+  if(!(amount>0) || !selCat) return;
+  const tx = {id: Date.now(), date: today(), amount, cat: selCat, note: $('note').value.trim()};
+  DB.tx.push(tx); render();
+  $('amount').value=''; $('note').value='';
+  $('entry').classList.remove('flash'); void $('entry').offsetWidth; $('entry').classList.add('flash');
+  $('amount').focus();
+  await api('/api/tx', tx);
+}
+
+async function del(id){
+  DB.tx = DB.tx.filter(t=>t.id!==id); render();
+  await api('/api/del', {id});
+}
+window.del = del;
+
+$('savebtn').onclick = add;
+$('amount').addEventListener('keydown', e=>{ if(e.key==='Enter') add(); });
+$('note').addEventListener('keydown', e=>{ if(e.key==='Enter') add(); });
+$('amount').addEventListener('input', render);
+$('csv').onclick = e=>{
+  e.preventDefault();
+  const rows = [['date','amount','category','note'],
+    ...DB.tx.map(t=>[t.date,t.amount,t.cat,(t.note||'').replace(/[,\n]/g,' ')])];
+  const blob = new Blob(['﻿'+rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'traty.csv'; a.click();
+};
+
+(async()=>{ DB = await api('/api/data'); drawCats(); render(); })();
+</script>
+</body>
+</html>

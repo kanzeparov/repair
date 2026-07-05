@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📅 Интерактивный финплан — июль–декабрь 2026</title>
+<style>
+  :root {
+    --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE;
+    --warn:#8A5A18; --warn-bg:#F7EFDC; --crit:#96382C; --crit-bg:#F6E8E4;
+    --inc:#EDF3EE; --exp:#F6E8E4; --dif:#F7EFDC;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A;
+      --warn:#D9A85C; --warn-bg:#322A18; --crit:#D98876; --crit-bg:#37231F;
+      --inc:#24322A; --exp:#37231F; --dif:#322A18; }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;
+    padding:24px 12px 70px;font-size:13px}
+  h1{font-family:Georgia,serif;font-weight:400;font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .bar button{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--ink);cursor:pointer}
+  #save.dirty{background:var(--accent);border-color:var(--accent);color:#fff}
+  .bar .start{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .bar input{width:110px;font-family:var(--mono);font-size:12.5px;padding:6px 8px;
+    border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+  .kpi{margin-left:auto;display:flex;gap:14px;font-family:var(--mono);font-size:12px}
+  .kpi b{font-size:14px}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+  table{border-collapse:collapse;font-size:12px;min-width:1560px}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--muted);
+    padding:7px 6px;border-bottom:1.5px solid var(--line);white-space:nowrap;text-align:right;
+    position:sticky;top:0;background:var(--card);z-index:2}
+  th:first-child{text-align:left;position:sticky;left:0;z-index:3}
+  td{border-bottom:1px solid var(--line);padding:0;text-align:right}
+  td.lbl[contenteditable]:focus{outline:1.5px solid var(--accent);border-radius:3px}
+  td.lbl{padding:5px 10px;text-align:left;white-space:nowrap;font-size:12px;
+    position:sticky;left:0;background:var(--card);z-index:1;max-width:250px;
+    overflow:hidden;text-overflow:ellipsis}
+  tr.inc td.lbl{box-shadow:inset 3px 0 0 var(--accent)}
+  tr.exp td.lbl{box-shadow:inset 3px 0 0 var(--crit)}
+  td input{width:88px;border:none;background:transparent;color:var(--ink);
+    font-family:var(--mono);font-size:11.5px;text-align:right;padding:5px 6px}
+  td input:focus{outline:1.5px solid var(--accent);border-radius:3px;background:var(--card)}
+  td input::-webkit-inner-spin-button,td input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  td input{-moz-appearance:textfield;appearance:textfield}
+  td input.zero{color:color-mix(in srgb, var(--muted) 45%, transparent)}
+  tr.tot td{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:6px;white-space:nowrap}
+  tr.t-inc td{background:var(--inc)} tr.t-exp td{background:var(--exp)} tr.t-dif td{background:var(--dif)}
+  tr.t-dif td.neg{color:var(--crit)}
+  .note{margin-top:12px;color:var(--muted);font-size:11.5px;max-width:90ch}
+</style>
+</head>
+<body>
+  <h1>📅 Интерактивный финплан · 1 июля — 31 декабря 2026</h1>
+  <div class="sub">Атомарные статьи (одна строка = одна трата). Ячейки = остаток к оплате: оплата карточки на странице карточек списывает сумму отсюда автоматически. Отличие от таблицы 05.07 по решению от 05.07: аренда студии (45к ×2) исключена — транзит родителям; 39/45/45 окт–дек = аренда однушки: меняй любую ячейку — «Доход», «Расход» и «Разница» пересчитаются мгновенно. Всё сохраняется в браузере автоматически.</div>
+
+  <div class="bar">
+    <span class="start">Райффайзен:
+      <input id="st_raif" type="number" value="142000" style="width:90px"></span>
+    <span class="start">Кредитка Тинькофф:
+      <input id="st_tkf" type="number" value="0" style="width:90px"></span>
+    <span class="start">Наличные:
+      <input id="st_cash" type="number" value="0" style="width:90px"></span>
+    <span class="start">Σ старт: <b id="st_sum" style="font-family:var(--mono)">—</b></span>
+    <a href="Финплан — карточки.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🗂 Карточки</a>
+    <button id="save">💾 Сохранить</button>
+    <button id="csv">⬇ CSV</button>
+    <button id="addrow">＋ Статья</button>
+    <button id="undo">↶ Отменить</button>
+    <button id="logbtn">📜 Журнал</button>
+    <button id="backup">⛃ Бэкап</button>
+    <span class="start" id="saveInfo"></span>
+    <span class="kpi">
+      <span>Σ Доход <b id="kInc">—</b></span>
+      <span>Σ Расход <b id="kExp">—</b></span>
+      <span>Итог 31.12 <b id="kDec">—</b></span>
+      <span style="color:var(--accent)">Итог янв.27 <b id="kEnd">—</b></span>
+      <span>Ипотека-2 <b id="kMort">—</b></span>
+    </span>
+  </div>
+
+  <div class="scroll"><table id="grid"></table></div>
+
+  <p class="note">Зелёная полоса слева — доход, красная — расход. Серые нули — пустые ячейки (можно заполнять). Название статьи редактируется кликом по нему. Всё сохраняется автоматически при каждом изменении.
+  «Разница» — нарастающий остаток: старт + доходы − расходы. ПВ за объект 2 млн — строка 01.09; доплата за объект — ячейка 31.12 (правь под цену лота). KPI «Ипотека-2» показывает, какой второй ипотекой закрывается минус года, и её платёж. «Не продаю»: продажа/гашения/покупка убраны, возвращены платежи по кредитам (~75к/мес), минималки ТКФ и ипотека 38к — долги при этом никуда не деваются. Выбор сценария сбрасывает ручные правки ячеек. Финальные −3 млн в плане = остаток второй ипотеки после декабрьского ЧДП, поэтому отрицательная «Разница» на 31.12 — это по замыслу.
+  Данные живут в localStorage этого браузера; «Сброс» возвращает план 05.07. Крупные сценарные развилки (стратегии А/Б/В/Г, Монте-Карло) — в «Финкалькуляторе», а это — рабочая помесячная таблица.</p>
+
+<script>
+const COLS=['1.07','16.07','1.08','16.08','1.09','15.09','1.10','16.10','1.11','16.11','1.12','16.12','31.12','янв.27'];
+const z=()=>Array(14).fill(0);
+function row(vals){const a=z();for(const[i,v]of Object.entries(vals))a[i]=v;return a;}
+const PLAN=[
+ ['inc','ЗП', row({1:200000,2:200000,3:200000,4:200000,5:200000,6:200000,7:200000,8:200000,9:200000,10:200000,11:200000,12:200000})],
+ ['inc','Аренда однушки (Дмитровская), окт–дек', row({7:39000,9:45000,11:45000})],
+ ['inc','Продажа студии Алтуфьевское 51', row({4:12000000})],
+ ['inc','Продажа кладовой Алтуфьево', row({6:1100000})],
+ ['inc','Продажа кладовой Павелецкая', row({12:1300000})],
+ ['inc','Продажа крипты (ликвидное ядро)', row({12:1535000})],
+ ['inc','Продажа акций ТБанк', row({12:385000})],
+ ['inc','Аренда кладовой Алтуфьево', row({1:7000,3:7000,5:7000})],
+ ['inc','Аренда кладовой Павелецкая', row({2:5000,4:5000,6:5000,8:5000,10:5000})],
+ ['inc','С хаты + krpt sell', row({2:6000})],
+ ['inc','Подписки за клод (друзья)', row({2:3000,4:3000,6:3000,8:3000,10:3000,12:3000})],
+ ['inc','С кредитки Райф (в длр)', row({3:100000})],
+ ['inc','Налоговый вычет за учёбу (Синергия, 13%)', row({13:13000})],
+ ['inc','Налоговый вычет основной (январь 2027)', row({13:70000})],
+ ['exp','НДФЛ с продажи студии (в плане 05.07 не выделен)', z()],
+ ['exp','Ресты + еда вне', [5000,5000,5000,5000,0,0,0,6000,4824,3987,3994,4000,3542,0]],
+ ['exp','Еда', [30000,30000,30000,30000,0,0,0,30000,30047,30000,30000,30000,30000,0]],
+ ['exp','Качалка', row({7:12000})],
+ ['exp','Бады + одежда', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
+ ['exp','Здоровье', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
+ ['exp','Квартплата (ма/па) + уборка', row({0:14300,2:14300,4:16800,6:16800,8:16800,10:16800,12:16800})],
+ ['exp','Ипотека (платёж)', row({1:38000,3:38000,5:66000,7:66000,9:66000,11:66000})],
+ ['exp','Такси', [6000,6000,6000,5700,0,0,0,5000,5000,5000,5000,5000,5000,0]],
+ ['exp','Путешествие + зубной (капа)', row({2:12000,7:12000,10:12000})],
+ ['exp','Расходники', [2000,2000,2000,2000,0,0,0,2000,2000,2000,2000,2000,2000,0]],
+ ['exp','Оплата за кладовую', row({1:6000,3:6000,5:6000,7:6000,9:6000,11:6000})],
+ ['exp','Кредитка ТКФ (гашение 01.09)', row({4:380000})],
+ ['exp','Платежи по кредитам Райф', row({1:75000,3:75000})],
+ ['exp','Анискин (лечение отца)', row({2:50000})],
+ ['exp','Прочее 16.08 (уточнить статью)', row({3:42000})],
+ ['exp','Гашение кредитов Райф (остатки)', row({4:3041387})],
+ ['exp','ПВ за объект (первоначальный взнос)', row({4:2000000})],
+ ['exp','Гашение ипотеки ДОМ.РФ 4,6%', row({5:6700000})],
+ ['exp','Доплата за объект (покупка)', row({12:8032000})],
+ ['exp','Гашение кредиток Райф (конец грейса)', row({3:355000})],
+ ['exp','Кредитка Райф — гашение №2', row({6:100000})],
+ ['exp','Учёба: Синергия (аспирантура)', row({8:100000})],
+ ['exp','Страхование жизни (обязательно для ставки 4,6%)', row({8:27000})],
+ ['exp','Страхование квартиры (ипотечное)', row({8:27000})],
+ ['exp','Отпуск: Китай', row({4:194000})],
+ ['exp','Транш (длр/прочее)', row({10:150000})],
+ ['exp','Линзы (покупка)', row({10:30000})],
+ ['exp','ДР, подарки, билеты, отложить', row({0:10000,1:10000,2:10000,3:10000,5:10000,7:10000,9:10000,11:10000})],
+];
+const LS='finplan-grid-26l';
+let data;
+try{ data=JSON.parse(localStorage.getItem(LS)); }catch(e){}
+function migrate(){
+  if(!data || !data.rows) data={start:142000, rows:PLAN.map(r=>[...r[2]])};
+  if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+  while(data.rows.length<PLAN.length){ data.rows.push([...PLAN[data.rows.length][2]]); }
+  while(data.labels.length<PLAN.length){ data.labels.push(PLAN[data.labels.length][1]); }
+  if(!data.extraTypes) data.extraTypes=[];
+}
+migrate();
+const TYPE=ri=> ri<PLAN.length ? PLAN[ri][0] : (data.extraTypes[ri-PLAN.length]||'exp');
+const LBL=ri=> (data.labels&&data.labels[ri]) || (ri<PLAN.length?PLAN[ri][1]:'Статья');
+
+function logEv(k,ri,c,from,to,extra){
+  if(!data.log) data.log=[];
+  data.log.push({t:new Date().toISOString(),src:'table',k,ri,c,
+    lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
+  if(data.log.length>5000) data.log.splice(0,data.log.length-5000);
+}
+const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
+const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));
+const RI=t=>PLAN.findIndex(r=>r[1].startsWith(t));
+
+const grid=document.getElementById('grid');
+
+function build(){
+  let h='<tr><th>Статья</th>'+COLS.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  data.rows.forEach((_,ri)=>{
+    const lb=LBL(ri);
+    h+=`<tr class="${TYPE(ri)}"><td class="lbl" contenteditable="true" spellcheck="false" data-ri="${ri}" title="${lb}">${lb}</td>`;
+    for(let ci=0;ci<COLS.length;ci++){
+      h+=`<td><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}" value="${data.rows[ri][ci]||0}"></td>`;
+    }
+    h+='</tr>';
+  });
+  h+='<tr class="tot t-inc" id="rInc"></tr><tr class="tot t-exp" id="rExp"></tr><tr class="tot t-dif" id="rDif"></tr>';
+  grid.innerHTML=h;
+  grid.querySelectorAll('td.lbl[contenteditable]').forEach(td=>{
+    td.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.textContent.trim(); });
+    td.addEventListener('blur',e=>{
+      const o=e.target.dataset.orig, nv=e.target.textContent.trim();
+      if(o!==nv){ logEv('rename',+e.target.dataset.ri,-1,o,nv); autoSave(); }
+    });
+    td.addEventListener('input',e=>{
+      if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+      data.labels[+e.target.dataset.ri]=e.target.textContent.trim();
+      autoSave();
+    });
+  });
+  grid.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('keydown',e=>{
+      const go=(r,c)=>{ const nxt=grid.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+        if(nxt){ nxt.focus(); nxt.select(); return true; } return false; };
+      if(e.key==='ArrowUp'||e.key==='ArrowDown'||e.key==='Enter'){
+        e.preventDefault();
+        const dr=(e.key==='ArrowUp')?-1:1;
+        let r=+e.target.dataset.r+dr;
+        while(r>=0 && r<data.rows.length){ if(go(r,+e.target.dataset.c)) break; r+=dr; }
+      } else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+        const t=e.target, len=t.value.length;
+        const atEnd=(t.selectionEnd===len), atStart=(t.selectionStart===0);
+        const allSel=(t.selectionStart===0 && t.selectionEnd===len && len>0);
+        if(e.key==='ArrowRight' && (atEnd||allSel)){
+          e.preventDefault(); go(+t.dataset.r, +t.dataset.c+1);
+        } else if(e.key==='ArrowLeft' && (atStart||allSel)){
+          e.preventDefault(); go(+t.dataset.r, +t.dataset.c-1);
+        }
+      }
+    });
+    inp.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value; });
+    inp.addEventListener('change',e=>{
+      const r=+e.target.dataset.r,c=+e.target.dataset.c;
+      const o=parseFloat(String(e.target.dataset.orig||'').replace(',','.'))||0;
+      const nv=parseFloat(String(e.target.value).replace(',','.'))||0;
+      if(o!==nv){ logEv('edit',r,c,o,nv,{col:COLS[c]}); autoSave(); }
+    });
+    inp.addEventListener('input',e=>{
+      const r=+e.target.dataset.r,c=+e.target.dataset.c;
+      data.rows[r][c]=parseFloat(String(e.target.value).replace(',','.'))||0;
+      calc(); autoSave();
+    });
+  });
+  calc();
+}
+function calc(){
+  const inc=z(),exp=z();
+  data.rows.forEach((row,ri)=>{
+    for(let c=0;c<COLS.length;c++){
+      if(TYPE(ri)==='inc') inc[c]+=row[c]||0; else exp[c]+=row[c]||0;
+    }
+  });
+  let run=data.start||0;
+  const dif=[];
+  for(let c=0;c<COLS.length;c++){ run+=inc[c]-exp[c]; dif.push(run); }
+  const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
+  document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map(v=>cell(v)).join('');
+  document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map(v=>cell(v)).join('');
+  document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим)</td>'+dif.map(v=>cell(v,1)).join('');
+  const sI=inc.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
+  document.getElementById('kInc').textContent=F(sI)+' ₽';
+  document.getElementById('kExp').textContent=F(sE)+' ₽';
+  document.getElementById('kDec').textContent=F(dif[12])+' ₽';
+  document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
+  const need=Math.max(0,-dif[12]);
+  document.getElementById('kMort').textContent = need>0
+    ? F(need)+' ₽ · ~'+F(annuity(need,0.078/12,240))+'/мес @7,8%/20л'
+    : '0 ₽';
+  grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
+}
+function readStart(){
+  if(!data.startParts) data.startParts={raif:142000,tkf:0,cash:0};
+  data.startParts.raif=parseFloat(document.getElementById('st_raif').value)||0;
+  data.startParts.tkf=parseFloat(document.getElementById('st_tkf').value)||0;
+  data.startParts.cash=parseFloat(document.getElementById('st_cash').value)||0;
+  data.start=data.startParts.raif+data.startParts.tkf+data.startParts.cash;
+  document.getElementById('st_sum').textContent=F(data.start)+' ₽';
+}
+function setStartInputs(){
+  const p=data.startParts||{raif:(data.start!=null?data.start:142000),tkf:0,cash:0};
+  data.startParts=p;
+  document.getElementById('st_raif').value=p.raif;
+  document.getElementById('st_tkf').value=p.tkf;
+  document.getElementById('st_cash').value=p.cash;
+  data.start=p.raif+p.tkf+p.cash;
+  document.getElementById('st_sum').textContent=F(data.start)+' ₽';
+}
+function saveState(){
+  readStart();
+  try{ fetch('/api/plan',{method:'POST',body:JSON.stringify(data)}).catch(()=>{}); }catch(e){}
+  try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
+}
+setStartInputs();
+['st_raif','st_tkf','st_cash'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value; });
+  el.addEventListener('change',e=>{
+    const o=parseFloat(e.target.dataset.orig)||0, nv=parseFloat(e.target.value)||0;
+    if(o!==nv) logEv('start',-1,-1,o,nv,{field:id});
+  });
+  el.addEventListener('input',()=>{readStart();calc();autoSave();});
+});
+window.addEventListener('storage',e=>{
+  if(e.key===LS && e.newValue && document.activeElement.tagName!=='INPUT'){
+    try{ const d=JSON.parse(e.newValue);
+      if(d && d.rows){ data=d; if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+        setStartInputs(); build();
+        document.getElementById('saveInfo').textContent='обновлено с карточек '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      } }catch(_){}
+  }
+});
+let autoT=null;
+function autoSave(){
+  clearTimeout(autoT);
+  autoT=setTimeout(()=>{ saveState();
+    document.getElementById('saveInfo').textContent='автосохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  },300);
+}
+document.getElementById('save').onclick=()=>{ saveState();
+  document.getElementById('saveInfo').textContent='сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); };
+
+document.getElementById('logbtn').onclick=()=>{
+  const log=data.log||[];
+  const blob=new Blob([JSON.stringify(log,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='finplan-log.json'; a.click();
+};
+document.getElementById('addrow').onclick=()=>{
+  const name=prompt('Название новой статьи:'); if(!name) return;
+  const isExp=confirm('OK — это РАСХОД.  Отмена — это ДОХОД.');
+  data.labels.push(name.trim());
+  data.extraTypes.push(isExp?'exp':'inc');
+  data.rows.push(Array(COLS.length).fill(0));
+  logEv('addrow',data.rows.length-1,-1,'',name.trim());
+  build(); autoSave();
+};
+document.getElementById('undo').onclick=()=>{
+  const log=data.log||[];
+  const ev=log.pop();
+  if(!ev){ alert('Журнал пуст — отменять нечего'); return; }
+  try{
+    if(ev.k==='edit'){ data.rows[ev.ri][ev.c]=ev.from; }
+    else if(ev.k==='rename'){ data.labels[ev.ri]=ev.from; }
+    else if(ev.k==='start'){ data.startParts[ev.field.replace('st_','')==='raif'?'raif':ev.field==='st_tkf'?'tkf':'cash']=ev.from; setStartInputs(); }
+    else if(ev.k==='paid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
+      data.rows[ev.ri][ev.c]=(data.rows[ev.ri][ev.c]||0)+ev.from;
+      if(data.paid) delete data.paid[key]; }
+    else if(ev.k==='unpaid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
+      data.rows[ev.ri][ev.c]=Math.max(0,(data.rows[ev.ri][ev.c]||0)-ev.to);
+      if(!data.paid) data.paid={}; data.paid[key]={a:ev.to,iso:ev.iso||''}; }
+    else if(ev.k==='move'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
+      if(ev.from) data.moves[key]=ev.from; else if(data.moves) delete data.moves[key]; }
+    else if(ev.k==='addrow'){ if(ev.ri===data.rows.length-1){
+      data.rows.pop(); data.labels.pop(); data.extraTypes.pop(); } }
+  }catch(e){}
+  build(); autoSave();
+  document.getElementById('saveInfo').textContent='отменено: '+ev.k+' ('+(ev.lbl||'')+')';
+};
+document.getElementById('backup').onclick=()=>{
+  const pack={ts:new Date().toISOString(), finplan:data};
+  try{ pack.optimization=JSON.parse(localStorage.getItem('opt26')||'{}'); }catch(e){}
+  const blob=new Blob([JSON.stringify(pack,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='finance-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+};
+document.getElementById('csv').onclick=()=>{
+  const rows=[['Статья',...COLS],
+    ...data.rows.map((row,ri)=>[LBL(ri),...row])];
+  const blob=new Blob(['﻿'+rows.map(r=>r.join(';')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='finplan-2026.csv'; a.click();
+};
+build();
+// если открыто через сервер трекера (localhost:8765) — подтянуть данные из vault-файла
+(async()=>{ try{
+  const r=await fetch('/api/plan',{cache:'no-store'});
+  if(r.ok){ const j=await r.json();
+    if(j && j.rows){ data=j; migrate(); setStartInputs(); build();
+      document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'; } }
+}catch(e){} })();
+</script>
+</body>
+</html>

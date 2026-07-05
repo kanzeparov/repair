@@ -1,0 +1,7 @@
+data.json
+plan.json
+.secret
+.push_enabled
+*.log
+*.tmp
+.DS_Store
