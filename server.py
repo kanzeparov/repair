@@ -195,7 +195,8 @@ if __name__ == "__main__":
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), H) as srv:
         print(f"💸 Трекер трат: http://localhost:{PORT}  (данные: {DATA})")
-        threading.Timer(0.6, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+        if not os.environ.get("LAUNCHD_RUN"):
+            threading.Timer(0.6, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
         try:
             srv.serve_forever()
         except KeyboardInterrupt:

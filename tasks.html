@@ -44,6 +44,8 @@
   .task.done .t{text-decoration:line-through}
   .task .x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0}
   .task .x:hover{color:var(--crit)}
+  .task .a{border:none;background:none;cursor:pointer;font-size:11px;padding:0 2px;opacity:.55}
+  .task .a:hover{opacity:1}
   .task .meta{display:block;font-family:var(--mono);font-size:10px;color:var(--warn);margin-top:2px}
   .col.drag{outline:2px dashed var(--accent)}
   .note{margin-top:14px;color:var(--muted);font-size:11.5px;max-width:86ch}
@@ -58,6 +60,8 @@
     <button id="todaybtn">Сегодня</button>
     <input id="newtask" placeholder="Новая задача… (Enter — в Бэклог)">
     <button id="toggleDone">👁 Выполненные: <span id="doneN">0</span></button>
+    <button id="toggleArch">📦 Архив: <span id="archN">0</span></button>
+    <button id="archAll" title="Отправить весь бэклог в архив одним кликом">📦⬅ бэклог</button>
     <a id="navHome" href="🗂 ГЛАВНАЯ.html">🏠</a>
     <span id="sync" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
   </div>
@@ -89,7 +93,7 @@ const SEED=[
 const LS='tasks26';
 const F=['вс','пн','вт','ср','чт','пт','сб'];
 const MN=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-let data=null, SRV=false, weekStart=null, showDone=false;
+let data=null, SRV=false, weekStart=null, showDone=false, showArch=false;
 function monday(d){ const x=new Date(d); x.setDate(x.getDate()-((x.getDay()+6)%7)); x.setHours(12,0,0,0); return x; }
 function iso(d){ return d.toISOString().slice(0,10); }
 async function boot(){
@@ -119,7 +123,7 @@ function rollover(){
   const t=iso(new Date(new Date().setHours(12,0,0,0)));
   let moved=0;
   (data.tasks||[]).forEach(x=>{
-    if(x.date && x.date<t && !x.done){
+    if(x.date && x.date<t && !x.done && !x.arch){
       logEv('rollover',x,{from:x.date,to:'backlog'});
       x.date=null; moved++;           // незакрытое прошлое → Бэклог текущей недели
     }
@@ -142,6 +146,7 @@ function render(){
     let items=data.tasks.filter(t=> col.key==='backlog'
       ? (!t.date || (t.date<iso(weekStart)&&!t.done) || t.date>iso(we))
       : t.date===col.key);
+    items=items.filter(t=> showArch ? t.arch : !t.arch);
     if(!showDone) items=items.filter(t=>!t.done);
     // просроченные прошлых недель показываем в бэклоге; будущие вне недели тоже там
     h+=`<div class="col ${col.key===todayISO?'today':''}" data-col="${col.key}">
@@ -152,13 +157,17 @@ function render(){
       h+=`<div class="task ${t.fin?'fin':''} ${t.done?'done':''} ${over?'over':''}" draggable="true" data-id="${t.id}">
         <input type="checkbox" ${t.done?'checked':''} data-id="${t.id}">
         <span class="t">${t.txt}${t.date&&col.key==='backlog'?`<span class="meta">${t.date}</span>`:''}</span>
-        <button class="x" data-id="${t.id}">×</button></div>`;
+        <button class="a" data-id="${t.id}" title="${t.arch?'вернуть из архива':'в архив'}">${t.arch?'↩':'📦'}</button><button class="x" data-id="${t.id}">×</button></div>`;
     });
     h+='</div>';
   });
   document.getElementById('board').innerHTML=h;
   const dn=document.getElementById('doneN');
   if(dn) dn.textContent=data.tasks.filter(t=>t.done).length;
+  const an=document.getElementById('archN');
+  if(an) an.textContent=data.tasks.filter(t=>t.arch).length;
+  const todayN=data.tasks.filter(t=>!t.done&&!t.arch&&t.date===todayISO).length;
+  document.title=(todayN?'('+todayN+') ':'')+'✅ ЗАДАЧИ — неделя';
   // события
   document.querySelectorAll('.task input').forEach(cb=>cb.addEventListener('change',e=>{
     const t=data.tasks.find(x=>x.id==e.target.dataset.id); t.done=e.target.checked;
@@ -169,6 +178,10 @@ function render(){
     const t=data.tasks.find(x=>x.id==e.target.dataset.id);
     logEv('delete',t);
     data.tasks=data.tasks.filter(x=>x.id!=e.target.dataset.id); save(); render();
+  }));
+  document.querySelectorAll('.task .a').forEach(b=>b.addEventListener('click',e=>{
+    const t=data.tasks.find(x=>x.id==e.target.dataset.id);
+    t.arch=!t.arch; logEv(t.arch?'archive':'unarchive',t); save(); render();
   }));
   let dragId=null;
   document.querySelectorAll('.task').forEach(t=>t.addEventListener('dragstart',()=>{dragId=t.dataset.id;}));
@@ -188,6 +201,18 @@ document.getElementById('toggleDone').onclick=()=>{
   showDone=!showDone;
   document.getElementById('toggleDone').style.background=showDone?'var(--accent-soft)':'';
   render();
+};
+document.getElementById('toggleArch').onclick=()=>{
+  showArch=!showArch;
+  document.getElementById('toggleArch').style.background=showArch?'var(--accent-soft)':'';
+  render();
+};
+document.getElementById('archAll').onclick=()=>{
+  const bl=data.tasks.filter(t=>!t.date&&!t.done&&!t.arch);
+  if(!bl.length){ alert('Бэклог пуст'); return; }
+  if(!confirm('В архив весь бэклог ('+bl.length+' задач)? Вернуть можно через 📦.')) return;
+  bl.forEach(t=>{ t.arch=true; logEv('archive',t); });
+  save(); render();
 };
 document.getElementById('prev').onclick=()=>{ weekStart.setDate(weekStart.getDate()-7); render(); };
 document.getElementById('next').onclick=()=>{ weekStart.setDate(weekStart.getDate()+7); render(); };
