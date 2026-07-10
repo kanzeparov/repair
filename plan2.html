@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>📅 Интерактивный финплан — июль–декабрь 2026</title>
+<title>📅 Финплан Б: продажа однушки — июль–декабрь 2026</title>
 <style>
   :root {
     --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
@@ -59,11 +59,8 @@
 </style>
 </head>
 <body>
-  <div style="background:#f7efdc;color:#8a5a18;border:1px solid #d9a85c;border-radius:8px;padding:10px 14px;margin:0 0 12px;font-size:13px;line-height:1.5">
-    ⚠ <b>Обновление 10.07 (Глубокий анализ v2, красная команда):</b> строка «Гашение ипотеки ДОМ.РФ 4,6% — 6 700 000 (15.09)» — <b>сценарий А, отклонён</b>: риск Р1 опровергнут договором, гашение 4,6% проигрывает ~0,7–2 млн к 2028 и даёт −109 тыс/мес при увольнении. Строки «аренда однушки окт–дек» — только после письменного согласия ДОМ.РФ. Актуальный план — В⁺ (студия → дорогие долги → ОФЗ/вклады), см. «Глубокий анализ — все сценарии 2026-07-10» и панель графиков.
-  </div>
-  <h1>📅 Интерактивный финплан · 1 июля — 31 декабря 2026</h1>
-  <div class="sub">Атомарные статьи (одна строка = одна трата). Ячейки = остаток к оплате: оплата карточки на странице карточек списывает сумму отсюда автоматически. Отличие от таблицы 05.07 по решению от 05.07: аренда студии (45к ×2) исключена — транзит родителям; 39/45/45 окт–дек = аренда однушки: меняй любую ячейку — «Доход», «Расход» и «Разница» пересчитаются мгновенно. Всё сохраняется в браузере автоматически.</div>
+  <h1>📅 Финплан Б: продажа однушки · 1 июля — 31 декабря 2026</h1>
+  <div class="sub">Сценарий Б: студию НЕ продаю. Продажа однушки (Дмитровская) 01.09 за 18 200 000 → гашение ипотеки ДОМ.РФ 6 700 000 (15.09) → гашение кредитов Райф 3 000 000 (01.09) → остаток 8 500 000 = ПВ. Покупка новой однушки за 12 000 000 — 01.10: ПВ 8,5 млн + ипотека-2 на 3,5 млн (~29 000/мес @7,8%/20 лет, платежи с 16.10). Аренда однушки окт–дек убрана (она продана), аренда студии по-прежнему транзитом родителям (не в плане). Меняй любую ячейку — всё пересчитывается и сохраняется в браузере автоматически. Эта страница живёт отдельно от Сценария А и карточек.</div>
 
   <div class="bar">
     <span class="start">Райффайзен:
@@ -74,29 +71,30 @@
       <input id="st_cash" type="number" value="0" style="width:90px"></span>
     <span class="start">Σ старт: <b id="st_sum" style="font-family:var(--mono)">—</b></span>
     <a id="navHome" href="🗂 ГЛАВНАЯ.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🏠 Главная</a>
+    <a id="navPlanA" href="plan.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">📅 Сценарий А</a>
     <a id="navCards" href="Финплан — карточки.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🗂 Карточки</a>
-    <a id="navTasks" href="✅ ЗАДАЧИ — неделя.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">✅ Задачи</a>
     <button id="save">💾 Сохранить</button>
     <button id="csv">⬇ CSV</button>
     <button id="addrow">＋ Статья</button>
     <button id="undo">↶ Отменить</button>
     <button id="logbtn">📜 Журнал</button>
     <button id="backup">⛃ Бэкап</button>
+    <button id="reset">⟲ Сброс сценария</button>
     <span class="start" id="saveInfo"></span>
     <span class="kpi">
       <span>Σ Доход <b id="kInc">—</b></span>
       <span>Σ Расход <b id="kExp">—</b></span>
       <span>Итог 31.12 <b id="kDec">—</b></span>
       <span style="color:var(--accent)">Итог янв.27 <b id="kEnd">—</b></span>
-      <span>Ипотека-2 <b id="kMort">—</b></span>
+      <span>Доп. ипотека <b id="kMort">—</b></span>
     </span>
   </div>
 
   <div class="scroll"><table id="grid"></table></div>
 
-  <p class="note">Зелёная полоса слева — доход, красная — расход. Серые нули — пустые ячейки (можно заполнять). Название статьи редактируется кликом по нему. Всё сохраняется автоматически при каждом изменении.
-  «Разница» — нарастающий остаток: старт + доходы − расходы. ПВ за объект 2 млн — строка 01.09; доплата за объект — ячейка 31.12 (правь под цену лота). KPI «Ипотека-2» показывает, какой второй ипотекой закрывается минус года, и её платёж. «Не продаю»: продажа/гашения/покупка убраны, возвращены платежи по кредитам (~75к/мес), минималки ТКФ и ипотека 38к — долги при этом никуда не деваются. Выбор сценария сбрасывает ручные правки ячеек. Финальные −3 млн в плане = остаток второй ипотеки после декабрьского ЧДП, поэтому отрицательная «Разница» на 31.12 — это по замыслу.
-  Данные живут в localStorage этого браузера; «Сброс» возвращает план 05.07. Крупные сценарные развилки (стратегии А/Б/В/Г, Монте-Карло) — в «Финкалькуляторе», а это — рабочая помесячная таблица.</p>
+  <p class="note">Зелёная полоса слева — доход, красная — расход. Название статьи редактируется кликом.
+  Арифметика сделки: 18 200 000 − 6 700 000 (ипотека ДОМ.РФ) − 3 000 000 (кредиты Райф) = 8 500 000 остаток → ПВ за однушку 12 000 000, ипотека-2 = 3 500 000 (доход «кредитные средства» 01.10 + расход «доплата» 01.10 нетто дают ноль, но показывают структуру сделки). Платёж по ДОМ.РФ (38к) идёт только июль–август — с 15.09 ипотека погашена; 66к платежей сентябрь–декабрь из Сценария А здесь нет. KPI «Доп. ипотека» — сколько ещё пришлось бы добрать второй ипотекой, если «Разница» на 31.12 ушла в минус (при плюсе = 0; тогда можно уменьшить ипотеку-2 или не продавать крипту/акции в декабре — эти строки оставлены из Сценария А, правь под себя). НДФЛ с продажи однушки — строка-заглушка, уточни сумму (срок владения/вычеты).
+  Данные живут в localStorage этого браузера отдельным ключом — Сценарий А (plan.html) и карточки не затрагиваются. «Сброс сценария» возвращает исходные цифры Сценария Б.</p>
 
 <script>
 const COLS=['1.07','16.07','1.08','16.08','1.09','15.09','1.10','16.10','1.11','16.11','1.12','16.12','31.12','янв.27'];
@@ -104,8 +102,8 @@ const z=()=>Array(14).fill(0);
 function row(vals){const a=z();for(const[i,v]of Object.entries(vals))a[i]=v;return a;}
 const PLAN=[
  ['inc','ЗП', row({1:200000,2:200000,3:200000,4:200000,5:200000,6:200000,7:200000,8:200000,9:200000,10:200000,11:200000,12:200000})],
- ['inc','Аренда однушки (Дмитровская), окт–дек', row({7:39000,9:45000,11:45000})],
- ['inc','Продажа студии Алтуфьевское 51', row({4:12000000})],
+ ['inc','Продажа однушки (Дмитровская)', row({4:18200000})],
+ ['inc','Ипотека-2: кредитные средства на покупку', row({6:3500000})],
  ['inc','Продажа кладовой Алтуфьево', row({6:1100000})],
  ['inc','Продажа кладовой Павелецкая', row({12:1300000})],
  ['inc','Продажа крипты (ликвидное ядро)', row({12:1535000})],
@@ -117,14 +115,15 @@ const PLAN=[
  ['inc','С кредитки Райф (в длр)', row({3:100000})],
  ['inc','Налоговый вычет за учёбу (Синергия, 13%)', row({13:13000})],
  ['inc','Налоговый вычет основной (январь 2027)', row({13:70000})],
- ['exp','НДФЛ с продажи студии (в плане 05.07 не выделен)', z()],
+ ['exp','НДФЛ с продажи однушки (уточнить)', z()],
  ['exp','Ресты + еда вне', [5000,5000,5000,5000,0,0,0,6000,4824,3987,3994,4000,3542,0]],
  ['exp','Еда', [30000,30000,30000,30000,0,0,0,30000,30047,30000,30000,30000,30000,0]],
  ['exp','Качалка', row({7:12000})],
  ['exp','Бады + одежда', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
  ['exp','Здоровье', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
  ['exp','Квартплата (ма/па) + уборка', row({0:14300,2:14300,4:16800,6:16800,8:16800,10:16800,12:16800})],
- ['exp','Ипотека (платёж)', row({1:38000,3:38000,5:66000,7:66000,9:66000,11:66000})],
+ ['exp','Ипотека ДОМ.РФ (платёж до гашения 15.09)', row({1:38000,3:38000})],
+ ['exp','Платёж по ипотеке-2 (~29к @7,8%/20л, с 16.10)', row({7:29000,9:29000,11:29000,13:29000})],
  ['exp','Такси', [6000,6000,6000,5700,0,0,0,5000,5000,5000,5000,5000,5000,0]],
  ['exp','Путешествие + зубной (капа)', row({2:12000,7:12000,10:12000})],
  ['exp','Расходники', [2000,2000,2000,2000,0,0,0,2000,2000,2000,2000,2000,2000,0]],
@@ -133,21 +132,21 @@ const PLAN=[
  ['exp','Платежи по кредитам Райф', row({1:75000,3:75000})],
  ['exp','Анискин (лечение отца)', row({2:50000})],
  ['exp','Прочее 16.08 (уточнить статью)', row({3:42000})],
- ['exp','Гашение кредитов Райф (остатки)', row({4:3041387})],
- ['exp','ПВ за объект (первоначальный взнос)', row({4:2000000})],
- ['exp','⛔ ОТМЕНЕНО 10.07 (аудит В⁺): гашение ипотеки 4,6% не делаем', row({})],
- ['exp','Доплата за объект (покупка)', row({12:8032000})],
+ ['exp','Гашение кредитов Райф — 3 млн (01.09)', row({4:3000000})],
+ ['exp','ПВ за однушку 12 млн (остаток от продажи)', row({6:8500000})],
+ ['exp','Гашение ипотеки ДОМ.РФ 4,6% (15.09)', row({5:6700000})],
+ ['exp','Доплата за однушку (ипотечные 3,5 млн)', row({6:3500000})],
  ['exp','Гашение кредиток Райф (конец грейса)', row({3:355000})],
  ['exp','Кредитка Райф — гашение №2', row({6:100000})],
  ['exp','Учёба: Синергия (аспирантура)', row({8:100000})],
- ['exp','Страхование жизни (обязательно для ставки 4,6%)', row({8:27000})],
+ ['exp','Страхование жизни (под ипотеку-2)', row({8:27000})],
  ['exp','Страхование квартиры (ипотечное)', row({8:27000})],
  ['exp','Отпуск: Китай', row({4:194000})],
  ['exp','Транш (длр/прочее)', row({10:150000})],
  ['exp','Линзы (покупка)', row({10:30000})],
  ['exp','ДР, подарки, билеты, отложить', row({0:10000,1:10000,2:10000,3:10000,5:10000,7:10000,9:10000,11:10000})],
 ];
-const LS='finplan-grid-26l';
+const LS='finplan-grid-26l-scenB';
 let data;
 try{ data=JSON.parse(localStorage.getItem(LS)); }catch(e){}
 function migrate(){
@@ -163,13 +162,12 @@ const LBL=ri=> (data.labels&&data.labels[ri]) || (ri<PLAN.length?PLAN[ri][1]:'С
 
 function logEv(k,ri,c,from,to,extra){
   if(!data.log) data.log=[];
-  data.log.push({t:new Date().toISOString(),src:'table',k,ri,c,
+  data.log.push({t:new Date().toISOString(),src:'table-B',k,ri,c,
     lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
   if(data.log.length>5000) data.log.splice(0,data.log.length-5000);
 }
 const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
 const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));
-const RI=t=>PLAN.findIndex(r=>r[1].startsWith(t));
 
 const grid=document.getElementById('grid');
 
@@ -277,8 +275,6 @@ function setStartInputs(){
 function saveState(){
   readStart();
   data.rev=(data.rev||0)+1;
-  try{ fetch('/api/plan',{method:'POST',body:JSON.stringify(data)})
-    .then(r=>{ if(r.status===409) location.reload(); }).catch(()=>{}); }catch(e){}
   try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
 }
 setStartInputs();
@@ -291,15 +287,6 @@ setStartInputs();
   });
   el.addEventListener('input',()=>{readStart();calc();autoSave();});
 });
-window.addEventListener('storage',e=>{
-  if(e.key===LS && e.newValue && document.activeElement.tagName!=='INPUT'){
-    try{ const d=JSON.parse(e.newValue);
-      if(d && d.rows){ data=d; if(!data.labels) data.labels=PLAN.map(r=>r[1]);
-        setStartInputs(); build();
-        document.getElementById('saveInfo').textContent='обновлено с карточек '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      } }catch(_){}
-  }
-});
 let autoT=null;
 function autoSave(){
   clearTimeout(autoT);
@@ -310,11 +297,17 @@ function autoSave(){
 document.getElementById('save').onclick=()=>{ saveState();
   document.getElementById('saveInfo').textContent='сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); };
 
+document.getElementById('reset').onclick=()=>{
+  if(!confirm('Сбросить все правки и вернуть исходный Сценарий Б?')) return;
+  data={start:142000, rows:PLAN.map(r=>[...r[2]]), labels:PLAN.map(r=>r[1]), extraTypes:[]};
+  setStartInputs(); build(); saveState();
+  document.getElementById('saveInfo').textContent='сценарий Б сброшен к исходному';
+};
 document.getElementById('logbtn').onclick=()=>{
   const log=data.log||[];
   const blob=new Blob([JSON.stringify(log,null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='finplan-log.json'; a.click();
+  a.download='finplan-B-log.json'; a.click();
 };
 document.getElementById('addrow').onclick=()=>{
   const name=prompt('Название новой статьи:'); if(!name) return;
@@ -332,15 +325,7 @@ document.getElementById('undo').onclick=()=>{
   try{
     if(ev.k==='edit'){ data.rows[ev.ri][ev.c]=ev.from; }
     else if(ev.k==='rename'){ data.labels[ev.ri]=ev.from; }
-    else if(ev.k==='start'){ data.startParts[ev.field.replace('st_','')==='raif'?'raif':ev.field==='st_tkf'?'tkf':'cash']=ev.from; setStartInputs(); }
-    else if(ev.k==='paid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
-      data.rows[ev.ri][ev.c]=(data.rows[ev.ri][ev.c]||0)+ev.from;
-      if(data.paid) delete data.paid[key]; }
-    else if(ev.k==='unpaid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
-      data.rows[ev.ri][ev.c]=Math.max(0,(data.rows[ev.ri][ev.c]||0)-ev.to);
-      if(!data.paid) data.paid={}; data.paid[key]={a:ev.to,iso:ev.iso||''}; }
-    else if(ev.k==='move'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
-      if(ev.from) data.moves[key]=ev.from; else if(data.moves) delete data.moves[key]; }
+    else if(ev.k==='start'){ data.startParts[ev.field==='st_raif'?'raif':ev.field==='st_tkf'?'tkf':'cash']=ev.from; setStartInputs(); }
     else if(ev.k==='addrow'){ if(ev.ri===data.rows.length-1){
       data.rows.pop(); data.labels.pop(); data.extraTypes.pop(); } }
   }catch(e){}
@@ -348,28 +333,20 @@ document.getElementById('undo').onclick=()=>{
   document.getElementById('saveInfo').textContent='отменено: '+ev.k+' ('+(ev.lbl||'')+')';
 };
 document.getElementById('backup').onclick=()=>{
-  const pack={ts:new Date().toISOString(), finplan:data};
-  try{ pack.optimization=JSON.parse(localStorage.getItem('opt26')||'{}'); }catch(e){}
+  const pack={ts:new Date().toISOString(), scenario:'B', finplanB:data};
   const blob=new Blob([JSON.stringify(pack,null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='finance-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  a.download='finance-B-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
 };
 document.getElementById('csv').onclick=()=>{
   const rows=[['Статья',...COLS],
     ...data.rows.map((row,ri)=>[LBL(ri),...row])];
   const blob=new Blob(['﻿'+rows.map(r=>r.join(';')).join('\n')],{type:'text/csv'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='finplan-2026.csv'; a.click();
+  a.download='finplan-B-2026.csv'; a.click();
 };
-if(location.protocol!=='file:'){ document.getElementById('navCards').href='cards.html'; document.getElementById('navHome').href='/'; document.getElementById('navTasks').href='tasks.html'; }
+if(location.protocol!=='file:'){ document.getElementById('navCards').href='cards.html'; document.getElementById('navHome').href='/'; }
 build();
-// если открыто через сервер трекера (localhost:8765) — подтянуть данные из vault-файла
-(async()=>{ try{
-  const r=await fetch('/api/plan',{cache:'no-store'});
-  if(r.ok){ const j=await r.json();
-    if(j && j.rows){ data=j; migrate(); setStartInputs(); build();
-      document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'; } }
-}catch(e){} })();
 </script>
 </body>
 </html>
