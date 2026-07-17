@@ -55,6 +55,10 @@
   tr.tot td{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:6px;white-space:nowrap}
   tr.t-inc td{background:var(--inc)} tr.t-exp td{background:var(--exp)} tr.t-dif td{background:var(--dif)}
   tr.t-dif td.neg{color:var(--crit)}
+  tr.t-mon td.m{text-align:center;font-weight:700}
+  tr.t-mon td.m+td.m{border-left:1px solid var(--line)}
+  tr.t-mon td.lbl{font-weight:400;color:var(--muted)}
+  tr.t-mon td.neg{color:var(--crit)}
   .note{margin-top:12px;color:var(--muted);font-size:11.5px;max-width:90ch}
 </style>
 </head>
@@ -101,6 +105,19 @@
 <script>
 const COLS=['1.07','16.07','1.08','16.08','1.09','15.09','1.10','16.10','1.11','16.11','1.12','16.12','31.12','янв.27'];
 const z=()=>Array(14).fill(0);
+const MON_NAMES={'07':'Июль','08':'Август','09':'Сентябрь','10':'Октябрь','11':'Ноябрь','12':'Декабрь'};
+// колонки — полумесяцы; группируем подряд идущие по номеру месяца в метке ('31.12' → декабрь)
+const MONTHS=(()=>{
+  const g=[];
+  COLS.forEach((c,i)=>{
+    const p=c.split('.');
+    const key=/^\d+$/.test(p[0])?p[1]:c;
+    const last=g[g.length-1];
+    if(last&&last.key===key) last.cols.push(i);
+    else g.push({key,name:MON_NAMES[key]||c,cols:[i]});
+  });
+  return g;
+})();
 function row(vals){const a=z();for(const[i,v]of Object.entries(vals))a[i]=v;return a;}
 const PLAN=[
  ['inc','ЗП', row({1:200000,2:200000,3:200000,4:200000,5:200000,6:200000,7:200000,8:200000,9:200000,10:200000,11:200000,12:200000})],
@@ -167,6 +184,7 @@ function logEv(k,ri,c,from,to,extra){
     lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
   if(data.log.length>5000) data.log.splice(0,data.log.length-5000);
 }
+const RATE=0.12;   // годовая ставка для строки «% на остаток»
 const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
 const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));
 const RI=t=>PLAN.findIndex(r=>r[1].startsWith(t));
@@ -183,7 +201,10 @@ function build(){
     }
     h+='</tr>';
   });
-  h+='<tr class="tot t-inc" id="rInc"></tr><tr class="tot t-exp" id="rExp"></tr><tr class="tot t-dif" id="rDif"></tr>';
+  h+='<tr class="tot t-inc" id="rInc"></tr><tr class="tot t-inc t-mon" id="rIncM"></tr>'
+    +'<tr class="tot t-exp" id="rExp"></tr><tr class="tot t-exp t-mon" id="rExpM"></tr>'
+    +'<tr class="tot t-dif" id="rDif"></tr>'
+    +'<tr class="tot t-inc t-mon" id="rPct"></tr>';
   grid.innerHTML=h;
   grid.querySelectorAll('td.lbl[contenteditable]').forEach(td=>{
     td.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.textContent.trim(); });
@@ -246,6 +267,19 @@ function calc(){
   document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map(v=>cell(v)).join('');
   document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map(v=>cell(v)).join('');
   document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим)</td>'+dif.map(v=>cell(v,1)).join('');
+  const monCells=(arr,neg)=>MONTHS.map(m=>{
+    const s=m.cols.reduce((a,i)=>a+(arr[i]||0),0);
+    return `<td class="m ${neg&&s<0?'neg':''}" colspan="${m.cols.length}" title="${m.name}">${F(s)}</td>`;
+  }).join('');
+  document.getElementById('rIncM').innerHTML='<td class="lbl">Доход за месяц</td>'+monCells(inc);
+  document.getElementById('rExpM').innerHTML='<td class="lbl">Расход за месяц</td>'+monCells(exp);
+  // % на остаток: среднее арифметическое «Разницы» за месяц × 12% годовых / 12
+  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток (12% годовых)</td>'
+    +MONTHS.map(m=>{
+      const avg=m.cols.reduce((a,i)=>a+(dif[i]||0),0)/m.cols.length;
+      const v=avg*RATE/12;
+      return `<td class="m ${v<0?'neg':''}" colspan="${m.cols.length}" title="${m.name}: среднее ${F(avg)} ₽ × ${RATE*100}%/12">${F(v)}</td>`;
+    }).join('');
   const sI=inc.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
   document.getElementById('kInc').textContent=F(sI)+' ₽';
   document.getElementById('kExp').textContent=F(sE)+' ₽';
