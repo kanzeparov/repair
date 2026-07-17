@@ -260,9 +260,20 @@ function calc(){
       if(TYPE(ri)==='inc') inc[c]+=row[c]||0; else exp[c]+=row[c]||0;
     }
   });
+  // Остаток с ежемесячной капитализацией: идём месяц за месяцем, в конце каждого
+  // начисляем на средний остаток за этот месяц и добавляем начисление к остатку —
+  // следующий месяц считается уже от увеличенного остатка.
   let run=data.start||0;
-  const dif=[];
-  for(let c=0;c<COLS.length;c++){ run+=inc[c]-exp[c]; dif.push(run); }
+  const dif=[], pct=[];
+  MONTHS.forEach(m=>{
+    const bal=[];
+    m.cols.forEach(i=>{ run+=inc[i]-exp[i]; bal.push(run); dif[i]=run; });
+    const avg=bal.reduce((a,b)=>a+b,0)/bal.length;
+    const p=avg>0 ? avg*RATE/12 : 0;      // на отрицательный остаток не начисляем
+    pct.push(p);
+    run+=p;
+    dif[m.cols[m.cols.length-1]]=run;     // конец месяца — остаток уже с процентами
+  });
   const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
   document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map(v=>cell(v)).join('');
   document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map(v=>cell(v)).join('');
