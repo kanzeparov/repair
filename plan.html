@@ -106,16 +106,22 @@
 const COLS=['1.07','16.07','1.08','16.08','1.09','15.09','1.10','16.10','1.11','16.11','1.12','16.12','31.12','янв.27'];
 const z=()=>Array(14).fill(0);
 const MON_NAMES={'07':'Июль','08':'Август','09':'Сентябрь','10':'Октябрь','11':'Ноябрь','12':'Декабрь'};
-// колонки — полумесяцы; группируем подряд идущие по номеру месяца в метке ('31.12' → декабрь)
+const MON_DAYS ={'07':31,'08':31,'09':30,'10':31,'11':30,'12':31};
+// Колонки — полумесяцы; группируем подряд идущие по номеру месяца в метке ('31.12' → декабрь).
+// days[] — число месяца, с которого действует остаток колонки; len — длина месяца в днях.
 const MONTHS=(()=>{
   const g=[];
   COLS.forEach((c,i)=>{
     const p=c.split('.');
-    const key=/^\d+$/.test(p[0])?p[1]:c;
+    const numeric=/^\d+$/.test(p[0]);
+    const key=numeric?p[1]:c;
+    const day=numeric?+p[0]:1;
     const last=g[g.length-1];
-    if(last&&last.key===key) last.cols.push(i);
-    else g.push({key,name:MON_NAMES[key]||c,cols:[i]});
+    if(last&&last.key===key){ last.cols.push(i); last.days.push(day); }
+    else g.push({key,name:MON_NAMES[key]||c,cols:[i],days:[day],len:MON_DAYS[key]||31});
   });
+  // вес колонки = сколько дней держится её остаток (до следующей колонки или до конца месяца)
+  g.forEach(m=>{ m.w=m.days.map((d,i)=> i<m.days.length-1 ? m.days[i+1]-d : m.len-d+1); });
   return g;
 })();
 function row(vals){const a=z();for(const[i,v]of Object.entries(vals))a[i]=v;return a;}
@@ -260,16 +266,17 @@ function calc(){
       if(TYPE(ri)==='inc') inc[c]+=row[c]||0; else exp[c]+=row[c]||0;
     }
   });
-  // Остаток с ежемесячной капитализацией: идём месяц за месяцем, в конце каждого
-  // начисляем на средний остаток за этот месяц и добавляем начисление к остатку —
+  // Остаток с процентами на ЕЖЕДНЕВНЫЙ остаток и ежемесячной капитализацией:
+  // идём месяц за месяцем, каждый остаток взвешиваем по числу дней, что он держится,
+  // начисляем Σ(остаток×дни)×ставка/365 в конце месяца и добавляем к остатку —
   // следующий месяц считается уже от увеличенного остатка.
   let run=data.start||0;
-  const dif=[], pct=[];
+  const dif=[], pct=[], avgs=[];
   MONTHS.forEach(m=>{
-    const bal=[];
-    m.cols.forEach(i=>{ run+=inc[i]-exp[i]; bal.push(run); dif[i]=run; });
-    const avg=bal.reduce((a,b)=>a+b,0)/bal.length;
-    const p=avg>0 ? avg*RATE/12 : 0;      // на отрицательный остаток не начисляем
+    let acc=0;                            // Σ(остаток × дни) за месяц
+    m.cols.forEach((i,k)=>{ run+=inc[i]-exp[i]; dif[i]=run; acc+=run*m.w[k]; });
+    avgs.push(acc/m.len);                 // средний дневной остаток
+    const p=acc>0 ? acc*RATE/365 : 0;     // на отрицательный остаток не начисляем
     pct.push(p);
     run+=p;
     dif[m.cols[m.cols.length-1]]=run;     // конец месяца — остаток уже с процентами
@@ -284,14 +291,9 @@ function calc(){
   }).join('');
   document.getElementById('rIncM').innerHTML='<td class="lbl">Доход за месяц</td>'+monCells(inc);
   document.getElementById('rExpM').innerHTML='<td class="lbl">Расход за месяц</td>'+monCells(exp);
-  // % на остаток: среднее арифметическое «Разницы» за месяц × 12% годовых / 12
-  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток (12% годовых)</td>'
-    +MONTHS.map(m=>{
-      const avg=m.cols.reduce((a,i)=>a+(dif[i]||0),0)/m.cols.length;
-      const v=avg*RATE/12;
-      return `<td class="m ${v<0?'neg':''}" colspan="${m.cols.length}" title="${m.name}: среднее ${F(avg)} ₽ × ${RATE*100}%/12">${F(v)}</td>`;
-    }).join('');
-  const sI=inc.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
+  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток ('+(RATE*100)+'% годовых, ежедн.)</td>'
+    +MONTHS.map((m,mi)=>`<td class="m" colspan="${m.cols.length}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено в конце месяца">${F(pct[mi])}</td>`).join('');
+  const sI=inc.reduce((a,b)=>a+b,0)+pct.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
   document.getElementById('kInc').textContent=F(sI)+' ₽';
   document.getElementById('kExp').textContent=F(sE)+' ₽';
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
