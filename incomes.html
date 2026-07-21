@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>💰 Доходы — зарплатный счёт</title>
+<style>
+  .viz-root{
+    color-scheme:light;
+    --surface-1:#fcfcfb; --page:#f9f9f7;
+    --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --ring:rgba(11,11,11,.10);
+    --s-zp:#2a78d6; --s-extra:#008300;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])) .viz-root{
+      color-scheme:dark;
+      --surface-1:#1a1a19; --page:#0d0d0d;
+      --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --baseline:#383835; --ring:rgba(255,255,255,.10);
+      --s-zp:#3987e5; --s-extra:#008300;
+    }
+  }
+  :root[data-theme="dark"] .viz-root{
+    color-scheme:dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --ring:rgba(255,255,255,.10);
+    --s-zp:#3987e5; --s-extra:#008300;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}
+  .viz-root{background:var(--page);color:var(--ink);min-height:100vh;padding:24px 16px 60px}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:21px;font-weight:650;margin:0 0 2px}
+  .sub{color:var(--ink-2);font-size:12.5px;margin-bottom:14px}
+  .bar-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .bar-nav a,.bar-nav button{padding:7px 12px;font-size:12.5px;border:1px solid var(--ring);
+    border-radius:6px;background:var(--surface-1);color:var(--ink);text-decoration:none;cursor:pointer}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:16px}
+  .tile{background:var(--surface-1);border:1px solid var(--ring);border-radius:10px;padding:12px 14px}
+  .tile .h{font-size:11.5px;color:var(--ink-2);margin-bottom:4px}
+  .tile .v{font-size:21px;font-weight:650}
+  .tile .n{font-size:11px;color:var(--muted);margin-top:3px}
+  .card{background:var(--surface-1);border:1px solid var(--ring);border-radius:10px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:14px;font-weight:650;margin:0 0 2px}
+  .card .csub{font-size:11.5px;color:var(--ink-2);margin-bottom:10px}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--ink-2);margin-bottom:8px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .plot{overflow-x:auto}
+  svg{display:block}
+  .tip{position:fixed;pointer-events:none;background:var(--surface-1);border:1px solid var(--ring);
+    border-radius:8px;padding:8px 11px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15);
+    display:none;z-index:5;min-width:150px}
+  .tip b{font-variant-numeric:tabular-nums}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th,td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--grid)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--ink-2);font-weight:600;font-size:11px}
+  #tbl{display:none}
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+  <h1>💰 Доходы — зарплатный счёт Райффайзен (*0027)</h1>
+  <div class="sub">Источник: «Выписка по счету.PDF» от 21.07.2026, период 11.03.2024 — 20.07.2026. Все суммы — net, на руки.</div>
+  <div class="bar-nav">
+    <a href="plan.html">📅 Финплан</a>
+    <a href="cards.html">🗂 Карточки</a>
+    <button id="tglTbl">☰ Таблица</button>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="h">Доход 2026 (факт, янв — 20 июля)</div>
+      <div class="v">3 528 459 ₽</div><div class="n">июль частично: пока только аванс 15.07</div></div>
+    <div class="tile"><div class="h">Средняя ЗП/мес 2026 (без премий)</div>
+      <div class="v">≈ 384 000 ₽</div><div class="n">полные месяцы; с июля гросс 490 тыс. → net 416,5 тыс.</div></div>
+    <div class="tile"><div class="h">Премия 25.03.2026</div>
+      <div class="v">1 043 182 ₽</div><div class="n">годом ранее (21.03.2025): 880 377 ₽</div></div>
+    <div class="tile"><div class="h">Прогноз авг–дек (в плане)</div>
+      <div class="v">≈ 2 055 000 ₽</div><div class="n">ЗП по шкале 15→18% + отпускные 233,5 тыс. (сент/окт)</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Поступления по месяцам</h2>
+    <div class="csub">Стек: зарплата (аванс 15-го + расчёт 29–31-го) и премии/прочие выплаты</div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--s-zp)"></i>Зарплата</span>
+      <span><i class="sw" style="background:var(--s-extra)"></i>Премии и прочее</span>
+    </div>
+    <div class="plot"><svg id="chart" width="940" height="320" role="img"
+      aria-label="Помесячные поступления на зарплатный счёт, март 2024 — июль 2026"></svg></div>
+  </div>
+
+  <div class="card" id="tbl">
+    <h2>Таблица</h2>
+    <table><thead><tr><th>Месяц</th><th>Зарплата</th><th>Премии/прочее</th><th>Итого</th></tr></thead>
+    <tbody id="tbody"></tbody></table>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+</div>
+<script>
+const DATA=[
+ {"ym":"2024-03","zp":165300,"extra":82650},{"ym":"2024-04","zp":332961,"extra":0},
+ {"ym":"2024-05","zp":330600,"extra":0},{"ym":"2024-06","zp":353360,"extra":0},
+ {"ym":"2024-07","zp":273103,"extra":22760},{"ym":"2024-08","zp":348600,"extra":0},
+ {"ym":"2024-09","zp":299115,"extra":22507},{"ym":"2024-10","zp":330600,"extra":0},
+ {"ym":"2024-11","zp":330600,"extra":0},{"ym":"2024-12","zp":314578,"extra":0},
+ {"ym":"2025-01","zp":330600,"extra":0},{"ym":"2025-02","zp":364095,"extra":0},
+ {"ym":"2025-03","zp":283371,"extra":880377},{"ym":"2025-04","zp":335671,"extra":0},
+ {"ym":"2025-05","zp":323000,"extra":0},{"ym":"2025-06","zp":323000,"extra":0},
+ {"ym":"2025-07","zp":365500,"extra":0},{"ym":"2025-08","zp":366095,"extra":13421},
+ {"ym":"2025-09","zp":376218,"extra":13525},{"ym":"2025-10","zp":359564,"extra":143022},
+ {"ym":"2025-11","zp":167021,"extra":13251},{"ym":"2025-12","zp":295628,"extra":64110},
+ {"ym":"2026-01","zp":374100,"extra":0},{"ym":"2026-02","zp":411895,"extra":54291},
+ {"ym":"2026-03","zp":220561,"extra":1117438},{"ym":"2026-04","zp":395098,"extra":0},
+ {"ym":"2026-05","zp":380885,"extra":0},{"ym":"2026-06","zp":290199,"extra":75742},
+ {"ym":"2026-07","zp":208250,"extra":0}
+];
+const MN=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const label=ym=>{const[y,m]=ym.split('-');return MN[+m-1]+' '+y.slice(2);};
+const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(n);
+const css=v=>getComputedStyle(document.querySelector('.viz-root')).getPropertyValue(v).trim();
+
+const svg=document.getElementById('chart'), NS='http://www.w3.org/2000/svg';
+const W=940,H=320,padL=52,padR=8,padT=10,padB=34;
+const plotW=W-padL-padR, plotH=H-padT-padB;
+const MAX=1400000, TICKS=[0,350000,700000,1050000,1400000];
+const n=DATA.length, slot=plotW/n, gap=2, bw=Math.min(22,slot-6);
+const y=v=>padT+plotH-(v/MAX)*plotH;
+
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function draw(){
+  svg.innerHTML='';
+  const cGrid=css('--grid'),cBase=css('--baseline'),cMut=css('--muted'),
+        cZp=css('--s-zp'),cEx=css('--s-extra'),cSurf=css('--surface-1');
+  TICKS.forEach(t=>{
+    if(t>0) svg.appendChild(el('line',{x1:padL,x2:W-padR,y1:y(t),y2:y(t),stroke:cGrid,'stroke-width':1}));
+    const tx=el('text',{x:padL-8,y:y(t)+4,'text-anchor':'end',fill:cMut,'font-size':10.5});
+    tx.textContent=t===0?'0':(t>=1000000?(t/1000000).toLocaleString('ru-RU')+' млн':(t/1000)+' т');
+    svg.appendChild(tx);
+  });
+  svg.appendChild(el('line',{x1:padL,x2:W-padR,y1:y(0),y2:y(0),stroke:cBase,'stroke-width':1}));
+  DATA.forEach((d,i)=>{
+    const x=padL+i*slot+(slot-bw)/2;
+    const g=el('g',{'data-i':i,cursor:'default'});
+    const hz=(d.zp/MAX)*plotH, he=(d.extra/MAX)*plotH;
+    if(d.zp>0){
+      const top=d.extra>0? y(d.zp)-0 : y(d.zp);
+      const r=el('path',{fill:cZp});
+      if(d.extra>0) r.setAttribute('d',`M${x},${y(0)} L${x},${y(d.zp)} h${bw} L${x+bw},${y(0)} Z`);
+      else r.setAttribute('d',`M${x},${y(0)} L${x},${y(d.zp)+4} q0,-4 4,-4 h${bw-8} q4,0 4,4 L${x+bw},${y(0)} Z`);
+      g.appendChild(r);
+    }
+    if(d.extra>0){
+      const y1=y(d.zp+d.extra), y0=y(d.zp)-gap;
+      const r=el('path',{fill:cEx,
+        d:`M${x},${y0} L${x},${y1+4} q0,-4 4,-4 h${bw-8} q4,0 4,4 L${x+bw},${y0} Z`});
+      g.appendChild(r);
+    }
+    const hit=el('rect',{x:padL+i*slot,y:padT,width:slot,height:plotH,fill:'transparent'});
+    g.appendChild(hit);
+    svg.appendChild(g);
+    if(i%3===0){
+      const tx=el('text',{x:x+bw/2,y:H-padB+16,'text-anchor':'middle',fill:cMut,'font-size':10});
+      tx.textContent=label(d.ym); svg.appendChild(tx);
+    }
+  });
+  // выборочные подписи пиков (премии)
+  [['2025-03'],['2026-03']].forEach(([ym])=>{
+    const i=DATA.findIndex(d=>d.ym===ym), d=DATA[i];
+    const x=padL+i*slot+slot/2;
+    const tx=el('text',{x,y:y(d.zp+d.extra)-6,'text-anchor':'middle',fill:css('--ink-2'),'font-size':10.5,'font-weight':600});
+    tx.textContent=F(d.zp+d.extra); svg.appendChild(tx);
+  });
+}
+draw();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+const tip=document.getElementById('tip');
+svg.addEventListener('mousemove',e=>{
+  const g=e.target.closest('g[data-i]');
+  if(!g){tip.style.display='none';return;}
+  const d=DATA[+g.dataset.i];
+  tip.innerHTML=`<div style="color:var(--ink-2);margin-bottom:4px">${label(d.ym)}</div>`
+    +`<div>Зарплата: <b>${F(d.zp)} ₽</b></div>`
+    +(d.extra?`<div>Премии/прочее: <b>${F(d.extra)} ₽</b></div>`:'')
+    +`<div style="border-top:1px solid var(--grid);margin-top:4px;padding-top:4px">Итого: <b>${F(d.zp+d.extra)} ₽</b></div>`;
+  tip.style.display='block';
+  const r=tip.getBoundingClientRect();
+  tip.style.left=Math.min(e.clientX+14,innerWidth-r.width-10)+'px';
+  tip.style.top=Math.min(e.clientY+14,innerHeight-r.height-10)+'px';
+});
+svg.addEventListener('mouseleave',()=>tip.style.display='none');
+
+const tbody=document.getElementById('tbody');
+tbody.innerHTML=DATA.slice().reverse().map(d=>
+  `<tr><td>${label(d.ym)}</td><td>${F(d.zp)}</td><td>${d.extra?F(d.extra):'—'}</td><td><b>${F(d.zp+d.extra)}</b></td></tr>`).join('');
+document.getElementById('tglTbl').onclick=()=>{
+  const t=document.getElementById('tbl');
+  t.style.display=t.style.display==='block'?'none':'block';
+};
+</script>
+</body>
+</html>
