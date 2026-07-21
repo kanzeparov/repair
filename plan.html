@@ -198,14 +198,24 @@ const RI=t=>PLAN.findIndex(r=>r[1].startsWith(t));
 
 const grid=document.getElementById('grid');
 
-// индикатор координат ячейки: клик/фокус → [строка:колонка] название × период
+// индикатор координат ячейки: клик/фокус → [строка:колонка] название × период = значение
+// клик по самой метке копирует её текст в буфер (для пересылки в чат)
 const cellInfo=document.getElementById('cellInfo');
+cellInfo.title='клик — скопировать';
+cellInfo.style.cursor='pointer';
 function showCell(ri,ci){
   cellInfo.style.display='inline';
   cellInfo.textContent = ci>=0
-    ? `[${ri}:${ci}] ${LBL(ri)} × ${COLS[ci]}`
+    ? `[${ri}:${ci}] ${LBL(ri)} × ${COLS[ci]} = ${F(data.rows[ri][ci]||0)}`
     : `[${ri}] ${LBL(ri)}`;
 }
+cellInfo.addEventListener('click',()=>{
+  navigator.clipboard.writeText(cellInfo.textContent).then(()=>{
+    const t=cellInfo.textContent;
+    cellInfo.textContent='✓ скопировано';
+    setTimeout(()=>{ cellInfo.textContent=t; },700);
+  }).catch(()=>{});
+});
 grid.addEventListener('focusin',e=>{
   const t=e.target;
   if(t.tagName==='INPUT'&&t.dataset.r!==undefined) showCell(+t.dataset.r,+t.dataset.c);
