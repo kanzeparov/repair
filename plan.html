@@ -87,6 +87,7 @@
     <button id="logbtn">📜 Журнал</button>
     <button id="backup">⛃ Бэкап</button>
     <span class="start" id="saveInfo"></span>
+    <span id="cellInfo" style="font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:5px 10px;display:none"></span>
     <span class="kpi">
       <span>Σ Доход <b id="kInc">—</b></span>
       <span>Σ Расход <b id="kExp">—</b></span>
@@ -196,6 +197,26 @@ const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));
 const RI=t=>PLAN.findIndex(r=>r[1].startsWith(t));
 
 const grid=document.getElementById('grid');
+
+// индикатор координат ячейки: клик/фокус → [строка:колонка] название × период
+const cellInfo=document.getElementById('cellInfo');
+function showCell(ri,ci){
+  cellInfo.style.display='inline';
+  cellInfo.textContent = ci>=0
+    ? `[${ri}:${ci}] ${LBL(ri)} × ${COLS[ci]}`
+    : `[${ri}] ${LBL(ri)}`;
+}
+grid.addEventListener('focusin',e=>{
+  const t=e.target;
+  if(t.tagName==='INPUT'&&t.dataset.r!==undefined) showCell(+t.dataset.r,+t.dataset.c);
+  else if(t.classList&&t.classList.contains('lbl')&&t.dataset.ri!==undefined) showCell(+t.dataset.ri,-1);
+});
+grid.addEventListener('click',e=>{
+  const td=e.target.closest('td');
+  if(!td) return;
+  const inp=td.querySelector('input[data-r]');
+  if(inp) showCell(+inp.dataset.r,+inp.dataset.c);
+});
 
 function build(){
   let h='<tr><th>Статья</th>'+COLS.map(c=>`<th>${c}</th>`).join('')+'</tr>';
