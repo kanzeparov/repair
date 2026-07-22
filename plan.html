@@ -28,6 +28,7 @@
   .bar button{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;
     background:var(--card);color:var(--ink);cursor:pointer}
   #save.dirty{background:var(--accent);border-color:var(--accent);color:#fff}
+  #hidecols.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .bar .start{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
   .bar input{width:110px;font-family:var(--mono);font-size:12.5px;padding:6px 8px;
     border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
@@ -83,6 +84,7 @@
     <button id="save">💾 Сохранить</button>
     <button id="csv">⬇ CSV</button>
     <button id="addrow">＋ Статья</button>
+    <button id="hidecols" class="on">🙈 Пустые столбцы</button>
     <button id="undo">↶ Отменить</button>
     <button id="logbtn">📜 Журнал</button>
     <button id="backup">⛃ Бэкап</button>
@@ -228,14 +230,24 @@ grid.addEventListener('click',e=>{
   if(inp) showCell(+inp.dataset.r,+inp.dataset.c);
 });
 
+let hideEmpty=true, HID=new Set();
+function emptyCols(){
+  const s=new Set();
+  for(let c=0;c<COLS.length;c++){
+    if(data.rows.every(r=>!(r[c]||0))) s.add(c);
+  }
+  return s;
+}
 function build(){
-  let h='<tr><th>Статья</th>'+COLS.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  HID = hideEmpty ? emptyCols() : new Set();
+  let h='<tr><th>Статья</th>'+COLS.map((c,i)=>HID.has(i)?'':`<th>${c}</th>`).join('')+'</tr>';
   const _idx=data.rows.map((_,i)=>i);
   const _ord=[..._idx.filter(i=>TYPE(i)==='inc'), ..._idx.filter(i=>TYPE(i)!=='inc')];
   _ord.forEach(ri=>{
     const lb=LBL(ri);
     h+=`<tr class="${TYPE(ri)}"><td class="lbl" contenteditable="true" spellcheck="false" data-ri="${ri}" title="${lb}">${lb}</td>`;
     for(let ci=0;ci<COLS.length;ci++){
+      if(HID.has(ci)) continue;
       h+=`<td><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}" value="${data.rows[ri][ci]||0}"></td>`;
     }
     h+='</tr>';
@@ -315,17 +327,20 @@ function calc(){
     dif[m.cols[m.cols.length-1]]=run;     // конец месяца — остаток уже с процентами
   });
   const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
-  document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map(v=>cell(v)).join('');
-  document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map(v=>cell(v)).join('');
-  document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим)</td>'+dif.map(v=>cell(v,1)).join('');
+  document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map((v,i)=>HID.has(i)?'':cell(v)).join('');
+  document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map((v,i)=>HID.has(i)?'':cell(v)).join('');
+  document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим)</td>'+dif.map((v,i)=>HID.has(i)?'':cell(v,1)).join('');
+  const mspan=m=>m.cols.filter(i=>!HID.has(i)).length;
   const monCells=(arr,neg)=>MONTHS.map(m=>{
+    const sp=mspan(m); if(!sp) return '';
     const s=m.cols.reduce((a,i)=>a+(arr[i]||0),0);
-    return `<td class="m ${neg&&s<0?'neg':''}" colspan="${m.cols.length}" title="${m.name}">${F(s)}</td>`;
+    return `<td class="m ${neg&&s<0?'neg':''}" colspan="${sp}" title="${m.name}">${F(s)}</td>`;
   }).join('');
   document.getElementById('rIncM').innerHTML='<td class="lbl">Доход за месяц</td>'+monCells(inc);
   document.getElementById('rExpM').innerHTML='<td class="lbl">Расход за месяц</td>'+monCells(exp);
   document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток ('+(RATE*100)+'% годовых, ежедн.)</td>'
-    +MONTHS.map((m,mi)=>`<td class="m" colspan="${m.cols.length}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено в конце месяца">${F(pct[mi])}</td>`).join('');
+    +MONTHS.map((m,mi)=>{ const sp=mspan(m); if(!sp) return '';
+      return `<td class="m" colspan="${sp}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено в конце месяца">${F(pct[mi])}</td>`; }).join('');
   const sI=inc.reduce((a,b)=>a+b,0)+pct.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
   document.getElementById('kInc').textContent=F(sI)+' ₽';
   document.getElementById('kExp').textContent=F(sE)+' ₽';
@@ -407,6 +422,12 @@ document.getElementById('logbtn').onclick=()=>{
   const blob=new Blob([JSON.stringify(log,null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='finplan-log.json'; a.click();
+};
+document.getElementById('hidecols').onclick=()=>{
+  hideEmpty=!hideEmpty;
+  document.getElementById('hidecols').classList.toggle('on',hideEmpty);
+  document.getElementById('hidecols').textContent=hideEmpty?'🙈 Пустые столбцы':'👁 Все столбцы';
+  build();
 };
 document.getElementById('addrow').onclick=()=>{
   const name=prompt('Название новой статьи:'); if(!name) return;
