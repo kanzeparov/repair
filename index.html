@@ -58,6 +58,14 @@
   .bar i{display:block;height:100%;background:var(--accent)}
   .bar i.warn{background:var(--warn)} .bar i.crit{background:var(--crit)}
   .lim .n{font-family:var(--mono);font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .lim .n input{width:62px;font-family:var(--mono);font-size:11.5px;text-align:right;padding:3px 5px;
+    border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--muted);
+    font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield}
+  .lim .n input:focus{outline:none;border-color:var(--accent);color:var(--ink)}
+  .lim .n input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  #date{font-family:var(--mono);font-size:13px;padding:8px 10px;border:1.5px solid var(--line);
+    border-radius:8px;background:var(--paper);color:var(--muted)}
+  #date.past{border-color:var(--warn);color:var(--warn)}
 
   .hist{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px 14px}
   .tx{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:baseline;
@@ -83,11 +91,15 @@
   </div>
   <div class="sub">Данные: <code>money-tracker/data.json</code> в vault · план «Жизнь»: 130 000 ₽/мес</div>
 
+  <div id="err" style="display:none;margin:0 0 10px;padding:9px 12px;border-radius:8px;
+    background:rgba(190,60,60,.1);border:1px solid rgba(190,60,60,.45);font-size:12.5px"></div>
+
   <div class="stats" id="stats"></div>
 
   <div class="entry" id="entry">
     <div class="amount-row">
       <input id="amount" type="number" inputmode="decimal" placeholder="Сумма, ₽" autofocus>
+      <input id="date" type="date" title="дата траты — можно внести задним числом">
     </div>
     <div class="cats" id="cats"></div>
     <input id="note" placeholder="Комментарий (необязательно)">
@@ -111,21 +123,24 @@ let selCat = null;
 
 const $ = id => document.getElementById(id);
 const F = n => new Intl.NumberFormat('ru-RU').format(Math.round(n));
-const today = () => new Date().toISOString().slice(0,10);
+// локальная дата, не UTC: toISOString() ночью (00:00–03:00 MSK) отдаёт вчерашний день
+const isoLocal = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+const today = () => isoLocal(new Date());
 const ym = s => s.slice(0,7);
 
 async function api(path, body){
   const r = await fetch(path, body ? {method:'POST', body: JSON.stringify(body)} : {});
+  if(!r.ok) throw new Error(path+' → '+r.status);
   return r.json();
 }
 
 function render(){
-  const now = new Date(), curYM = now.toISOString().slice(0,7);
+  const now = new Date(), curYM = today().slice(0,7);
   const tD = today();
   const monthTx = DB.tx.filter(t=>ym(t.date)===curYM);
   const dayTx   = monthTx.filter(t=>t.date===tD);
   const wStart = new Date(now); wStart.setDate(now.getDate()-((now.getDay()+6)%7));
-  const wISO = wStart.toISOString().slice(0,10);
+  const wISO = isoLocal(wStart);
   const weekTx = DB.tx.filter(t=>t.date>=wISO);
   const sum = a => a.reduce((s,t)=>s+t.amount,0);
   const mSum=sum(monthTx), dSum=sum(dayTx), wSum=sum(weekTx);
@@ -152,11 +167,21 @@ function render(){
     const cls = lim && got>lim ? 'crit' : (lim && got>lim*0.8 ? 'warn' : '');
     return `<div class="lim"><span>${c}</span>
       <div class="bar"><i class="${cls}" style="width:${p}%"></i></div>
-      <span class="n">${F(got)}${lim?' / '+F(lim):''}</span></div>`;
+      <span class="n">${F(got)} / <input type="number" min="0" step="1000" data-c="${c}"
+        value="${lim}" title="лимит на месяц — правится прямо здесь"></span></div>`;
   }).join('');
+  // лимиты правятся на месте: ручка /api/limits была на сервере, но UI к ней не существовало
+  $('lims').querySelectorAll('input[data-c]').forEach(i=>{
+    i.addEventListener('change', async e=>{
+      const c=e.target.dataset.c, v=Math.max(0, parseFloat(e.target.value)||0);
+      DB.limits[c]=v;
+      try{ await api('/api/limits', {[c]:v}); ok(); render(); }
+      catch(_){ fail('лимит не сохранён — сервер недоступен'); }
+    });
+  });
 
-  // history (last 25)
-  const last = [...DB.tx].sort((a,b)=>b.id-a.id).slice(0,25);
+  // history (last 25) — по дате, иначе внесённое задним числом лезет наверх
+  const last = [...DB.tx].sort((a,b)=>(b.date||'').localeCompare(a.date||'') || b.id-a.id).slice(0,25);
   $('hist').innerHTML = last.length ? last.map(t=>`
     <div class="tx"><span class="d">${t.date.slice(5)}</span>
       <span>${t.note||''} <span class="cat-tag">· ${t.cat}</span></span>
@@ -177,20 +202,30 @@ function drawCats(){
   };
 }
 
+// сервер не ответил — трата осталась только на экране; молчать про это нельзя
+function fail(msg){ const e=$('err'); e.style.display='block'; e.textContent='⚠ '+msg; }
+function ok(){ $('err').style.display='none'; }
+
 async function add(){
   const amount = parseFloat($('amount').value);
   if(!(amount>0) || !selCat) return;
-  const tx = {id: Date.now(), date: today(), amount, cat: selCat, note: $('note').value.trim()};
+  const tx = {id: Date.now(), date: $('date').value || today(), amount, cat: selCat, note: $('note').value.trim()};
   DB.tx.push(tx); render();
   $('amount').value=''; $('note').value='';
   $('entry').classList.remove('flash'); void $('entry').offsetWidth; $('entry').classList.add('flash');
   $('amount').focus();
-  await api('/api/tx', tx);
+  try{ await api('/api/tx', tx); ok(); }
+  catch(e){
+    DB.tx = DB.tx.filter(t=>t.id!==tx.id); render();
+    fail('трата НЕ сохранена (сервер недоступен) — запусти «Запустить трекер.command» и внеси заново');
+  }
 }
 
 async function del(id){
+  const backup = DB.tx;
   DB.tx = DB.tx.filter(t=>t.id!==id); render();
-  await api('/api/del', {id});
+  try{ await api('/api/del', {id}); ok(); }
+  catch(e){ DB.tx = backup; render(); fail('удалить не вышло — сервер недоступен'); }
 }
 window.del = del;
 
@@ -207,7 +242,20 @@ $('csv').onclick = e=>{
   a.href = URL.createObjectURL(blob); a.download = 'traty.csv'; a.click();
 };
 
-(async()=>{ DB = await api('/api/data'); drawCats(); render(); })();
+// дата траты: по умолчанию сегодня, но можно поставить прошедший день и внести забытое
+$('date').value = today();
+$('date').max = today();
+$('date').addEventListener('input', e=>{
+  e.target.classList.toggle('past', !!e.target.value && e.target.value !== today());
+});
+
+(async()=>{
+  try{ DB = await api('/api/data'); }
+  catch(e){ DB={tx:[],limits:{}};
+    fail('сервер трекера не запущен — данные не загружены, вносить траты нельзя. Запусти «Запустить трекер.command»'); }
+  DB.tx = DB.tx||[]; DB.limits = DB.limits||{};
+  drawCats(); render();
+})();
 </script>
 </body>
 </html>

@@ -126,7 +126,7 @@ const PLAN=[
  ['exp','Прочее 16.08 (уточнить статью)', row({3:42000})],
  ['exp','Гашение кредитов Райф (остатки)', row({4:3041387})],
  ['exp','ПВ за объект (первоначальный взнос)', row({4:2000000})],
- ['exp','Гашение ипотеки ДОМ.РФ 4,6%', row({5:6700000})],
+ ['exp','Гашение ипотеки ДОМ.РФ 4,6%', row({})],   // ⚠ индекс 32 — держать одинаковым с plan.html
  ['exp','Доплата за объект (покупка)', row({12:8032000})],
  ['exp','Гашение кредиток Райф (конец грейса)', row({3:355000})],
  ['exp','Кредитка Райф — гашение №2', row({6:100000})],
@@ -143,7 +143,7 @@ function logEv(k,ri,c,from,to,extra){
   if(!data.log) data.log=[];
   data.log.push({t:new Date().toISOString(),src:'cards',k,ri,c,
     lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
-  if(data.log.length>5000) data.log.splice(0,data.log.length-5000);
+  if(data.log.length>1000) data.log.splice(0,data.log.length-1000);
 }
 const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
 const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));

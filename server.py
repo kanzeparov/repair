@@ -2,7 +2,7 @@
 """Локальный трекер трат. Zero-deps: только стандартная библиотека.
 Запуск: python3 server.py  →  http://localhost:8765
 Данные: data.json рядом с этим файлом (внутри Obsidian vault → бэкапится)."""
-import json, os, http.server, socketserver, webbrowser, threading, subprocess, datetime
+import json, os, http.server, socketserver, webbrowser, threading, subprocess, datetime, time
 
 def git(args):
     try:
@@ -61,28 +61,100 @@ def dec_tasks():
                 cwd=TDIR, capture_output=True, timeout=30)
         except Exception: pass
 
-def git_commit_tasks(msg):
-    def w():
-        enc_tasks()
-        git_t(["add","-A"])
-        r=git_t(["commit","-m",msg])
-        if r and r.returncode==0 and os.path.exists(os.path.join(BASE,".push_enabled")):
-            git_t(["push","origin","main"])
-    threading.Thread(target=w, daemon=True).start()
+# Коммиты сериализованы: раньше каждое сохранение стартовало свой поток, и параллельные
+# `git add` дрались за index.lock — часть коммитов молча терялась. Теперь на репозиторий
+# работает один воркер, а правки за QUIET секунд схлопываются в один коммит (иначе на
+# каждое нажатие клавиши уезжал коммит с полной копией зашифрованных данных).
+QUIET = 60
 
-def git_commit(msg):
-    def w():
-        enc_all()
-        git(["add","-A"])
-        r=git(["commit","-m",msg])
-        if r and r.returncode==0 and os.path.exists(os.path.join(BASE,".push_enabled")):
-            git(["push","--force-with-lease","origin","main"])
-    threading.Thread(target=w, daemon=True).start()
+class _Committer:
+    def __init__(self, work, quiet=QUIET):
+        self.work = work                  # work(msg) — что сделать для одного коммита
+        self.quiet = quiet
+        self.lock = threading.Lock()
+        self.pending = None
+        self.running = False
+
+    def __call__(self, msg):
+        with self.lock:
+            self.pending = msg
+            if self.running:
+                return                     # воркер уже бежит и подхватит наше сообщение
+            self.running = True
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def _loop(self):
+        while True:
+            with self.lock:
+                if self.pending is None:
+                    self.running = False
+                    return
+            time.sleep(self.quiet)        # копим правки, коммитим одним куском
+            with self.lock:
+                msg, self.pending = self.pending, None
+            try:
+                self.work(msg)
+            except Exception:
+                pass
+
+    def flush(self):
+        """Досохранить накопленное — вызывается при остановке сервера."""
+        with self.lock:
+            msg, self.pending = self.pending, None
+        if msg:
+            try: self.work(msg)
+            except Exception: pass
+
+def _commit_tasks(msg):
+    enc_tasks()
+    git_t(["add","-A"])
+    r=git_t(["commit","-m",msg])
+    if r and r.returncode==0 and os.path.exists(os.path.join(BASE,".push_enabled")):
+        git_t(["push","origin","main"])
+
+def _commit_base(msg):
+    enc_all()
+    git(["add","-A"])
+    r=git(["commit","-m",msg])
+    if r and r.returncode==0 and os.path.exists(os.path.join(BASE,".push_enabled")):
+        git(["push","--force-with-lease","origin","main"])
+
+git_commit_tasks = _Committer(_commit_tasks)
+git_commit       = _Committer(_commit_base)
 
 PORT = 8765
 DIR = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(DIR, "data.json")
 PLAN = os.path.join(DIR, "plan.json")
+# Журнал правок (94% веса plan.json) живёт отдельно и не попадает в git: иначе каждое
+# сохранение клало в историю новую полную копию шифртекста на сотню килобайт.
+PLAN_LOG = os.path.join(DIR, "plan-log.json")
+
+def _write_json(path, obj):
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)
+
+def read_plan():
+    """plan.json + подшитый обратно журнал — клиент видит единый объект, как раньше."""
+    d = {}
+    if os.path.exists(PLAN):
+        with open(PLAN, encoding="utf-8") as f:
+            d = json.load(f)
+    if not d.get("log") and os.path.exists(PLAN_LOG):
+        try:
+            with open(PLAN_LOG, encoding="utf-8") as f:
+                d["log"] = json.load(f)
+        except Exception:
+            pass
+    return d
+
+def write_plan(body):
+    log = body.pop("log", None)
+    if log is not None:
+        _write_json(PLAN_LOG, log)
+    _write_json(PLAN, body)
 
 def load():
     if os.path.exists(DATA):
@@ -100,11 +172,23 @@ def save(d):
         json.dump(d, f, ensure_ascii=False, indent=1)
     os.replace(tmp, DATA)
 
+# сервер многопоточный: без этого две быстрые записи подряд читают один и тот же файл
+# и вторая затирает первую (потерянная транзакция / проскочивший rev-конфликт)
+WLOCK = threading.Lock()
+
 class H(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=DIR, **kw)
 
     def log_message(self, *a): pass
+
+    def end_headers(self):
+        # страницы правятся руками — не отдавать браузеру закешированную версию.
+        # getattr: при битом запросе send_error() зовёт end_headers ещё до разбора пути
+        p = getattr(self, "path", "") or ""
+        if p.endswith(".html") or p.endswith("/"):
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
     def _json(self, obj, code=200):
         b = json.dumps(obj, ensure_ascii=False).encode()
@@ -124,6 +208,10 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         from urllib.parse import unquote
         decoded = unquote(self.path.split("?")[0])
+        # .secret (пароль шифрования), .git/, .push_enabled лежат в раздаваемой папке —
+        # наружу их не отдаём
+        if any(seg.startswith(".") for seg in decoded.split("/") if seg):
+            return self._json({"error": "forbidden"}, 403)
         if decoded in self.ALIASES:
             self.path = self.ALIASES[decoded]
         if self.path == "/api/data":
@@ -134,10 +222,7 @@ class H(http.server.SimpleHTTPRequestHandler):
                     return self._json(json.load(fh))
             return self._json({})
         if self.path == "/api/plan":
-            if os.path.exists(PLAN):
-                with open(PLAN, encoding="utf-8") as f:
-                    return self._json(json.load(f))
-            return self._json({})
+            return self._json(read_plan())
         if self.path == "/":
             self.path = "/index.html"
         return super().do_GET()
@@ -155,7 +240,14 @@ class H(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(n) or b"{}")
+        try:
+            body = json.loads(self.rfile.read(n) or b"{}")
+        except Exception:
+            return self._json({"error": "bad json"}, 400)
+        with WLOCK:
+            return self._post(body)
+
+    def _post(self, body):
         d = load()
         if self.path == "/api/tx":            # add transaction
             d["tx"].append(body)
@@ -176,15 +268,13 @@ class H(http.server.SimpleHTTPRequestHandler):
         if self.path == "/api/plan":
             if not self._rev_ok(PLAN, body):
                 return self._json({"error": "stale rev — обнови вкладку"}, 409)
-            tmp = PLAN + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(body, f, ensure_ascii=False, indent=1)
-            os.replace(tmp, PLAN)
+            write_plan(body)
             git_commit("finplan: change @ "+datetime.datetime.now().strftime("%H:%M:%S"))
             return self._json({"ok": True})
         if self.path == "/api/limits":        # update limits
             d["limits"].update(body)
-            save(d); return self._json({"ok": True})
+            save(d); git_commit("tracker: limits")
+            return self._json({"ok": True, "limits": d["limits"]})
         return self._json({"error": "unknown"}, 404)
 
 if __name__ == "__main__":
@@ -200,4 +290,8 @@ if __name__ == "__main__":
         try:
             srv.serve_forever()
         except KeyboardInterrupt:
+            pass
+        finally:
+            # коммиты копятся до минуты — не потерять накопленное при остановке
+            git_commit.flush(); git_commit_tasks.flush()
             print("\nостановлен")

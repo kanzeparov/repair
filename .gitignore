@@ -1,5 +1,6 @@
 data.json
 plan.json
+plan-log.json
 .secret
 .push_enabled
 *.log

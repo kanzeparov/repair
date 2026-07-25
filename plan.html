@@ -88,6 +88,8 @@
     <button id="undo">↶ Отменить</button>
     <button id="logbtn">📜 Журнал</button>
     <button id="backup">⛃ Бэкап</button>
+    <button id="restore">⤒ Восстановить</button>
+    <input id="restoreFile" type="file" accept=".json,application/json" style="display:none">
     <span class="start" id="saveInfo"></span>
     <span id="cellInfo" style="font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:5px 10px;display:none"></span>
     <span class="kpi">
@@ -161,7 +163,7 @@ const PLAN=[
  ['exp','Прочее 16.08 (уточнить статью)', row({3:42000})],
  ['exp','Гашение кредитов Райф (остатки)', row({4:3041387})],
  ['exp','ПВ за объект (первоначальный взнос)', row({4:2000000})],
- ['exp','⛔ ОТМЕНЕНО 10.07 (аудит В⁺): гашение ипотеки 4,6% не делаем', row({})],
+ ['exp','Гашение ипотеки ДОМ.РФ 4,6%', row({})],   // ⚠ индекс 32 — держать одинаковым с cards.html
  ['exp','Доплата за объект (покупка)', row({12:8032000})],
  ['exp','Гашение кредиток Райф (конец грейса)', row({3:355000})],
  ['exp','Кредитка Райф — гашение №2', row({6:100000})],
@@ -191,7 +193,7 @@ function logEv(k,ri,c,from,to,extra){
   if(!data.log) data.log=[];
   data.log.push({t:new Date().toISOString(),src:'table',k,ri,c,
     lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
-  if(data.log.length>5000) data.log.splice(0,data.log.length-5000);
+  if(data.log.length>1000) data.log.splice(0,data.log.length-1000);
 }
 const RATE=0.12;   // годовая ставка для строки «% на остаток»
 const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
@@ -467,6 +469,37 @@ document.getElementById('backup').onclick=()=>{
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='finance-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
 };
+
+// Проверка целостности: битый план раньше молча рисовался как NaN по всей таблице
+function checkPlan(d){
+  if(!d || typeof d!=='object') return 'это не объект плана';
+  if(!Array.isArray(d.rows) || !d.rows.length) return 'нет строк (rows)';
+  if(d.rows.some(r=>!Array.isArray(r) || r.length!==COLS.length))
+    return 'строки не по '+COLS.length+' колонок';
+  if(d.rows.some(r=>r.some(v=>typeof v!=='number' || !isFinite(v))))
+    return 'в ячейках не числа';
+  if(d.labels && d.labels.length!==d.rows.length)
+    return 'подписей '+d.labels.length+', а строк '+d.rows.length;
+  return '';
+}
+document.getElementById('restore').onclick=()=>document.getElementById('restoreFile').click();
+document.getElementById('restoreFile').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  let pack;
+  try{ pack=JSON.parse(await f.text()); }catch(_){ alert('Файл не читается как JSON'); return; }
+  const d=(pack && pack.finplan) ? pack.finplan : pack;   // файл кнопки «Бэкап» либо голый план
+  const bad=checkPlan(d);
+  if(bad){ alert('Не восстанавливаю: '+bad); return; }
+  const when=pack && pack.ts ? 'Бэкап от '+pack.ts.slice(0,16).replace('T',' ')+'\n' : '';
+  if(!confirm(when+'Строк: '+d.rows.length+'\nЗаменить текущий план целиком? Текущие данные будут перезаписаны.')) return;
+  d.rev=(data.rev||0)+1;            // иначе сервер отобьёт restore как устаревший (409)
+  data=d; migrate();
+  if(!data.log) data.log=[];
+  logEv('restore',-1,-1,'',f.name);
+  baseRev=data.rev;
+  setStartInputs(); build(); saveState();
+  document.getElementById('saveInfo').textContent='восстановлено из '+f.name;
+};
 document.getElementById('csv').onclick=()=>{
   const rows=[['Статья',...COLS],
     ...data.rows.map((row,ri)=>[LBL(ri),...row])];
@@ -480,7 +513,15 @@ build();
 (async()=>{ try{
   const r=await fetch('/api/plan',{cache:'no-store'});
   if(r.ok){ const j=await r.json();
-    if(j && j.rows){ data=j; migrate();
+    if(j && j.rows){
+      const bad=checkPlan(j);
+      if(bad){   // раньше битый файл молча превращал всю таблицу в NaN
+        document.getElementById('saveInfo').innerHTML=
+          '<b style="color:var(--crit)">⚠ plan.json повреждён ('+bad+') — на экране копия из браузера, '
+          +'первая же правка перезапишет файл ею. Хочешь другое — жми «⤒ Восстановить»</b>';
+        return;   // не подменяем рабочие данные битыми
+      }
+      data=j; migrate();
       baseRev=data.rev||0;                                   // иначе вкладка вечно считает себя устаревшей
       try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
       setStartInputs(); build();
