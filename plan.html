@@ -480,7 +480,10 @@ build();
 (async()=>{ try{
   const r=await fetch('/api/plan',{cache:'no-store'});
   if(r.ok){ const j=await r.json();
-    if(j && j.rows){ data=j; migrate(); setStartInputs(); build();
+    if(j && j.rows){ data=j; migrate();
+      baseRev=data.rev||0;                                   // иначе вкладка вечно считает себя устаревшей
+      try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
+      setStartInputs(); build();
       document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'; } }
 }catch(e){} })();
 </script>
