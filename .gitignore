@@ -2,6 +2,7 @@ data.json
 plan.json
 plan-log.json
 rate.json
+crypto.json
 .secret
 .push_enabled
 *.log

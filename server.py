@@ -139,14 +139,17 @@ def _write_json(path, obj):
 RATE_FILE = os.path.join(DIR, "rate.json")
 RATE_DISCOUNT = 0.05          # курс ЦБ минус 5%
 
+CRYPTO_FILE = os.path.join(DIR, "crypto.json")
+
 def cbr_usd():
-    """Курс доллара ЦБ, кэш на сутки. Тянет сервер, а не браузер: у cbr.ru нет CORS."""
+    """Курсы ЦБ (доллар и тенге), кэш на сутки. Тянет сервер, а не браузер: у cbr.ru нет CORS.
+    Ключи cbr/rate оставлены на верхнем уровне для совместимости — это доллар."""
     today = datetime.date.today().isoformat()
     cached = None
     try:
         with open(RATE_FILE, encoding="utf-8") as f:
             cached = json.load(f)
-        if cached.get("day") == today:
+        if cached.get("day") == today and "kzt" in cached:
             return cached
     except Exception:
         pass
@@ -154,21 +157,59 @@ def cbr_usd():
         import urllib.request, xml.etree.ElementTree as ET
         with urllib.request.urlopen("https://www.cbr.ru/scripts/XML_daily.asp", timeout=10) as r:
             root = ET.fromstring(r.read().decode("windows-1251"))
+        got = {}
         for v in root.findall("Valute"):
-            if v.findtext("CharCode") == "USD":
+            code = v.findtext("CharCode")
+            if code in ("USD", "KZT"):
                 nom = float(v.findtext("Nominal").replace(",", "."))
                 val = float(v.findtext("Value").replace(",", "."))
-                usd = val / nom
-                out = {"day": today, "cbrDate": root.get("Date"), "cbr": round(usd, 4),
-                       "rate": round(usd * (1 - RATE_DISCOUNT), 4), "discount": RATE_DISCOUNT}
-                _write_json(RATE_FILE, out)
-                return out
-    except Exception as e:
-        if cached:                       # нет сети — отдаём вчерашний, но помечаем
-            cached = dict(cached); cached["stale"] = True
+                got[code] = val / nom
+        if "USD" in got:
+            out = {"day": today, "cbrDate": root.get("Date"),
+                   "cbr": round(got["USD"], 4),
+                   "rate": round(got["USD"] * (1 - RATE_DISCOUNT), 6),
+                   "discount": RATE_DISCOUNT}
+            if "KZT" in got:
+                out["kzt"] = {"cbr": round(got["KZT"], 6),
+                              "rate": round(got["KZT"] * (1 - RATE_DISCOUNT), 6)}
+            _write_json(RATE_FILE, out)
+            return out
+    except Exception:
+        pass
+    if cached:                           # нет сети — отдаём вчерашний, но помечаем
+        cached = dict(cached); cached["stale"] = True
+        return cached
+    return {"error": "курс ЦБ недоступен"}
+
+def crypto_price():
+    """Цена токена MEGA (MegaETH) в долларах, кэш на сутки."""
+    today = datetime.date.today().isoformat()
+    cached = None
+    try:
+        with open(CRYPTO_FILE, encoding="utf-8") as f:
+            cached = json.load(f)
+        if cached.get("day") == today:
             return cached
-        return {"error": str(e)[:120]}
-    return cached or {"error": "USD не найден в ответе ЦБ"}
+    except Exception:
+        pass
+    try:
+        import urllib.request
+        url = ("https://api.coingecko.com/api/v3/simple/price"
+               "?ids=megaeth&vs_currencies=usd&include_last_updated_at=true")
+        with urllib.request.urlopen(url, timeout=12) as r:
+            j = json.loads(r.read().decode())
+        p = j.get("megaeth", {}).get("usd")
+        if p:
+            out = {"day": today, "mega": {"usd": p}, "src": "coingecko/megaeth",
+                   "updated": j["megaeth"].get("last_updated_at")}
+            _write_json(CRYPTO_FILE, out)
+            return out
+    except Exception:
+        pass
+    if cached:
+        cached = dict(cached); cached["stale"] = True
+        return cached
+    return {"error": "цена MEGA недоступна"}
 
 def read_plan():
     """plan.json + подшитый обратно журнал — клиент видит единый объект, как раньше."""
@@ -261,6 +302,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json(read_plan())
         if self.path == "/api/rate":
             return self._json(cbr_usd())
+        if self.path == "/api/crypto":
+            return self._json(crypto_price())
         if self.path == "/":
             self.path = "/index.html"
         return super().do_GET()

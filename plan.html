@@ -190,7 +190,11 @@ function migrate(){
   while(data.rows.length<PLAN.length){ data.rows.push([...PLAN[data.rows.length][2]]); }
   while(data.labels.length<PLAN.length){ data.labels.push(PLAN[data.labels.length][1]); }
   if(!data.extraTypes) data.extraTypes=[];
-  if(!data.usd) data.usd={};        // ячейки, введённые в долларах
+  if(!data.units) data.units={};    // ячейки в валюте/токенах: {v, u}
+  if(data.usd){                     // миграция старого формата (только доллары)
+    for(const k in data.usd) if(data.units[k]===undefined) data.units[k]={v:data.usd[k],u:'usd'};
+    delete data.usd;
+  }
 }
 migrate();
 const TYPE=ri=> ri<PLAN.length ? PLAN[ri][0] : (data.extraTypes[ri-PLAN.length]||'exp');
@@ -204,60 +208,85 @@ function logEv(k,ri,c,from,to,extra){
 }
 const RATE=0.12;   // годовая ставка для строки «% на остаток»
 
-// ---- долларовые ячейки -------------------------------------------------
-// В ячейку можно написать «10д» / «10$» / «10d» — сумма хранится в долларах
-// (data.usd["строка_колонка"]), а в rows[][] всегда лежат рубли, поэтому все
-// итоги, месячные суммы и проценты считаются как раньше. Курс — ЦБ минус 5%,
-// тянется с сервера раз в сутки; при его изменении рубли пересчитываются.
-let FX=null;                                   // {cbr, rate, cbrDate, stale}
-const usdKey=(r,c)=>r+'_'+c;
-const USD_RE=/^\s*(-?[\d\s]*[.,]?\d+)\s*(д|d|\$|у\.?е\.?)\s*$/i;
-function fxRate(){ return (FX&&FX.rate) || data.fxRate || 0; }
-function parseUsd(s){
-  const m=USD_RE.exec(String(s));
-  if(!m) return null;
-  const v=parseFloat(m[1].replace(/\s/g,'').replace(',','.'));
-  return isFinite(v)?v:null;
+// ---- ячейки в валюте и токенах -----------------------------------------
+// В ячейку можно написать «10д» (доллары), «54990тг» (тенге) или «4167mega»
+// (токены MegaETH). Сама единица хранится в data.units["строка_колонка"] = {v,u},
+// а в rows[][] всегда лежат рубли — поэтому итоги, месячные суммы и проценты
+// считаются как раньше. Курсы тянет сервер раз в сутки: доллар и тенге с ЦБ
+// (минус 5%), цену MEGA с CoinGecko. При смене курса рубли пересчитываются сами.
+let FX=null, CR=null;                          // курсы ЦБ и цена токена
+const uKey=(r,c)=>r+'_'+c;
+function fxRate(){  return (FX&&FX.rate) || data.fxRate || 0; }
+function kztRate(){ return (FX&&FX.kzt&&FX.kzt.rate) || data.kztRate || 0; }
+function megaUsd(){ return (CR&&CR.mega&&CR.mega.usd) || data.megaUsd || 0; }
+const UNITS={
+  usd : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(д|d|\$|у\.?е\.?)\s*$/i, sfx:'д',      name:'$',
+         rub:()=>fxRate()},
+  kzt : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(₸|тг|тенге|kzt)\s*$/i,  sfx:'тг',     name:'₸',
+         rub:()=>kztRate()},
+  mega: {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(mega|мега|меga)\s*$/i,  sfx:' mega',  name:'MEGA',
+         rub:()=>megaUsd()*fxRate()},
+};
+function parseUnit(s){
+  for(const u in UNITS){
+    const m=UNITS[u].re.exec(String(s));
+    if(m){
+      const v=parseFloat(m[1].replace(/\s/g,'').replace(',','.'));
+      if(isFinite(v)) return {v,u};
+    }
+  }
+  return null;
 }
-function isUsd(r,c){ return !!(data.usd && data.usd[usdKey(r,c)]!=null); }
+function unitAt(r,c){ return data.units && data.units[uKey(r,c)] || null; }
 function cellText(r,c){                        // что показать в поле ввода
-  return isUsd(r,c) ? data.usd[usdKey(r,c)]+'д' : (data.rows[r][c]||0);
+  const q=unitAt(r,c);
+  return q ? q.v+UNITS[q.u].sfx : (data.rows[r][c]||0);
 }
-function setCell(r,c,raw){                     // запись ячейки: рубли или доллары
-  if(!data.usd) data.usd={};
-  const k=usdKey(r,c), usd=parseUsd(raw);
-  if(usd!==null){
-    data.usd[k]=usd;
-    data.rows[r][c]=Math.round(usd*fxRate());  // курса ещё нет → 0, поправится applyRate()
+function cellTitle(r,c){
+  const q=unitAt(r,c); if(!q) return '';
+  const rate=UNITS[q.u].rub();
+  return `${q.v} ${UNITS[q.u].name} × ${F2(rate)} ₽ = ${F(data.rows[r][c]||0)} ₽`
+    + (q.u==='mega' ? ` (MEGA $${megaUsd()} × ${F2(fxRate())} ₽)` : '');
+}
+function setCell(r,c,raw){                     // запись ячейки: рубли, валюта или токены
+  if(!data.units) data.units={};
+  const k=uKey(r,c), q=parseUnit(raw);
+  if(q){
+    data.units[k]=q;
+    data.rows[r][c]=Math.round(q.v*UNITS[q.u].rub());   // курса нет → 0, поправит applyRate()
   } else {
-    delete data.usd[k];
+    delete data.units[k];
     data.rows[r][c]=parseFloat(String(raw).replace(/\s/g,'').replace(',','.'))||0;
   }
 }
-function applyRate(){                          // пересчитать все долларовые ячейки
-  const rate=fxRate();
-  if(!rate || !data.usd) return 0;
+function applyRate(){                          // пересчитать все нерублёвые ячейки
+  if(!data.units) return 0;
   let n=0;
-  for(const k in data.usd){
+  for(const k in data.units){
+    const q=data.units[k]; if(!q||!UNITS[q.u]) continue;
+    const rate=UNITS[q.u].rub(); if(!rate) continue;
     const [r,c]=k.split('_').map(Number);
     if(!data.rows[r]) continue;
-    const rub=Math.round(data.usd[k]*rate);
+    const rub=Math.round(q.v*rate);
     if(data.rows[r][c]!==rub){ data.rows[r][c]=rub; n++; }
   }
-  if(rate) data.fxRate=rate;                   // запомнить: пригодится без сети
+  if(fxRate())  data.fxRate=fxRate();           // запомнить: пригодится без сети
+  if(kztRate()) data.kztRate=kztRate();
+  if(megaUsd()) data.megaUsd=megaUsd();
   return n;
 }
 function showRate(){
   const el=document.getElementById('fxRate');
-  if(!FX || FX.error){
-    el.textContent = data.fxRate ? F2(data.fxRate)+' ₽ (из памяти)' : 'курс не получен';
-    return;
-  }
-  el.textContent=F2(FX.rate)+' ₽';
+  const bits=[];
+  if(fxRate())  bits.push('$ '+F2(fxRate()));
+  if(kztRate()) bits.push('₸ '+kztRate().toFixed(4));
+  if(megaUsd()) bits.push('MEGA '+F2(megaUsd()*fxRate()));
+  el.textContent = bits.length ? bits.join(' · ') : 'курсы не получены';
+  const stale=(FX&&FX.stale?' · курс ЦБ старый':'')+(CR&&CR.stale?' · цена MEGA старая':'');
   document.getElementById('fxBox').title=
-    `ЦБ ${F2(FX.cbr)} ₽ на ${FX.cbrDate||'—'} минус ${Math.round((FX.discount||0.05)*100)}% = ${F2(FX.rate)} ₽`
-    + (FX.stale?' · СТАРЫЙ: сегодня ЦБ не ответил':'')
-    + '. В ячейку можно писать «10д» — посчитается в рублях.';
+    (FX&&FX.cbr ? `ЦБ на ${FX.cbrDate||'—'}: $ ${F2(FX.cbr)}, ₸ ${(FX.kzt?FX.kzt.cbr:0).toFixed(4)} — минус ${Math.round((FX.discount||0.05)*100)}%. ` : '')
+    + (megaUsd() ? `MEGA $${megaUsd()} (CoinGecko). ` : '')
+    + 'В ячейку можно писать «10д», «54990тг», «4167mega».' + stale;
 }
 const F2=n=>new Intl.NumberFormat('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
@@ -314,9 +343,9 @@ function build(){
     h+=`<tr class="${TYPE(ri)}"><td class="lbl" contenteditable="true" spellcheck="false" data-ri="${ri}" title="${lb}">${lb}</td>`;
     for(let ci=0;ci<COLS.length;ci++){
       if(HID.has(ci)) continue;
-      const uc=isUsd(ri,ci);
+      const uq=unitAt(ri,ci);
       h+=`<td><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}"`
-        +(uc?` class="usd" title="$${data.usd[usdKey(ri,ci)]} × ${F2(fxRate())} = ${F(data.rows[ri][ci]||0)} ₽"`:'')
+        +(uq?` class="usd" title="${cellTitle(ri,ci)}"`:'')
         +` value="${cellText(ri,ci)}"></td>`;
     }
     h+='</tr>';
@@ -364,10 +393,11 @@ function build(){
       const r=+e.target.dataset.r,c=+e.target.dataset.c;
       const o=parseFloat(e.target.dataset.origRub)||0;      // в журнал всегда рубли
       const nv=data.rows[r][c]||0;
-      if(o!==nv) logEv('edit',r,c,o,nv,{col:COLS[c],usd:data.usd&&data.usd[usdKey(r,c)]});
-      const el=e.target, u=data.usd&&data.usd[usdKey(r,c)];
-      el.classList.toggle('usd',u!=null);
-      el.title = u!=null ? `$${u} × ${F2(fxRate())} = ${F(nv)} ₽` : '';
+      const q=unitAt(r,c);
+      if(o!==nv) logEv('edit',r,c,o,nv,{col:COLS[c],unit:q||undefined});
+      const el=e.target;
+      el.classList.toggle('usd',!!q);
+      el.title = q ? cellTitle(r,c) : '';
       if(o!==nv) autoSave();
     });
     inp.addEventListener('input',e=>{
@@ -589,8 +619,10 @@ build();
 // курс ЦБ − 5%: сначала план, потом курс — иначе пересчёт лёг бы на старые данные
 async function loadRate(){
   try{
-    const r=await fetch('/api/rate',{cache:'no-store'});
+    const [r,c]=await Promise.all([fetch('/api/rate',{cache:'no-store'}),
+                                   fetch('/api/crypto',{cache:'no-store'})]);
     if(r.ok) FX=await r.json();
+    if(c.ok) CR=await c.json();
   }catch(e){}
   showRate();
   if(applyRate()){          // курс изменился — рублёвые суммы долларовых ячеек поехали
