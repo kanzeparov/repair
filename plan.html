@@ -476,17 +476,7 @@ function calc(){
   // идём месяц за месяцем, каждый остаток взвешиваем по числу дней, что он держится,
   // начисляем Σ(остаток×дни)×ставка/365 в конце месяца и добавляем к остатку —
   // следующий месяц считается уже от увеличенного остатка.
-  let run=data.start||0;
-  const dif=[], pct=[], avgs=[];
-  MONTHS.forEach(m=>{
-    let acc=0;                            // Σ(остаток × дни) за месяц
-    m.cols.forEach((i,k)=>{ run+=inc[i]-exp[i]; dif[i]=run; acc+=run*m.w[k]; });
-    avgs.push(acc/m.len);                 // средний дневной остаток
-    const p=(acc>0 && m.key!=='янв.27') ? acc*RATE/365 : 0; // на отриц. остаток и январь-27 не начисляем
-    pct.push(p);
-    run+=p;
-    dif[m.cols[m.cols.length-1]]=run;     // конец месяца — остаток уже с процентами
-  });
+  const {dif,pct,avgs}=runBalance();
   const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
   document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map((v,i)=>HID.has(i)?'':cell(v)).join('');
   document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map((v,i)=>HID.has(i)?'':cell(v)).join('');
@@ -830,8 +820,12 @@ function resetDays(){
 }
 function renderDays(){
   const ci=dayCi, dates=dayDates.slice(dayFrom), len=dates.length;
-  const rows=data.rows.map((_,i)=>i)
-    .filter(i=>data.rows[i][ci] || (data.days && data.days[i+'_'+ci]));
+  // нулевые строки не показываем: rows[ri][ci] у ручной разбивки и так равен сумме дней
+  if(data.days) for(const k in data.days){          // подчищаем пустые разбивки, чтобы не висел ✎
+    const a=data.days[k];
+    if(Array.isArray(a) && !a.some(x=>x)) delete data.days[k];
+  }
+  const rows=data.rows.map((_,i)=>i).filter(i=>data.rows[i][ci]);
   const ord=[...rows.filter(i=>TYPE(i)==='inc'), ...rows.filter(i=>TYPE(i)!=='inc')];
   let h='<tr><th>Статья</th>'+dates.map(x=>{
       const we=(x.getDay()===0||x.getDay()===6)?' class="we"':'';
@@ -849,11 +843,20 @@ function renderDays(){
   const cell=(a)=>a.map(v=>`<td>${F(v)}</td>`).join('');
   h+=`<tr class="tot t-inc"><td>Доход за день</td>${cell(inc)}<td>${F(inc.reduce((a,b)=>a+b,0))}</td></tr>`;
   h+=`<tr class="tot t-exp"><td>Расход за день</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
-  let run=prevDiff(ci), runs=[];
-  for(let i=0;i<len;i++){ run+=inc[i]-exp[i]; runs.push(run); }
-  h+=`<tr class="tot t-dif"><td>Остаток на конец дня</td>`
+  // % начисляются на остаток каждого дня, но капитализируются в конце месяца —
+  // ровно как в основной таблице, поэтому база для начисления не растёт внутри периода
+  let run=prevDiff(ci), runs=[], pcts=[], acc=0;
+  for(let i=0;i<len;i++){
+    run+=inc[i]-exp[i];
+    const p = run>0 ? run*RATE/365 : 0;
+    acc+=p; pcts.push(p); runs.push(run+acc);
+  }
+  h+=`<tr class="tot t-inc"><td>% на остаток за день (${RATE*100}% годовых)</td>`
+    + pcts.map(v=>`<td>${F(v)}</td>`).join('')
+    + `<td>${F(acc)}</td></tr>`;
+  h+=`<tr class="tot t-dif"><td>Остаток на конец дня (с %)</td>`
     + runs.map(v=>`<td class="${v<0?'neg':''}">${F(v)}</td>`).join('')
-    + `<td class="${run<0?'neg':''}">${F(run)}</td></tr>`;
+    + `<td class="${runs[len-1]<0?'neg':''}">${F(runs[len-1])}</td></tr>`;
   const t=document.getElementById('dayTable');
   t.innerHTML=h;
   t.querySelectorAll('input[data-r]').forEach(inp=>{
@@ -887,11 +890,16 @@ function updateDayTotals(){    // быстрый пересчёт итогов �
     if(td[arr.length+1]) td[arr.length+1].textContent=F(arr.reduce((a,b)=>a+b,0)); };
   if(rows[0]) put(rows[0],inc);
   if(rows[1]) put(rows[1],exp);
-  if(rows[2]){ let run=prevDiff(dayCi); const runs=[];
-    for(let i=0;i<len;i++){ run+=inc[i]-exp[i]; runs.push(run); }
-    const td=rows[2].querySelectorAll('td');
+  let run=prevDiff(dayCi), runs=[], pcts=[], acc=0;
+  for(let i=0;i<len;i++){
+    run+=inc[i]-exp[i];
+    const p = run>0 ? run*RATE/365 : 0;
+    acc+=p; pcts.push(p); runs.push(run+acc);
+  }
+  if(rows[2]) put(rows[2],pcts);
+  if(rows[3]){ const td=rows[3].querySelectorAll('td');
     runs.forEach((v,i)=>{ if(td[i+1]){ td[i+1].textContent=F(v); td[i+1].classList.toggle('neg',v<0); } });
-    if(td[len+1]){ td[len+1].textContent=F(run); td[len+1].classList.toggle('neg',run<0); } }
+    if(td[len+1]){ td[len+1].textContent=F(runs[len-1]); td[len+1].classList.toggle('neg',runs[len-1]<0); } }
 }
 function openDays(ci){
   const [iso,len]=PERIODS[ci]||[];
@@ -915,14 +923,62 @@ function openDays(ci){
   renderDays();
   document.getElementById('dayWrap').style.display='block';
 }
-function prevDiff(ci){        // остаток на конец предыдущего периода
-  const inc=z(),exp=z();
-  data.rows.forEach((row,ri)=>{ for(let c=0;c<COLS.length;c++){
-    if(TYPE(ri)==='inc') inc[c]+=row[c]||0; else exp[c]+=row[c]||0; } });
-  let run=data.start||0;
-  for(let c=0;c<ci;c++) run+=inc[c]-exp[c];
-  return run;
+
+// ---- расчёт остатка и процентов по КАЛЕНДАРНЫМ ДНЯМ ----------------------
+// Раньше проценты считались по весу колонки: остаток на конец полумесяца умножался
+// на длину этого полумесяца. Из-за этого 12 млн, приходящие 31 июля, «работали»
+// все 16 дней второй половины месяца и давали 64 237 ₽ вместо реальных ~4 200 ₽.
+// Теперь поток раскладывается по дням той же функцией, что и дневная таблица.
+const dkey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function periodDates(ci){
+  const p=PERIODS[ci]; if(!p) return [];
+  const d0=new Date(p[0]+'T12:00:00'), out=[];
+  for(let k=0;k<p[1];k++){ const x=new Date(d0); x.setDate(d0.getDate()+k); out.push(x); }
+  return out;
 }
+function dayFlows(){
+  const flow=new Map();
+  for(let ci=0;ci<COLS.length;ci++){
+    const dates=periodDates(ci); if(!dates.length) continue;
+    data.rows.forEach((row,ri)=>{
+      if(!row[ci]) return;
+      const isInc=TYPE(ri)==='inc';
+      splitOverDays(ri,ci,dates).forEach((v,k)=>{
+        if(!v) return;
+        const key=dkey(dates[k]), o=flow.get(key)||{i:0,e:0};
+        if(isInc) o.i+=v; else o.e+=v;
+        flow.set(key,o);
+      });
+    });
+  }
+  return flow;
+}
+function runBalance(){
+  const flow=dayFlows();
+  let run=data.start||0;
+  const dif=[], pct=[], avgs=[];
+  MONTHS.forEach(m=>{
+    let acc=0, days=0;                     // Σ остатков по дням месяца
+    m.cols.forEach(ci=>{
+      periodDates(ci).forEach(x=>{
+        const f=flow.get(dkey(x))||{i:0,e:0};
+        run+=f.i-f.e; acc+=run; days++;
+      });
+      dif[ci]=run;                         // остаток на конец периода
+    });
+    avgs.push(days?acc/days:0);            // средний дневной остаток
+    const p=(acc>0 && m.key!=='янв.27') ? acc*RATE/365 : 0;
+    pct.push(p);
+    run+=p;
+    dif[m.cols[m.cols.length-1]]=run;      // конец месяца — уже с процентами
+  });
+  return {dif,pct,avgs};
+}
+function prevDiff(ci){        // остаток на конец предыдущего периода (с процентами прошлых месяцев)
+  if(ci<=0) return data.start||0;
+  return runBalance().dif[ci-1];
+}
+
 document.getElementById('dayReset').onclick=()=>{
   if(confirm('Вернуть автоматическое распределение по дням для этого периода?')) resetDays();
 };
