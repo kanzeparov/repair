@@ -62,6 +62,41 @@
   tr.t-mon td.lbl{font-weight:400;color:var(--muted)}
   tr.t-mon td.neg{color:var(--crit)}
   .note{margin-top:12px;color:var(--muted);font-size:11.5px;max-width:90ch}
+  th.colhead{cursor:pointer}
+  th.colhead:hover{color:var(--accent);text-decoration:underline}
+  #dayWrap{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);
+    padding:22px 14px;overflow:auto}
+  #dayBox{max-width:1700px;margin:0 auto;background:var(--paper);border:1px solid var(--line);
+    border-radius:12px;padding:16px 18px 20px}
+  #dayBox h3{font-family:Georgia,serif;font-weight:400;font-size:19px;margin:0 0 2px;
+    display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+  #dayBox .hint{color:var(--muted);font-size:11.5px;margin-bottom:12px}
+  #dayBox .close{padding:6px 12px;font-size:12.5px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
+  #dayScroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+  #dayTable{border-collapse:collapse;font-size:11.5px;min-width:100%}
+  #dayTable th{font-family:var(--mono);font-size:10px;color:var(--muted);padding:6px 5px;
+    border-bottom:1.5px solid var(--line);white-space:nowrap;text-align:right;
+    position:sticky;top:0;background:var(--card);z-index:2}
+  #dayTable th:first-child{text-align:left;position:sticky;left:0;z-index:3;min-width:230px}
+  #dayTable th.we{color:var(--crit)}
+  #dayTable td{border-bottom:1px solid var(--line);padding:4px 5px;text-align:right;
+    font-family:var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+  #dayTable td:first-child{text-align:left;font-family:var(--sans);position:sticky;left:0;
+    background:var(--card);max-width:230px;overflow:hidden;text-overflow:ellipsis}
+  #dayTable tr.inc td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  #dayTable tr.exp td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
+  #dayTable td.z{color:color-mix(in srgb, var(--muted) 40%, transparent)}
+  #dayTable tr.tot td{font-weight:700;padding:6px 5px}
+  #dayTable tr.t-inc td{background:var(--inc)}
+  #dayTable tr.t-exp td{background:var(--exp)}
+  #dayTable tr.t-dif td{background:var(--dif)}
+  #dayTable tr.t-dif td.neg{color:var(--crit)}
+  #dayTable td input{width:74px;border:none;background:transparent;color:var(--ink);
+    font-family:var(--mono);font-size:11.5px;text-align:right;padding:3px 4px;
+    font-variant-numeric:tabular-nums;appearance:textfield}
+  #dayTable td input:focus{outline:1.5px solid var(--accent);border-radius:3px;background:var(--paper)}
+  #dayTable td input.z{color:color-mix(in srgb, var(--muted) 40%, transparent)}
 </style>
 </head>
 <body>
@@ -108,6 +143,16 @@
   </div>
 
   <div class="scroll"><table id="grid"></table></div>
+
+  <div id="dayWrap">
+    <div id="dayBox">
+      <h3><span id="dayTitle"></span><span style="display:flex;gap:8px">
+        <button class="close" id="dayReset" title="вернуть автоматическое распределение по дням">↺ сбросить дни</button>
+        <button class="close" id="dayClose">✕ закрыть</button></span></h3>
+      <div class="hint" id="dayHint"></div>
+      <div id="dayScroll"><table id="dayTable"></table></div>
+    </div>
+  </div>
 
   <p class="note">Зелёная полоса слева — доход, красная — расход. Серые нули — пустые ячейки (можно заполнять). Название статьи редактируется кликом по нему. Всё сохраняется автоматически при каждом изменении.
   «Разница» — нарастающий остаток: старт + доходы − расходы. ПВ за объект 2 млн — строка 01.09; доплата за объект — ячейка 31.12 (правь под цену лота). KPI «Ипотека-2» показывает, какой второй ипотекой закрывается минус года, и её платёж. «Не продаю»: продажа/гашения/покупка убраны, возвращены платежи по кредитам (~75к/мес), минималки ТКФ и ипотека 38к — долги при этом никуда не деваются. Выбор сценария сбрасывает ручные правки ячеек. Финальные −3 млн в плане = остаток второй ипотеки после декабрьского ЧДП, поэтому отрицательная «Разница» на 31.12 — это по замыслу.
@@ -196,6 +241,7 @@ function migrate(){
       (i<PLAN.length ? PLAN[i][0] : ((data.extraTypes||[])[i-PLAN.length]||'exp')));
   }
   if(!data.units) data.units={};    // ячейки в валюте/токенах: {v, u}
+  if(!data.days)  data.days={};     // ручная разбивка периода по дням: "строка_колонка" → [суммы]
   if(data.usd){                     // миграция старого формата (только доллары)
     for(const k in data.usd) if(data.units[k]===undefined) data.units[k]={v:data.usd[k],u:'usd'};
     delete data.usd;
@@ -258,6 +304,7 @@ function cellTitle(r,c){
 }
 function setCell(r,c,raw){                     // запись ячейки: рубли, валюта или токены
   if(!data.units) data.units={};
+  if(data.days) delete data.days[r+'_'+c];     // сумма периода задана вручную → дни пересобрать заново
   const k=uKey(r,c), q=parseUnit(raw);
   if(q){
     data.units[k]=q;
@@ -343,7 +390,8 @@ function emptyCols(){
 }
 function build(){
   HID = hideEmpty ? emptyCols() : new Set();
-  let h='<tr><th>Статья</th>'+COLS.map((c,i)=>HID.has(i)?'':`<th>${c}</th>`).join('')+'</tr>';
+  let h='<tr><th>Статья</th>'+COLS.map((c,i)=>HID.has(i)?''
+    :`<th class="colhead" data-c="${i}" title="${c} · клик — разложить период по дням">${colRange(i)}</th>`).join('')+'</tr>';
   const _idx=data.rows.map((_,i)=>i);
   const _ord=[..._idx.filter(i=>TYPE(i)==='inc'), ..._idx.filter(i=>TYPE(i)!=='inc')];
   _ord.forEach(ri=>{
@@ -623,6 +671,192 @@ document.getElementById('csv').onclick=()=>{
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='finplan-2026.csv'; a.click();
 };
+
+// ---- провал в дни: клик по заголовку периода -----------------------------
+// Границы берём как «от даты колонки до даты следующей колонки, не включая её».
+const PERIODS=[
+ ['2026-07-01',15],['2026-07-16',16],['2026-08-01',15],['2026-08-16',16],
+ ['2026-09-01',14],['2026-09-15',16],['2026-10-01',15],['2026-10-16',16],
+ ['2026-11-01',15],['2026-11-16',15],['2026-12-01',15],['2026-12-16',15],
+ ['2026-12-31',1], ['2027-01-01',31]];
+const WD=['вс','пн','вт','ср','чт','пт','сб'];
+const MN=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+// что размазывать ровно по всем дням периода
+const EVEN=/Еда|Ресты|Такси|Продукт|Расходник|Маркетплейс|Бады|Одежда|Здоровье|ДР|подарк|транспорт|Метро/i;
+// «26 числа», «16 и 23 числа» — ставим в эти дни месяца
+function colRange(i){              // «16.07» → «16.07–31.07»
+  const p=PERIODS[i]; if(!p) return COLS[i];
+  const a=new Date(p[0]+'T12:00:00'), b=new Date(a); b.setDate(a.getDate()+p[1]-1);
+  const f=d=>String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');
+  return p[1]===1 ? f(a) : f(a)+'–'+f(b);
+}
+function daysFromLabel(lbl, dates){
+  const s=String(lbl);
+  const m=s.match(/(\d{1,2})(?:\s*и\s*(\d{1,2}))?\s*числа/i);
+  if(m) return [ +m[1], ...(m[2]?[+m[2]]:[]) ];
+  // «28.07», «30.07» прямо в названии — берём, если месяц совпал с периодом
+  const mon=(dates && dates.length) ? dates[0].getMonth()+1 : 0;
+  const out=[];
+  for(const x of s.matchAll(/(\d{1,2})\.(\d{2})(?!\d)/g)) if(+x[2]===mon) out.push(+x[1]);
+  return out.length?out:null;
+}
+function splitOverDays(ri, ci, dates){
+  // возвращает массив сумм по дням периода
+  const n=dates.length;
+  const man=data.days && data.days[ri+'_'+ci];      // ручная разбивка по дням — она главнее
+  if(Array.isArray(man) && man.length===n) return man.slice();
+  const v=data.rows[ri][ci]||0, out=Array(n).fill(0);
+  if(!v) return out;
+  const lbl=LBL(ri);
+  if(EVEN.test(lbl) && n>1){                       // ровно по дням, остаток — в последний
+    const per=Math.floor(v/n);
+    for(let i=0;i<n;i++) out[i]= i===n-1 ? v-per*(n-1) : per;
+    return out;
+  }
+  const dd=daysFromLabel(lbl, dates);
+  if(dd){
+    const hit=dd.map(x=>dates.findIndex(d=>d.getDate()===x)).filter(i=>i>=0);
+    if(hit.length){
+      const per=Math.round(v/hit.length);
+      hit.forEach((i,k)=> out[i]= k===hit.length-1 ? v-per*(hit.length-1) : per);
+      return out;
+    }
+  }
+  out[0]=v;                                        // разовое — в первый день периода
+  return out;
+}
+let dayCi=null, dayDates=[];
+// Правка дня «материализует» разбивку: с этого момента период = сумма своих дней.
+// Обратная связь односторонняя — правка ячейки периода в основной таблице сбрасывает дни.
+function materialize(ri){
+  if(!data.days) data.days={};
+  const k=ri+'_'+dayCi;
+  if(!data.days[k]) data.days[k]=splitOverDays(ri,dayCi,dayDates);
+  return data.days[k];
+}
+function setDay(ri,di,val){
+  const arr=materialize(ri);
+  arr[di]=val;
+  const sum=arr.reduce((a,b)=>a+(b||0),0);
+  const old=data.rows[ri][dayCi];
+  data.rows[ri][dayCi]=sum;
+  if(data.units) delete data.units[ri+'_'+dayCi];   // сумма теперь в рублях, привязка к валюте снята
+  if(old!==sum) logEv('day',ri,dayCi,old,sum,{col:COLS[dayCi],day:dayDates[di].getDate()});
+  calc(); autoSave();
+}
+function resetDays(){
+  if(!data.days) return;
+  let n=0;
+  for(const k in data.days) if(k.endsWith('_'+dayCi)){ delete data.days[k]; n++; }
+  if(n){ calc(); autoSave(); }
+  renderDays();
+}
+function renderDays(){
+  const ci=dayCi, dates=dayDates, len=dates.length;
+  const rows=data.rows.map((_,i)=>i)
+    .filter(i=>data.rows[i][ci] || (data.days && data.days[i+'_'+ci]));
+  const ord=[...rows.filter(i=>TYPE(i)==='inc'), ...rows.filter(i=>TYPE(i)!=='inc')];
+  let h='<tr><th>Статья</th>'+dates.map(x=>{
+      const we=(x.getDay()===0||x.getDay()===6)?' class="we"':'';
+      return `<th${we}>${WD[x.getDay()]} ${x.getDate()}</th>`;
+    }).join('')+'<th>Σ период</th></tr>';
+  const inc=Array(len).fill(0), exp=Array(len).fill(0);
+  ord.forEach(ri=>{
+    const parts=splitOverDays(ri,ci,dates);
+    const man=!!(data.days && data.days[ri+'_'+ci]);
+    parts.forEach((v,i)=>{ if(TYPE(ri)==='inc') inc[i]+=v; else exp[i]+=v; });
+    h+=`<tr class="${TYPE(ri)}"><td title="${LBL(ri)}">${man?'✎ ':''}${LBL(ri)}</td>`
+      + parts.map((v,i)=>`<td><input data-r="${ri}" data-d="${i}" class="${v?'':'z'}" value="${v||0}"></td>`).join('')
+      + `<td>${F(data.rows[ri][ci])}</td></tr>`;
+  });
+  const cell=(a)=>a.map(v=>`<td>${F(v)}</td>`).join('');
+  h+=`<tr class="tot t-inc"><td>Доход за день</td>${cell(inc)}<td>${F(inc.reduce((a,b)=>a+b,0))}</td></tr>`;
+  h+=`<tr class="tot t-exp"><td>Расход за день</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
+  let run=prevDiff(ci), runs=[];
+  for(let i=0;i<len;i++){ run+=inc[i]-exp[i]; runs.push(run); }
+  h+=`<tr class="tot t-dif"><td>Остаток на конец дня</td>`
+    + runs.map(v=>`<td class="${v<0?'neg':''}">${F(v)}</td>`).join('')
+    + `<td class="${run<0?'neg':''}">${F(run)}</td></tr>`;
+  const t=document.getElementById('dayTable');
+  t.innerHTML=h;
+  t.querySelectorAll('input[data-r]').forEach(inp=>{
+    inp.addEventListener('focus',e=>e.target.select());
+    inp.addEventListener('input',e=>{
+      setDay(+e.target.dataset.r, +e.target.dataset.d,
+             parseFloat(String(e.target.value).replace(/\s/g,'').replace(',','.'))||0);
+      updateDayTotals();
+    });
+    inp.addEventListener('change',()=>renderDays());
+    inp.addEventListener('keydown',e=>{
+      if(e.key!=='Enter' && e.key!=='ArrowUp' && e.key!=='ArrowDown') return;
+      e.preventDefault();
+      const r=+e.target.dataset.r, d=+e.target.dataset.d, dr=(e.key==='ArrowUp')?-1:1;
+      const list=[...t.querySelectorAll('input[data-d="'+d+'"]')];
+      const pos=list.findIndex(x=>+x.dataset.r===r);
+      const nxt=list[pos+dr]; if(nxt){ nxt.focus(); nxt.select(); }
+    });
+  });
+}
+function updateDayTotals(){    // быстрый пересчёт итогов без перерисовки полей ввода
+  const t=document.getElementById('dayTable'), len=dayDates.length;
+  const inc=Array(len).fill(0), exp=Array(len).fill(0);
+  t.querySelectorAll('input[data-r]').forEach(i=>{
+    const ri=+i.dataset.r, di=+i.dataset.d, v=parseFloat(String(i.value).replace(/\s/g,'').replace(',','.'))||0;
+    if(TYPE(ri)==='inc') inc[di]+=v; else exp[di]+=v;
+  });
+  const rows=t.querySelectorAll('tr.tot');
+  const put=(tr,arr)=>{ const td=tr.querySelectorAll('td');
+    arr.forEach((v,i)=>{ if(td[i+1]) td[i+1].textContent=F(v); });
+    if(td[arr.length+1]) td[arr.length+1].textContent=F(arr.reduce((a,b)=>a+b,0)); };
+  if(rows[0]) put(rows[0],inc);
+  if(rows[1]) put(rows[1],exp);
+  if(rows[2]){ let run=prevDiff(dayCi); const runs=[];
+    for(let i=0;i<len;i++){ run+=inc[i]-exp[i]; runs.push(run); }
+    const td=rows[2].querySelectorAll('td');
+    runs.forEach((v,i)=>{ if(td[i+1]){ td[i+1].textContent=F(v); td[i+1].classList.toggle('neg',v<0); } });
+    if(td[len+1]){ td[len+1].textContent=F(run); td[len+1].classList.toggle('neg',run<0); } }
+}
+function openDays(ci){
+  const [iso,len]=PERIODS[ci]||[];
+  if(!iso) return;
+  const d0=new Date(iso+'T12:00:00');
+  dayDates=[]; for(let i=0;i<len;i++){ const x=new Date(d0); x.setDate(d0.getDate()+i); dayDates.push(x); }
+  dayCi=ci;
+  const last=dayDates[len-1];
+  document.getElementById('dayTitle').textContent =
+    `📆 ${colRange(ci)} по дням · ${d0.getDate()} ${MN[d0.getMonth()]} — ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()} (${len} дн.)`;
+  document.getElementById('dayHint').innerHTML =
+    'Ячейки редактируются: сумма за период станет суммой своих дней, и в основной таблице пересчитается сама. '
+   +'Строки с ручной разбивкой помечены <b>✎</b>. Пока не тронул — еда, такси, продукты, бады, одежда, здоровье, '
+   +'маркетплейсы и подарки разложены ровно по дням, подписки стоят в своё число, остальное в первый день. '
+   +'Правка ячейки периода в основной таблице сбрасывает дневную разбивку обратно на автоматическую. '
+   +'Валютная ячейка при правке по дням становится рублёвой.';
+  renderDays();
+  document.getElementById('dayWrap').style.display='block';
+}
+function prevDiff(ci){        // остаток на конец предыдущего периода
+  const inc=z(),exp=z();
+  data.rows.forEach((row,ri)=>{ for(let c=0;c<COLS.length;c++){
+    if(TYPE(ri)==='inc') inc[c]+=row[c]||0; else exp[c]+=row[c]||0; } });
+  let run=data.start||0;
+  for(let c=0;c<ci;c++) run+=inc[c]-exp[c];
+  return run;
+}
+document.getElementById('dayReset').onclick=()=>{
+  if(confirm('Вернуть автоматическое распределение по дням для этого периода?')) resetDays();
+};
+document.getElementById('dayClose').onclick=()=>{ document.getElementById('dayWrap').style.display='none'; };
+document.getElementById('dayWrap').addEventListener('click',e=>{
+  if(e.target.id==='dayWrap') e.target.style.display='none';
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.getElementById('dayWrap').style.display='none';
+});
+grid.addEventListener('click',e=>{
+  const th=e.target.closest('th.colhead');
+  if(th) openDays(+th.dataset.c);
+});
+
 if(location.protocol!=='file:'){ document.getElementById('navCards').href='cards.html'; document.getElementById('navHome').href='/'; document.getElementById('navTasks').href='tasks.html'; }
 build();
 // курс ЦБ − 5%: сначала план, потом курс — иначе пересчёт лёг бы на старые данные
