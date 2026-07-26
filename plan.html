@@ -390,6 +390,7 @@ function emptyCols(){
 }
 function build(){
   HID = hideEmpty ? emptyCols() : new Set();
+  for(let c=0;c<COLS.length;c++) if(isPast(c)) HID.add(c);   // прошедшее не показываем
   let h='<tr><th>Статья</th>'+COLS.map((c,i)=>HID.has(i)?''
     :`<th class="colhead" data-c="${i}" title="${c} · клик — разложить период по дням">${colRange(i)}</th>`).join('')+'</tr>';
   const _idx=data.rows.map((_,i)=>i);
@@ -684,6 +685,27 @@ const MN=['янв','фев','мар','апр','мая','июн','июл','авг
 // что размазывать ровно по всем дням периода
 const EVEN=/Еда|Ресты|Такси|Продукт|Расходник|Маркетплейс|Бады|Одежда|Здоровье|ДР|подарк|транспорт|Метро/i;
 // «26 числа», «16 и 23 числа» — ставим в эти дни месяца
+function periodEnd(ci){
+  const p=PERIODS[ci]; if(!p) return null;
+  const d=new Date(p[0]+'T12:00:00'); d.setDate(d.getDate()+p[1]-1); return d;
+}
+function isPast(ci){               // период целиком в прошлом
+  const e=periodEnd(ci); if(!e) return false;
+  const t=new Date(); t.setHours(0,0,0,0);
+  return e<t;
+}
+function zeroPast(){               // план смотрит вперёд: прошедшие периоды обнуляем и прячем
+  let n=0;
+  for(let c=0;c<COLS.length;c++){
+    if(!isPast(c)) continue;
+    data.rows.forEach((row,ri)=>{
+      if(row[c]){ logEv('past',ri,c,row[c],0,{col:COLS[c]}); row[c]=0; n++; }
+      if(data.units) delete data.units[ri+'_'+c];
+      if(data.days)  delete data.days[ri+'_'+c];
+    });
+  }
+  return n;
+}
 function colRange(i){              // «16.07» → «16.07–31.07»
   const p=PERIODS[i]; if(!p) return COLS[i];
   const a=new Date(p[0]+'T12:00:00'), b=new Date(a); b.setDate(a.getDate()+p[1]-1);
@@ -819,6 +841,7 @@ function updateDayTotals(){    // быстрый пересчёт итогов �
 function openDays(ci){
   const [iso,len]=PERIODS[ci]||[];
   if(!iso) return;
+  if(isPast(ci)){ alert('Этот период уже прошёл — план смотрит вперёд.'); return; }
   const d0=new Date(iso+'T12:00:00');
   dayDates=[]; for(let i=0;i<len;i++){ const x=new Date(d0); x.setDate(d0.getDate()+i); dayDates.push(x); }
   dayCi=ci;
@@ -857,6 +880,7 @@ grid.addEventListener('click',e=>{
   if(th) openDays(+th.dataset.c);
 });
 
+if(zeroPast()) autoSave();
 if(location.protocol!=='file:'){ document.getElementById('navCards').href='cards.html'; document.getElementById('navHome').href='/'; document.getElementById('navTasks').href='tasks.html'; }
 build();
 // курс ЦБ − 5%: сначала план, потом курс — иначе пересчёт лёг бы на старые данные
@@ -889,8 +913,12 @@ async function loadRate(){
       data=j; migrate();
       baseRev=data.rev||0;                                   // иначе вкладка вечно считает себя устаревшей
       try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
-      setStartInputs(); build();
-      document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'; } }
+      setStartInputs();
+      const zp=zeroPast();
+      build();
+      document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'
+        + (zp?' · прошедшие периоды обнулены ('+zp+' ячеек)':''); 
+      if(zp) autoSave(); } }
 }catch(e){}
   await loadRate();          // курс — после плана, иначе пересчёт лёг бы на старые данные
 })();
