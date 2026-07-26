@@ -381,6 +381,10 @@ grid.addEventListener('click',e=>{
 });
 
 let hideEmpty=true, HID=new Set();
+// Снимок пустых колонок берётся при загрузке и по кнопке, а не на каждой перерисовке:
+// иначе колонка исчезала прямо в момент, когда обнуляешь в ней последнюю ячейку.
+let emptySnap=null;
+function refreshEmptyCols(){ emptySnap=emptyCols(); }
 function emptyCols(){
   const s=new Set();
   for(let c=0;c<COLS.length;c++){
@@ -389,7 +393,8 @@ function emptyCols(){
   return s;
 }
 function build(){
-  HID = hideEmpty ? emptyCols() : new Set();
+  if(hideEmpty && !emptySnap) refreshEmptyCols();
+  HID = hideEmpty ? new Set(emptySnap) : new Set();
   for(let c=0;c<COLS.length;c++) if(isPast(c)) HID.add(c);   // прошедшее не показываем
   let h='<tr><th>Статья</th>'+COLS.map((c,i)=>HID.has(i)?''
     :`<th class="colhead" data-c="${i}" title="${c} · клик — разложить период по дням">${colRange(i)}</th>`).join('')+'</tr>';
@@ -576,6 +581,7 @@ document.getElementById('logbtn').onclick=()=>{
 };
 document.getElementById('hidecols').onclick=()=>{
   hideEmpty=!hideEmpty;
+  refreshEmptyCols();                 // пересобрать список пустых по кнопке
   document.getElementById('hidecols').classList.toggle('on',hideEmpty);
   document.getElementById('hidecols').textContent=hideEmpty?'🙈 Пустые столбцы':'👁 Все столбцы';
   build();
@@ -648,7 +654,7 @@ document.getElementById('restoreFile').onchange=async e=>{
   const when=pack && pack.ts ? 'Бэкап от '+pack.ts.slice(0,16).replace('T',' ')+'\n' : '';
   if(!confirm(when+'Строк: '+d.rows.length+'\nЗаменить текущий план целиком? Текущие данные будут перезаписаны.')) return;
   d.rev=(data.rev||0)+1;            // иначе сервер отобьёт restore как устаревший (409)
-  data=d; migrate();
+  data=d; migrate(); emptySnap=null;
   if(!data.log) data.log=[];
   logEv('restore',-1,-1,'',f.name);
   baseRev=data.rev;
@@ -777,7 +783,7 @@ function splitOverDays(ri, ci, dates){
   out[0]=v;                        // разовое — в первый день периода
   return out;
 }
-let dayCi=null, dayDates=[], dayFrom=0;   // dayFrom — первый неушедший день периода
+let dayCi=null, dayDates=[], dayFrom=0, dayRows=[];   // dayRows фиксируется при открытии   // dayFrom — первый неушедший день периода
 function firstOpenDay(dates){
   const t=new Date(); t.setHours(0,0,0,0);
   const i=dates.findIndex(d=>{ const x=new Date(d); x.setHours(0,0,0,0); return x>=t; });
@@ -820,13 +826,9 @@ function resetDays(){
 }
 function renderDays(){
   const ci=dayCi, dates=dayDates.slice(dayFrom), len=dates.length;
-  // нулевые строки не показываем: rows[ri][ci] у ручной разбивки и так равен сумме дней
-  if(data.days) for(const k in data.days){          // подчищаем пустые разбивки, чтобы не висел ✎
-    const a=data.days[k];
-    if(Array.isArray(a) && !a.some(x=>x)) delete data.days[k];
-  }
-  const rows=data.rows.map((_,i)=>i).filter(i=>data.rows[i][ci]);
-  const ord=[...rows.filter(i=>TYPE(i)==='inc'), ...rows.filter(i=>TYPE(i)!=='inc')];
+  // Состав строк зафиксирован при открытии: обнулил ячейки — строка остаётся на месте
+  // до перезагрузки или повторного открытия, иначе она исчезала прямо под курсором.
+  const ord=dayRows;
   let h='<tr><th>Статья</th>'+dates.map(x=>{
       const we=(x.getDay()===0||x.getDay()===6)?' class="we"':'';
       return `<th${we}>${WD[x.getDay()]} ${x.getDate()}</th>`;
@@ -908,6 +910,12 @@ function openDays(ci){
   const d0=new Date(iso+'T12:00:00');
   dayDates=[]; for(let i=0;i<len;i++){ const x=new Date(d0); x.setDate(d0.getDate()+i); dayDates.push(x); }
   dayCi=ci; dayFrom=firstOpenDay(dayDates);
+  if(data.days) for(const k in data.days){          // подчищаем пустые разбивки, чтобы не висел ✎
+    const a=data.days[k];
+    if(Array.isArray(a) && !a.some(x=>x)) delete data.days[k];
+  }
+  const vis=data.rows.map((_,i)=>i).filter(i=>data.rows[i][ci]);
+  dayRows=[...vis.filter(i=>TYPE(i)==='inc'), ...vis.filter(i=>TYPE(i)!=='inc')];
   const first=dayDates[dayFrom], last=dayDates[len-1];
   document.getElementById('dayTitle').textContent =
     `📆 ${colRange(ci)} по дням · ${first.getDate()} ${MN[first.getMonth()]} — ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}`
@@ -1024,7 +1032,7 @@ async function loadRate(){
         await loadRate();
         return;   // не подменяем рабочие данные битыми
       }
-      data=j; migrate();
+      data=j; migrate(); emptySnap=null;
       baseRev=data.rev||0;                                   // иначе вкладка вечно считает себя устаревшей
       try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
       setStartInputs();
