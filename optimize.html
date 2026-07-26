@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎯 Оптимизация трат</title>
+<style>
+  :root {
+    --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE;
+    --warn:#8A5A18; --warn-bg:#F7EFDC; --crit:#96382C; --crit-bg:#F6E8E4;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A;
+      --warn:#D9A85C; --warn-bg:#322A18; --crit:#D98876; --crit-bg:#37231F; }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;
+    padding:24px 14px 90px;font-size:14px;line-height:1.5}
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+  .bar a,.bar button{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none;cursor:pointer}
+
+  .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+    background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:20px}
+  .totals div{background:var(--card);padding:11px 14px}
+  .totals .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted)}
+  .totals b{display:block;font-family:var(--serif);font-size:21px;margin-top:3px;
+    font-variant-numeric:tabular-nums}
+  .totals .done b{color:var(--accent)}
+
+  h2{font-family:var(--serif);font-weight:400;font-size:19px;margin:26px 0 4px;
+    border-bottom:2px solid var(--accent);padding-bottom:5px;
+    display:flex;justify-content:space-between;align-items:baseline}
+  h2 span{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+
+  .item{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);
+    border-radius:9px;padding:11px 14px;margin-top:8px;display:grid;
+    grid-template-columns:26px 1fr auto;gap:12px;align-items:start}
+  .item.on{border-left-color:var(--accent);background:var(--accent-soft)}
+  .item.on .t{text-decoration:line-through;opacity:.6}
+  .item input[type=checkbox]{width:19px;height:19px;margin-top:1px;accent-color:var(--accent);cursor:pointer}
+  .item .t{font-size:13.5px;font-weight:600}
+  .item .d{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .item .d code{font-family:var(--mono);font-size:11.5px;background:var(--paper);
+    padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+  .item .v{font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap;
+    text-align:right;color:var(--accent);font-variant-numeric:tabular-nums}
+  .item .v small{display:block;font-size:9.5px;font-weight:400;color:var(--muted);
+    letter-spacing:.05em;text-transform:uppercase;margin-top:2px}
+  .item.once .v{color:var(--warn)}
+  .item.info{grid-template-columns:26px 1fr}
+  .item.info .v{display:none}
+
+  .facts{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;margin-bottom:6px}
+  .facts table{border-collapse:collapse;width:100%;font-size:12.5px}
+  .facts td{padding:4px 0;border-bottom:1px solid var(--line)}
+  .facts tr:last-child td{border-bottom:none}
+  .facts td:last-child{text-align:right;font-family:var(--mono);white-space:nowrap;
+    font-variant-numeric:tabular-nums}
+  .facts .big td{font-weight:700;font-size:13.5px}
+  .note{color:var(--muted);font-size:11.5px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎯 Оптимизация трат</h1>
+  <div class="sub">Построено на выписках Райффайзена (26.04–26.07.2026), Яндекс Банка (25.06–25.07),
+    Freedom ₸ и Freedom $ (весь 2026) и отчёта НБКИ от 22.07. Галочки сохраняются в этом браузере.</div>
+
+  <div class="bar">
+    <a href="plan.html">📅 Финплан</a>
+    <a href="cards.html">🗂 Карточки</a>
+    <a href="index.html">💸 Трекер</a>
+    <a href="tasks.html">✅ Задачи</a>
+    <button id="reset">Сбросить галочки</button>
+    <span id="info" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+  </div>
+
+  <div class="totals">
+    <div><div class="l">Трачу сейчас</div><b>527 689 ₽</b><div class="l" style="text-transform:none;letter-spacing:0">июль, 1–26, все счета</div></div>
+    <div><div class="l">Потенциал в месяц</div><b id="tMonth">—</b><div class="l" style="text-transform:none;letter-spacing:0">если сделать всё</div></div>
+    <div class="done"><div class="l">Уже сделано</div><b id="tDone">—</b><div class="l" style="text-transform:none;letter-spacing:0">закрытых пунктов</div></div>
+    <div><div class="l">Разово / за год</div><b id="tOnce">—</b><div class="l" style="text-transform:none;letter-spacing:0">вычеты и одноразовое</div></div>
+  </div>
+
+  <div class="facts">
+    <b style="font-family:var(--serif);font-size:16px">Куда уходят деньги на самом деле</b>
+    <table>
+      <tr><td>Наличные, снято 18.07 одной операцией</td><td>201 800 ₽</td></tr>
+      <tr><td>Кафе, рестораны, кальянные, лаунджи</td><td>90 136 ₽</td></tr>
+      <tr><td>&nbsp;&nbsp;· из них кальянные (Мята, Барвиха, WOW, Blisski, Futura) — 13 визитов</td><td>42 750 ₽</td></tr>
+      <tr><td>&nbsp;&nbsp;· Кофемания — 2 визита</td><td>17 990 ₽</td></tr>
+      <tr><td>&nbsp;&nbsp;· eatandsplit — 2 раза</td><td>11 082 ₽</td></tr>
+      <tr><td>Такси и каршеринг — 58 поездок, средний чек 825 ₽</td><td>47 842 ₽</td></tr>
+      <tr><td>Продукты, из них Вкусвилл — 50 покупок по ~700 ₽</td><td>34 995 ₽</td></tr>
+      <tr><td>Подписки: Claude 17 050 + ChatGPT Pro 8 655 + рублёвые 1 810</td><td>27 515 ₽</td></tr>
+      <tr><td>ЖКХ</td><td>12 757 ₽</td></tr>
+      <tr><td>Метро по Тройке — 14 поездок</td><td>1 162 ₽</td></tr>
+      <tr class="big"><td>Итого июль (1–26), без переводов между своими счетами</td><td>527 689 ₽</td></tr>
+    </table>
+    <div class="note">Для сравнения: июнь — 662 854 ₽, май — 1 583 785 ₽ (там 1,2 млн разовых снятий и переводов 06.05).
+      Зарплата на этот счёт не приходит — она падает на *2922047 / *3176947, оттуда в июле пришло 322 641 ₽.</div>
+  </div>
+
+  <div class="facts" style="margin-top:16px">
+    <b style="font-family:var(--serif);font-size:16px">Календарь ближайших списаний</b>
+    <table>
+      <tr><td><b>27.07 — завтра</b> · Райффайзен Подписка <span style="color:var(--accent)">оставить: даёт 8 500</span></td><td>299 ₽</td></tr>
+      <tr><td><b>28.07 — послезавтра</b> · YouTube Premium <span style="color:var(--crit)">решать сегодня</span></td><td>2 001 ₽</td></tr>
+      <tr><td>02.08 · Яндекс.Плюс</td><td>400 ₽</td></tr>
+      <tr><td>03.08 · Claude <span style="color:var(--crit)">решать до 3-го</span></td><td>17 050 ₽</td></tr>
+      <tr><td>15.08 · Google (тенге)</td><td>203 ₽</td></tr>
+      <tr><td>16.08 · SberPrime №1</td><td>399 ₽</td></tr>
+      <tr><td>19.08 · Premier</td><td>99 ₽</td></tr>
+      <tr><td>23.08 · SberPrime №2 <span style="color:var(--crit)">дубль, отменить</span></td><td>399 ₽</td></tr>
+      <tr><td>26.08 · ChatGPT Pro <span style="color:var(--muted)">июль оплачен, отмена сейчас = без потерь</span></td><td>8 655 ₽</td></tr>
+      <tr class="big"><td>Всего подписок в месяц</td><td>29 505 ₽</td></tr>
+    </table>
+    <div class="note">Даты выведены из фактических списаний в выписках, а не из тарифов.
+      ChatGPT Pro списался 26.07 — месяц уже оплачен, поэтому отмена в любой момент до 26.08 ничего не стоит.</div>
+  </div>
+
+  <div id="list"></div>
+
+  <p class="note">Суммы «в месяц» — оценка при умеренном сокращении, не полный отказ. Разовые пункты
+    считаются отдельно и в месячный итог не входят. Ничего из этого не является налоговой
+    или инвестиционной консультацией — по вычетам и НПД сверься с налоговой.</p>
+</div>
+
+<script>
+const DATA=[
+ {g:'⏰ Завтра, 27 июля — то, что горит', items:[
+  {id:'depo_open', t:'Открыть накопительный счёт / вклад ДО прихода денег по сделке', v:0, once:17000,
+   d:'Деньги Домклика ~12 млн приходят около 30.07, гашение долгов стоит на 1.08. Если они пролежат эти дни на текущем счёте под 0%, ты теряешь примерно <code>5 600 ₽ в день</code> (12 млн под 17% годовых). Счёт надо открыть заранее — в день прихода будет не до того. Три дня простоя = 17 000 ₽.'},
+  {id:'payoff', t:'Заказать справки о полной сумме досрочного погашения — на все 6 обязательств', v:0,
+   d:'Райф: два потребкредита (1 169 724 и 1 950 982), две кредитки (205 909 и 189 827). Плюс ТКФ 392 414 и ДОМ.РФ 6 679 020. Сумма меняется каждый день из-за процентов: без справки на конкретную дату остаётся хвост в сотни рублей, кредит не закрывается и продолжает капать.'},
+  {id:'domrf', t:'Проверить, нужно ли заявление на досрочное погашение ДОМ.РФ заранее', v:0,
+   d:'Часть банков требует уведомление за несколько дней и гасит только в дату планового платежа. Если это твой случай, а заявление не подано — гашение 1.08 не состоится и весь план съедет на месяц. Проверить правила и подать завтра.'},
+  {id:'insurance', t:'Найти полисы страхования жизни и квартиры по ипотеке', v:0, once:35000,
+   d:'После досрочного погашения неиспользованную часть премии можно вернуть. В плане на страховки заложено 27 000 + 27 000. Если полисы годовые и оплачены недавно, возврат за оставшиеся месяцы — десятки тысяч. Заявление подаётся вскоре после погашения, так что документы нужны заранее.'},
+  {id:'comp_july', t:'Взять компенсацию Райфа 8 500 ₽ за июль', v:0, once:8500,
+   d:'Окно — до конца месяца, осталось 5 дней. Подписка стоит 299 ₽ и списывается как раз завтра, 27-го. Чистыми +8 201 ₽. Пропустишь месяц — деньги просто не вернутся.'},
+  {id:'cashback_aug', t:'Выбрать категории кэшбэка на август', v:0,
+   d:'Окно выбора обычно закрывается в конце месяца. Твой фактический топ: рестораны, такси, супермаркеты. В июне кэшбэк дал 5 135 ₽ — при попадании в реальные категории будет заметно больше.'},
+  {id:'yt_now', t:'YouTube Premium — решить до 28.07', v:0,
+   d:'Списание послезавтра, 28-го, ~2 000 ₽. Дальше ждать ещё месяц.'},
+ ]},
+ {g:'Уже в работе', items:[
+  {id:'card',  t:'Перевыпустить карту, заблокировать все банки кроме Райфа', v:0, done:1,
+   d:'Сделано. Побочный эффект: вся аналитика теперь в одном месте — по одной выписке видно 100% рублёвых трат.'},
+  {id:'credits', t:'Закрыть все кредиты Райф — 3 120 706 ₽ по НБКИ', v:105000,
+   d:'По отчёту НБКИ 22.07 два потребкредита: <code>1 169 724</code> (от 06.05.2026, лимит 1,2 млн) и <code>1 950 982</code> (от 30.04.2026, лимит 2 млн). Гашение стоит в плане на 1.08. Освобождает платёж ~105 000 ₽/мес.'},
+  {id:'cards2', t:'Закрыть кредитки Райф — 395 736 ₽', v:0,
+   d:'НБКИ: <code>205 909</code> (договор 11.09.2025) и <code>189 827</code> (01.06.2025). Плюс ТКФ <code>392 414</code>. После гашения обязательно взять справки о закрытии и проверить НБКИ через месяц — иначе лимиты висят и режут будущую ипотеку.'},
+  {id:'mort', t:'Ипотека ДОМ.РФ — 6 679 020 ₽', v:66000,
+   d:'НБКИ показывает <code>6 679 020</code>, в плане стоит 6 640 000 — недобор 39 020 ₽. Платёж ~66 000 ₽/мес освободится после гашения.'},
+ ]},
+ {g:'Подписки — 27 515 ₽/мес', items:[
+  {id:'sber', t:'Убрать вторую SberPrime', v:399,
+   d:'399 ₽ списывается дважды: 16-го и 23-го. В мае была одна, с июня стабильно две — вторая почти наверняка забытая.'},
+  {id:'ai', t:'Решить по паре Claude + ChatGPT Pro', v:8655,
+   d:'Claude ~$230/мес (факт янв–июл: 100, 196, 100, 156, 232, 116, 228) плюс ChatGPT Pro 54 990 ₸ = 8 655 ₽. Вместе <b>25 704 ₽/мес</b> — третья статья расходов после еды вне дома и такси. Если один из двух закрывает 90% задач, отказ от второго = 8–17 тыс/мес.'},
+  {id:'resell', t:'Добрать подписчиков на ИИ', v:5000,
+   d:'Сейчас Лиза платит 2 000, Ден 3 000 — вместе 5 000 при твоих расходах 25 704. Ещё двое таких же выводят ИИ в ноль.'},
+  {id:'yt', t:'YouTube Premium $27/мес', v:1500,
+   d:'~2 000 ₽/мес, списывается 28-го с долларовой карты. Семейный тариф или региональная подписка дешевле в разы.'},
+  {id:'raifsub', t:'Проверить, что компенсация 8 500 ₽ берётся каждое 26-е', v:0, keep:1,
+   d:'Подписка Райфа стоит 299 ₽, компенсация — 8 500 ₽. Чистыми <b>+8 201 ₽/мес</b>, за год 98 412 ₽. Это уже в плане, но пропустить месяц = потерять 8 500. Взять можно до конца месяца.'},
+  {id:'petty', t:'Пересобрать мелочь: Premier 99, Яндекс.Плюс 400, Google 1 290 ₸', v:400,
+   d:'Premier списывается 19-го, Плюс 2-го, Google с тенгового счёта 15-го. По отдельности копейки, вместе 900 ₽/мес — вопрос, всем ли пользуешься.'},
+ ]},
+ {g:'Еда вне дома — 90 136 ₽/мес', items:[
+  {id:'hookah', t:'Кальянные вдвое реже', v:21000,
+   d:'42 750 ₽ за 13 визитов в июле: Мята 8 950, Барвиха 9 550, HP Futura 13 290, WOW Moscow 4 040, Blisski 4 130. Средний визит 3 288 ₽ — это дороже, чем ужин.'},
+  {id:'kofe', t:'Кофемания — 17 990 ₽ за два визита', v:9000,
+   d:'Кутузовский 12 880 и Метрополис 5 110. Два похода = стоимость недельной продуктовой закупки.'},
+  {id:'eats', t:'eatandsplit и доставка', v:5500,
+   d:'11 082 ₽ за два заказа в июле, 3 314 ₽ в июне. Плюс Яндекс.Еда 7 563 ₽.'},
+ ]},
+ {g:'Быт и транспорт', items:[
+  {id:'taxi', t:'Половину поездок перевести на метро', v:20000,
+   d:'58 поездок за месяц, средний чек <b>825 ₽</b>, всего 47 842 ₽. Метро стоит 83 ₽ — в десять раз дешевле. Ты уже ездишь по Тройке 14 раз в месяц, значит привычка есть.'},
+  {id:'vkus', t:'Вкусвилл: 50 походов в месяц свести к закупке раз в неделю', v:8000,
+   d:'34 995 ₽ за 50 покупок — средний чек 700 ₽. Такая частота это импульсные докупки; недельная закупка в сетевом дешевле на 20–30% при том же объёме.'},
+  {id:'cash', t:'Не снимать наличные без нужды', v:0,
+   d:'18.07 снято 201 800 ₽ одной операцией (до этого 16.07 внесено 172 000). Наличные выпадают из аналитики полностью — по ним нельзя посчитать ни категорию, ни кэшбэк.'},
+  {id:'korona', t:'Проверить комиссию Золотой короны', v:2500,
+   d:'В июне 252 535 ₽ шестью переводами, в мае ещё 77 600. При комиссии 1–1,5% это 2,5–3,8 тыс. ₽ в месяц только на переводах.'},
+  {id:'cashback', t:'Пересобрать категории кэшбэка под факт', v:3000,
+   d:'В июне кэшбэк был 5 135 ₽. Твои реальные топ-категории — рестораны, такси, супермаркеты; если в кэшбэке стоят другие, это минус несколько тысяч в месяц.'},
+ ]},
+ {g:'Деньги должны работать', items:[
+  {id:'depo', t:'Свободные деньги — на вклад, а не на текущий счёт', v:10000, keep:1,
+   d:'В плане заложено 12% годовых на остаток. После сделки на счетах будет 0,5–3 млн. Разница между 12% и 17% на 2,5 млн — примерно <b>10 000 ₽/мес</b>. Сейчас на текущем счёте лежит 6 082 ₽, остальное на накопительных — проверь ставку по ним.'},
+  {id:'iis', t:'ИИС: внести 400 000 до 31.12', v:0, once:52000,
+   d:'Вычет до 52 000 ₽. В налоговом блоке плана прямо написано «в плане нет» — значит эти деньги пока не заложены.'},
+  {id:'npd', t:'Самозанятость под аренду однушки', v:0, once:27000,
+   d:'Аренда даёт 60 000 ₽/мес с октября. НПД 4% вместо НДФЛ 13% — экономия около 27 000 ₽ за сезон окт–дек.'},
+  {id:'mortdeduct', t:'Проверить вычет по процентам ипотеки ДОМ.РФ', v:0, once:100000,
+   d:'Ипотека с 27.01.2021, гасится в августе. Если вычет по уплаченным процентам не выбран — это до 390 000 ₽ возврата. Проверить в личном кабинете ФНС, сколько уже использовано.'},
+  {id:'tax', t:'Пересчитать резерв НДФЛ под новый сценарий', v:0,
+   d:'Кладовая Алтуфьево теперь продаётся в октябре 2026, а не в январе 2027: это доход <b>2026</b> года, декларация до 30.04.2027, уплата до 15.07.2027. База выросла с 270 000 до 370 000. Налоговый блок в плане до сих пор говорит «платить в 2028» — устарел.'},
+ ]},
+];
+
+const LS='optimize-checklist-v1';
+let state={};
+try{ state=JSON.parse(localStorage.getItem(LS))||{}; }catch(e){}
+DATA.forEach(g=>g.items.forEach(i=>{ if(state[i.id]===undefined && i.done) state[i.id]=true; }));
+
+const F=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+function render(){
+  const list=document.getElementById('list');
+  list.innerHTML=DATA.map(g=>{
+    const sum=g.items.reduce((s,i)=>s+(i.v||0),0);
+    return `<h2>${g.g}${sum?`<span>потенциал ${F(sum)} ₽/мес</span>`:''}</h2>`
+      + g.items.map(i=>{
+        const on=!!state[i.id];
+        const val = i.once ? `${F(i.once)} ₽<small>разово</small>`
+                  : i.v   ? `${F(i.v)} ₽<small>${i.keep?'уже в плане':'в месяц'}</small>`
+                  : '';
+        return `<div class="item ${on?'on':''} ${i.once?'once':''} ${val?'':'info'}" data-id="${i.id}">
+          <input type="checkbox" ${on?'checked':''} data-id="${i.id}">
+          <div><div class="t">${i.t}</div><div class="d">${i.d}</div></div>
+          <div class="v">${val}</div></div>`;
+      }).join('');
+  }).join('');
+  list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change',e=>{
+      state[e.target.dataset.id]=e.target.checked;
+      try{ localStorage.setItem(LS,JSON.stringify(state)); }catch(_){}
+      render();
+      document.getElementById('info').textContent='сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    });
+  });
+  let month=0, once=0, done=0, all=0;
+  DATA.forEach(g=>g.items.forEach(i=>{
+    all++;
+    if(state[i.id]) done++;
+    if(!i.keep && !state[i.id]) month+=i.v||0;
+    if(!state[i.id]) once+=i.once||0;
+  }));
+  document.getElementById('tMonth').textContent=F(month)+' ₽';
+  document.getElementById('tDone').textContent=done+' / '+all;
+  document.getElementById('tOnce').textContent=F(once)+' ₽';
+}
+document.getElementById('reset').onclick=()=>{
+  if(!confirm('Снять все галочки?')) return;
+  state={}; try{ localStorage.removeItem(LS); }catch(_){}
+  render();
+};
+render();
+</script>
+</body>
+</html>
