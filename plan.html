@@ -765,7 +765,13 @@ function splitOverDays(ri, ci, dates){
       return out;
     }
   }
-  out[MID.test(lbl) ? Math.floor(n/2) : 0]=v;      // периодическая мелочь — в середину, разовое — в начало
+  if(MID.test(lbl) && n>3){        // периодическая мелочь — двумя тратами за период
+    const a=Math.floor(n*0.3), b=Math.floor(n*0.8);
+    const half=Math.round(v/2);
+    out[a]=half; out[b]=v-half;
+    return out;
+  }
+  out[0]=v;                        // разовое — в первый день периода
   return out;
 }
 let dayCi=null, dayDates=[], dayFrom=0;   // dayFrom — первый неушедший день периода
