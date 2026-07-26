@@ -694,17 +694,35 @@ function isPast(ci){               // период целиком в прошл�
   const t=new Date(); t.setHours(0,0,0,0);
   return e<t;
 }
-function zeroPast(){               // план смотрит вперёд: прошедшие периоды обнуляем и прячем
-  let n=0;
-  for(let c=0;c<COLS.length;c++){
+function rollPast(){
+  // Прошедший период не обнуляем, а переносим его остаток в следующий: незакрытое
+  // не должно исчезать, иначе план покажет денег больше, чем есть.
+  let moved=0, sum=0;
+  for(let c=0;c<COLS.length-1;c++){
     if(!isPast(c)) continue;
+    const to=c+1;
     data.rows.forEach((row,ri)=>{
-      if(row[c]){ logEv('past',ri,c,row[c],0,{col:COLS[c]}); row[c]=0; n++; }
+      const v=row[c]||0;
+      if(!v) { if(data.days) delete data.days[ri+'_'+c]; return; }
+      const su=data.units && data.units[ri+'_'+c];
+      const tu=data.units && data.units[ri+'_'+to];
+      if(su && tu && su.u===tu.u){                 // та же валюта — складываем единицы
+        tu.v = +(tu.v + su.v).toFixed(6);
+        row[to]=Math.round(tu.v*UNITS[tu.u].rub());
+      } else if(su && !tu && !row[to]){            // цель пуста — переносим валюту как есть
+        data.units[ri+'_'+to]={v:su.v,u:su.u};
+        row[to]=v;
+      } else {                                    // иначе всё в рубли
+        if(data.units) delete data.units[ri+'_'+to];
+        row[to]=(row[to]||0)+v;
+      }
       if(data.units) delete data.units[ri+'_'+c];
-      if(data.days)  delete data.days[ri+'_'+c];
+      if(data.days){ delete data.days[ri+'_'+c]; delete data.days[ri+'_'+to]; }
+      logEv('rollover',ri,c,v,0,{col:COLS[c],to:COLS[to]});
+      row[c]=0; moved++; sum+=v;
     });
   }
-  return n;
+  return {moved,sum};
 }
 function colRange(i){              // «16.07» → «16.07–31.07»
   const p=PERIODS[i]; if(!p) return COLS[i];
@@ -841,7 +859,7 @@ function updateDayTotals(){    // быстрый пересчёт итогов �
 function openDays(ci){
   const [iso,len]=PERIODS[ci]||[];
   if(!iso) return;
-  if(isPast(ci)){ alert('Этот период уже прошёл — план смотрит вперёд.'); return; }
+  if(isPast(ci)){ alert('Период уже прошёл — незакрытые суммы перенесены в следующий.'); return; }
   const d0=new Date(iso+'T12:00:00');
   dayDates=[]; for(let i=0;i<len;i++){ const x=new Date(d0); x.setDate(d0.getDate()+i); dayDates.push(x); }
   dayCi=ci;
@@ -880,7 +898,7 @@ grid.addEventListener('click',e=>{
   if(th) openDays(+th.dataset.c);
 });
 
-if(zeroPast()) autoSave();
+{ const r=rollPast(); if(r.moved) autoSave(); }
 if(location.protocol!=='file:'){ document.getElementById('navCards').href='cards.html'; document.getElementById('navHome').href='/'; document.getElementById('navTasks').href='tasks.html'; }
 build();
 // курс ЦБ − 5%: сначала план, потом курс — иначе пересчёт лёг бы на старые данные
@@ -914,11 +932,11 @@ async function loadRate(){
       baseRev=data.rev||0;                                   // иначе вкладка вечно считает себя устаревшей
       try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
       setStartInputs();
-      const zp=zeroPast();
+      const rp=rollPast();
       build();
       document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'
-        + (zp?' · прошедшие периоды обнулены ('+zp+' ячеек)':''); 
-      if(zp) autoSave(); } }
+        + (rp.moved?' · перенесено с прошедших периодов: '+rp.moved+' сумм на '+F(rp.sum)+' ₽':'');
+      if(rp.moved) autoSave(); } }
 }catch(e){}
   await loadRate();          // курс — после плана, иначе пересчёт лёг бы на старые данные
 })();
