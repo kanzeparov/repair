@@ -190,6 +190,11 @@ function migrate(){
   while(data.rows.length<PLAN.length){ data.rows.push([...PLAN[data.rows.length][2]]); }
   while(data.labels.length<PLAN.length){ data.labels.push(PLAN[data.labels.length][1]); }
   if(!data.extraTypes) data.extraTypes=[];
+  if(!data.types || data.types.length!==data.rows.length){   // достроить типы строк
+    const t=data.types||[];
+    data.types=data.rows.map((_,i)=> t[i] ||
+      (i<PLAN.length ? PLAN[i][0] : ((data.extraTypes||[])[i-PLAN.length]||'exp')));
+  }
   if(!data.units) data.units={};    // ячейки в валюте/токенах: {v, u}
   if(data.usd){                     // миграция старого формата (только доллары)
     for(const k in data.usd) if(data.units[k]===undefined) data.units[k]={v:data.usd[k],u:'usd'};
@@ -197,7 +202,10 @@ function migrate(){
   }
 }
 migrate();
-const TYPE=ri=> ri<PLAN.length ? PLAN[ri][0] : (data.extraTypes[ri-PLAN.length]||'exp');
+// тип строки хранится явно в data.types — иначе удаление строк сдвигает индексы
+// и доходы начинают считаться расходами
+const TYPE=ri=> (data.types && data.types[ri]) ||
+  (ri<PLAN.length ? PLAN[ri][0] : (data.extraTypes[ri-PLAN.length]||'exp'));
 const LBL=ri=> (data.labels&&data.labels[ri]) || (ri<PLAN.length?PLAN[ri][1]:'Статья');
 
 function logEv(k,ri,c,from,to,extra){
@@ -538,6 +546,7 @@ document.getElementById('addrow').onclick=()=>{
   const isExp=confirm('OK — это РАСХОД.  Отмена — это ДОХОД.');
   data.labels.push(name.trim());
   data.extraTypes.push(isExp?'exp':'inc');
+  data.types.push(isExp?'exp':'inc');
   data.rows.push(Array(COLS.length).fill(0));
   logEv('addrow',data.rows.length-1,-1,'',name.trim());
   build(); autoSave();

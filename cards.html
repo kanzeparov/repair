@@ -179,7 +179,7 @@ function save(){ clearTimeout(saveT); saveT=setTimeout(()=>{
 
 let CARDS=[], DAYS=[], showPaid=false;
 const ckey=cd=>cd.ri+'_'+cd.c+'_'+cd.idx;
-const TYPE=ri=> ri<PLAN.length ? PLAN[ri][0] : ((data.extraTypes&&data.extraTypes[ri-PLAN.length])||'exp');
+const TYPE=ri=> (data.types && data.types[ri]) || (ri<PLAN.length ? PLAN[ri][0] : ((data.extraTypes&&data.extraTypes[ri-PLAN.length])||'exp'));
 const LBL=ri=> (data.labels&&data.labels[ri]) || (ri<PLAN.length?PLAN[ri][1]:'Статья');
 function paidOf(ri,c){ let s=0; for(const k in data.paid){
   const p=k.split('_'); if(+p[0]===ri&&+p[1]===c) s+=data.paid[k].a||0; } return s; }

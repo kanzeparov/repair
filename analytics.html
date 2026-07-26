@@ -192,7 +192,7 @@ const MONTHS=[
   const BASE=43, ET=d.extraTypes||[];
   const inc=Array(14).fill(0), exp=Array(14).fill(0);
   d.rows.forEach((r,i)=>{
-    const isInc = i<BASE ? i<14 : (ET[i-BASE]||'exp')==='inc';
+    const isInc = (d.types&&d.types[i]) ? d.types[i]==='inc' : (i<BASE ? i<14 : (ET[i-BASE]||'exp')==='inc');
     r.forEach((v,c)=>{ (isInc?inc:exp)[c]+=v||0; });
   });
   let run=d.start||0; const bal=COLS.map((_,c)=>{ run+=inc[c]-exp[c]; return run; });
