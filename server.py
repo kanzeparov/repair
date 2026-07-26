@@ -136,6 +136,40 @@ def _write_json(path, obj):
         json.dump(obj, f, ensure_ascii=False, indent=1)
     os.replace(tmp, path)
 
+RATE_FILE = os.path.join(DIR, "rate.json")
+RATE_DISCOUNT = 0.05          # курс ЦБ минус 5%
+
+def cbr_usd():
+    """Курс доллара ЦБ, кэш на сутки. Тянет сервер, а не браузер: у cbr.ru нет CORS."""
+    today = datetime.date.today().isoformat()
+    cached = None
+    try:
+        with open(RATE_FILE, encoding="utf-8") as f:
+            cached = json.load(f)
+        if cached.get("day") == today:
+            return cached
+    except Exception:
+        pass
+    try:
+        import urllib.request, xml.etree.ElementTree as ET
+        with urllib.request.urlopen("https://www.cbr.ru/scripts/XML_daily.asp", timeout=10) as r:
+            root = ET.fromstring(r.read().decode("windows-1251"))
+        for v in root.findall("Valute"):
+            if v.findtext("CharCode") == "USD":
+                nom = float(v.findtext("Nominal").replace(",", "."))
+                val = float(v.findtext("Value").replace(",", "."))
+                usd = val / nom
+                out = {"day": today, "cbrDate": root.get("Date"), "cbr": round(usd, 4),
+                       "rate": round(usd * (1 - RATE_DISCOUNT), 4), "discount": RATE_DISCOUNT}
+                _write_json(RATE_FILE, out)
+                return out
+    except Exception as e:
+        if cached:                       # нет сети — отдаём вчерашний, но помечаем
+            cached = dict(cached); cached["stale"] = True
+            return cached
+        return {"error": str(e)[:120]}
+    return cached or {"error": "USD не найден в ответе ЦБ"}
+
 def read_plan():
     """plan.json + подшитый обратно журнал — клиент видит единый объект, как раньше."""
     d = {}
@@ -225,6 +259,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json({})
         if self.path == "/api/plan":
             return self._json(read_plan())
+        if self.path == "/api/rate":
+            return self._json(cbr_usd())
         if self.path == "/":
             self.path = "/index.html"
         return super().do_GET()

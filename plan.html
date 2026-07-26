@@ -53,6 +53,7 @@
   td input::-webkit-inner-spin-button,td input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   td input{-moz-appearance:textfield;appearance:textfield}
   td input.zero{color:color-mix(in srgb, var(--muted) 45%, transparent)}
+  td input.usd{color:var(--accent);font-weight:600}
   tr.tot td{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:6px;white-space:nowrap}
   tr.t-inc td{background:var(--inc)} tr.t-exp td{background:var(--exp)} tr.t-dif td{background:var(--dif)}
   tr.t-dif td.neg{color:var(--crit)}
@@ -82,6 +83,7 @@
     <span class="start" title="Freedom + TBC в рублях по курсу">Валюта ₽:
       <input id="st_fx" type="number" value="0" style="width:100px"></span>
     <span class="start">Σ старт: <b id="st_sum" style="font-family:var(--mono)">—</b></span>
+    <span class="start" id="fxBox" title="курс ЦБ минус 5%; ячейку можно писать в долларах: 10д">💵 <b id="fxRate" style="font-family:var(--mono)">—</b></span>
     <a id="navHome" href="🗂 ГЛАВНАЯ.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🏠 Главная</a>
     <a id="navCards" href="Финплан — карточки.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🗂 Карточки</a>
     <a id="navTasks" href="✅ ЗАДАЧИ — неделя.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">✅ Задачи</a>
@@ -188,6 +190,7 @@ function migrate(){
   while(data.rows.length<PLAN.length){ data.rows.push([...PLAN[data.rows.length][2]]); }
   while(data.labels.length<PLAN.length){ data.labels.push(PLAN[data.labels.length][1]); }
   if(!data.extraTypes) data.extraTypes=[];
+  if(!data.usd) data.usd={};        // ячейки, введённые в долларах
 }
 migrate();
 const TYPE=ri=> ri<PLAN.length ? PLAN[ri][0] : (data.extraTypes[ri-PLAN.length]||'exp');
@@ -200,6 +203,63 @@ function logEv(k,ri,c,from,to,extra){
   if(data.log.length>1000) data.log.splice(0,data.log.length-1000);
 }
 const RATE=0.12;   // годовая ставка для строки «% на остаток»
+
+// ---- долларовые ячейки -------------------------------------------------
+// В ячейку можно написать «10д» / «10$» / «10d» — сумма хранится в долларах
+// (data.usd["строка_колонка"]), а в rows[][] всегда лежат рубли, поэтому все
+// итоги, месячные суммы и проценты считаются как раньше. Курс — ЦБ минус 5%,
+// тянется с сервера раз в сутки; при его изменении рубли пересчитываются.
+let FX=null;                                   // {cbr, rate, cbrDate, stale}
+const usdKey=(r,c)=>r+'_'+c;
+const USD_RE=/^\s*(-?[\d\s]*[.,]?\d+)\s*(д|d|\$|у\.?е\.?)\s*$/i;
+function fxRate(){ return (FX&&FX.rate) || data.fxRate || 0; }
+function parseUsd(s){
+  const m=USD_RE.exec(String(s));
+  if(!m) return null;
+  const v=parseFloat(m[1].replace(/\s/g,'').replace(',','.'));
+  return isFinite(v)?v:null;
+}
+function isUsd(r,c){ return !!(data.usd && data.usd[usdKey(r,c)]!=null); }
+function cellText(r,c){                        // что показать в поле ввода
+  return isUsd(r,c) ? data.usd[usdKey(r,c)]+'д' : (data.rows[r][c]||0);
+}
+function setCell(r,c,raw){                     // запись ячейки: рубли или доллары
+  if(!data.usd) data.usd={};
+  const k=usdKey(r,c), usd=parseUsd(raw);
+  if(usd!==null){
+    data.usd[k]=usd;
+    data.rows[r][c]=Math.round(usd*fxRate());  // курса ещё нет → 0, поправится applyRate()
+  } else {
+    delete data.usd[k];
+    data.rows[r][c]=parseFloat(String(raw).replace(/\s/g,'').replace(',','.'))||0;
+  }
+}
+function applyRate(){                          // пересчитать все долларовые ячейки
+  const rate=fxRate();
+  if(!rate || !data.usd) return 0;
+  let n=0;
+  for(const k in data.usd){
+    const [r,c]=k.split('_').map(Number);
+    if(!data.rows[r]) continue;
+    const rub=Math.round(data.usd[k]*rate);
+    if(data.rows[r][c]!==rub){ data.rows[r][c]=rub; n++; }
+  }
+  if(rate) data.fxRate=rate;                   // запомнить: пригодится без сети
+  return n;
+}
+function showRate(){
+  const el=document.getElementById('fxRate');
+  if(!FX || FX.error){
+    el.textContent = data.fxRate ? F2(data.fxRate)+' ₽ (из памяти)' : 'курс не получен';
+    return;
+  }
+  el.textContent=F2(FX.rate)+' ₽';
+  document.getElementById('fxBox').title=
+    `ЦБ ${F2(FX.cbr)} ₽ на ${FX.cbrDate||'—'} минус ${Math.round((FX.discount||0.05)*100)}% = ${F2(FX.rate)} ₽`
+    + (FX.stale?' · СТАРЫЙ: сегодня ЦБ не ответил':'')
+    + '. В ячейку можно писать «10д» — посчитается в рублях.';
+}
+const F2=n=>new Intl.NumberFormat('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
 const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));
 const RI=t=>PLAN.findIndex(r=>r[1].startsWith(t));
@@ -254,7 +314,10 @@ function build(){
     h+=`<tr class="${TYPE(ri)}"><td class="lbl" contenteditable="true" spellcheck="false" data-ri="${ri}" title="${lb}">${lb}</td>`;
     for(let ci=0;ci<COLS.length;ci++){
       if(HID.has(ci)) continue;
-      h+=`<td><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}" value="${data.rows[ri][ci]||0}"></td>`;
+      const uc=isUsd(ri,ci);
+      h+=`<td><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}"`
+        +(uc?` class="usd" title="$${data.usd[usdKey(ri,ci)]} × ${F2(fxRate())} = ${F(data.rows[ri][ci]||0)} ₽"`:'')
+        +` value="${cellText(ri,ci)}"></td>`;
     }
     h+='</tr>';
   });
@@ -295,16 +358,21 @@ function build(){
         }
       }
     });
-    inp.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value; });
+    inp.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value;
+      e.target.dataset.origRub=data.rows[+e.target.dataset.r][+e.target.dataset.c]||0; });
     inp.addEventListener('change',e=>{
       const r=+e.target.dataset.r,c=+e.target.dataset.c;
-      const o=parseFloat(String(e.target.dataset.orig||'').replace(',','.'))||0;
-      const nv=parseFloat(String(e.target.value).replace(',','.'))||0;
-      if(o!==nv){ logEv('edit',r,c,o,nv,{col:COLS[c]}); autoSave(); }
+      const o=parseFloat(e.target.dataset.origRub)||0;      // в журнал всегда рубли
+      const nv=data.rows[r][c]||0;
+      if(o!==nv) logEv('edit',r,c,o,nv,{col:COLS[c],usd:data.usd&&data.usd[usdKey(r,c)]});
+      const el=e.target, u=data.usd&&data.usd[usdKey(r,c)];
+      el.classList.toggle('usd',u!=null);
+      el.title = u!=null ? `$${u} × ${F2(fxRate())} = ${F(nv)} ₽` : '';
+      if(o!==nv) autoSave();
     });
     inp.addEventListener('input',e=>{
       const r=+e.target.dataset.r,c=+e.target.dataset.c;
-      data.rows[r][c]=parseFloat(String(e.target.value).replace(',','.'))||0;
+      setCell(r,c,e.target.value);
       calc(); autoSave();
     });
   });
@@ -518,6 +586,18 @@ document.getElementById('csv').onclick=()=>{
 };
 if(location.protocol!=='file:'){ document.getElementById('navCards').href='cards.html'; document.getElementById('navHome').href='/'; document.getElementById('navTasks').href='tasks.html'; }
 build();
+// курс ЦБ − 5%: сначала план, потом курс — иначе пересчёт лёг бы на старые данные
+async function loadRate(){
+  try{
+    const r=await fetch('/api/rate',{cache:'no-store'});
+    if(r.ok) FX=await r.json();
+  }catch(e){}
+  showRate();
+  if(applyRate()){          // курс изменился — рублёвые суммы долларовых ячеек поехали
+    build(); autoSave();
+    document.getElementById('saveInfo').textContent='курс обновлён — долларовые ячейки пересчитаны';
+  }
+}
 // если открыто через сервер трекера (localhost:8765) — подтянуть данные из vault-файла
 (async()=>{ try{
   const r=await fetch('/api/plan',{cache:'no-store'});
@@ -528,6 +608,7 @@ build();
         document.getElementById('saveInfo').innerHTML=
           '<b style="color:var(--crit)">⚠ plan.json повреждён ('+bad+') — на экране копия из браузера, '
           +'первая же правка перезапишет файл ею. Хочешь другое — жми «⤒ Восстановить»</b>';
+        await loadRate();
         return;   // не подменяем рабочие данные битыми
       }
       data=j; migrate();
@@ -535,7 +616,9 @@ build();
       try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
       setStartInputs(); build();
       document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'; } }
-}catch(e){} })();
+}catch(e){}
+  await loadRate();          // курс — после плана, иначе пересчёт лёг бы на старые данные
+})();
 </script>
 
 <div id="taxblock" style="max-width:1200px;margin:22px 0 10px;background:rgba(138,90,24,.08);border:1px solid rgba(138,90,24,.4);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.55">

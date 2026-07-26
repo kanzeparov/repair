@@ -1,6 +1,7 @@
 data.json
 plan.json
 plan-log.json
+rate.json
 .secret
 .push_enabled
 *.log
