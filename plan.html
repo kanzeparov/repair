@@ -745,8 +745,10 @@ function daysFromLabel(lbl, dates){
   for(const x of s.matchAll(/(\d{1,2})\.(\d{2})(?!\d)/g)) if(+x[2]===mon) out.push(+x[1]);
   return out.length?out:null;
 }
-// Зарплата и прочие поступления с фиксированной датой: если день выпал на выходной,
-// деньги приходят в последний будний день до него.
+// Зарплата: если день выплаты выпал на выходной, деньги приходят в последний будний
+// день до него. Только для зарплатных строк — компенсацию или крипту раньше срока
+// никто не отдаст, их сдвигать назад нельзя.
+const SALARY=/ЗП|зарплат|аванс|расч[её]т|отпускн|оклад|премия/i;
 function prevBusiness(dates,i){
   let j=i;
   while(j>0 && (dates[j].getDay()===0 || dates[j].getDay()===6)) j--;
@@ -768,7 +770,7 @@ function splitOverDays(ri, ci, dates){
   const dd=daysFromLabel(lbl, dates);
   if(dd){
     let hit=dd.map(x=>dates.findIndex(d=>d.getDate()===x)).filter(i=>i>=0);
-    if(TYPE(ri)==='inc') hit=hit.map(i=>prevBusiness(dates,i));   // выходной → пятница
+    if(TYPE(ri)==='inc' && SALARY.test(lbl)) hit=hit.map(i=>prevBusiness(dates,i));  // выходной → пятница
     hit=[...new Set(hit)];
     if(hit.length){
       const per=Math.round(v/hit.length);
