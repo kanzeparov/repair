@@ -444,6 +444,11 @@ document.getElementById('undo').onclick=()=>{
   const log=data.log||[];
   const ev=log.pop();
   if(!ev){ alert('Журнал пуст — отменять нечего'); return; }
+  if(ev.k==='restore'){   // откатывать нечего: восстановление заменило план целиком
+    log.push(ev);
+    alert('Последним было восстановление из файла — его «Отменить» не откатывает.\nВерни нужную версию через «⤒ Восстановить».');
+    return;
+  }
   try{
     if(ev.k==='edit'){ data.rows[ev.ri][ev.c]=ev.from; }
     else if(ev.k==='rename'){ data.labels[ev.ri]=ev.from; }

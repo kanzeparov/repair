@@ -152,7 +152,9 @@ def read_plan():
 
 def write_plan(body):
     log = body.pop("log", None)
-    if log is not None:
+    # пустым журналом не затираем: вкладка, не успевшая подтянуть его с сервера,
+    # иначе снесла бы всю историю правок первым же сохранением
+    if isinstance(log, list) and log:
         _write_json(PLAN_LOG, log)
     _write_json(PLAN, body)
 
@@ -277,7 +279,19 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json({"ok": True, "limits": d["limits"]})
         return self._json({"error": "unknown"}, 404)
 
+def port_busy():
+    import socket
+    with socket.socket() as s:
+        return s.connect_ex(("127.0.0.1", PORT)) == 0
+
 if __name__ == "__main__":
+    # трекер уже поднят (например, руками из терминала) — не падать с трейсбеком
+    # «Address already in use», а просто открыть работающий
+    if port_busy():
+        print(f"💸 Трекер уже запущен: http://localhost:{PORT}")
+        if not os.environ.get("LAUNCHD_RUN"):
+            webbrowser.open(f"http://localhost:{PORT}")
+        raise SystemExit(0)
     git(["pull","--rebase","origin","main"])   # подтянуть внешние изменения как из БД
     dec_all()
     git_t(["pull","--rebase","origin","main"])  # задачи: репо taskers
