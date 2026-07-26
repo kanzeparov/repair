@@ -77,6 +77,10 @@
       <input id="st_tkf" type="number" value="0" style="width:90px"></span>
     <span class="start">Наличные:
       <input id="st_cash" type="number" value="0" style="width:90px"></span>
+    <span class="start">Яндекс:
+      <input id="st_ya" type="number" value="0" style="width:90px"></span>
+    <span class="start" title="Freedom + TBC в рублях по курсу">Валюта ₽:
+      <input id="st_fx" type="number" value="0" style="width:100px"></span>
     <span class="start">Σ старт: <b id="st_sum" style="font-family:var(--mono)">—</b></span>
     <a id="navHome" href="🗂 ГЛАВНАЯ.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🏠 Главная</a>
     <a id="navCards" href="Финплан — карточки.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🗂 Карточки</a>
@@ -354,21 +358,21 @@ function calc(){
     : '0 ₽';
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
+const ST_FIELDS=['raif','tkf','cash','ya','fx'];   // ya — Яндекс Банк, fx — валюта в рублях
 function readStart(){
-  if(!data.startParts) data.startParts={raif:142000,tkf:0,cash:0};
-  data.startParts.raif=parseFloat(document.getElementById('st_raif').value)||0;
-  data.startParts.tkf=parseFloat(document.getElementById('st_tkf').value)||0;
-  data.startParts.cash=parseFloat(document.getElementById('st_cash').value)||0;
-  data.start=data.startParts.raif+data.startParts.tkf+data.startParts.cash;
+  if(!data.startParts) data.startParts={};
+  ST_FIELDS.forEach(k=>{
+    data.startParts[k]=parseFloat(document.getElementById('st_'+k).value)||0;
+  });
+  data.start=ST_FIELDS.reduce((s,k)=>s+data.startParts[k],0);
   document.getElementById('st_sum').textContent=F(data.start)+' ₽';
 }
 function setStartInputs(){
-  const p=data.startParts||{raif:(data.start!=null?data.start:142000),tkf:0,cash:0};
+  const p=data.startParts||{raif:(data.start!=null?data.start:142000)};
+  ST_FIELDS.forEach(k=>{ if(typeof p[k]!=='number') p[k]=0; });   // старые сохранения без ya/fx
   data.startParts=p;
-  document.getElementById('st_raif').value=p.raif;
-  document.getElementById('st_tkf').value=p.tkf;
-  document.getElementById('st_cash').value=p.cash;
-  data.start=p.raif+p.tkf+p.cash;
+  ST_FIELDS.forEach(k=>{ document.getElementById('st_'+k).value=p[k]; });
+  data.start=ST_FIELDS.reduce((s,k)=>s+p[k],0);
   document.getElementById('st_sum').textContent=F(data.start)+' ₽';
 }
 let baseRev=(data&&data.rev)||0;   // версия, от которой ушла эта вкладка
@@ -391,7 +395,7 @@ async function saveState(){
   try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
 }
 setStartInputs();
-['st_raif','st_tkf','st_cash'].forEach(id=>{
+ST_FIELDS.map(k=>'st_'+k).forEach(id=>{
   const el=document.getElementById(id);
   el.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value; });
   el.addEventListener('change',e=>{
@@ -452,7 +456,7 @@ document.getElementById('undo').onclick=()=>{
   try{
     if(ev.k==='edit'){ data.rows[ev.ri][ev.c]=ev.from; }
     else if(ev.k==='rename'){ data.labels[ev.ri]=ev.from; }
-    else if(ev.k==='start'){ data.startParts[ev.field.replace('st_','')==='raif'?'raif':ev.field==='st_tkf'?'tkf':'cash']=ev.from; setStartInputs(); }
+    else if(ev.k==='start'){ data.startParts[ev.field.replace('st_','')]=ev.from; setStartInputs(); }
     else if(ev.k==='paid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
       data.rows[ev.ri][ev.c]=(data.rows[ev.ri][ev.c]||0)+ev.from;
       if(data.paid) delete data.paid[key]; }
