@@ -738,10 +738,19 @@ function daysFromLabel(lbl, dates){
   const m=s.match(/(\d{1,2})(?:\s*и\s*(\d{1,2}))?\s*числа/i);
   if(m) return [ +m[1], ...(m[2]?[+m[2]]:[]) ];
   // «28.07», «30.07» прямо в названии — берём, если месяц совпал с периодом
+  const go=[...s.matchAll(/(\d{1,2})-го/g)].map(x=>+x[1]);   // «аванс 15-го, расчёт 30-го»
+  if(go.length) return go;
   const mon=(dates && dates.length) ? dates[0].getMonth()+1 : 0;
   const out=[];
   for(const x of s.matchAll(/(\d{1,2})\.(\d{2})(?!\d)/g)) if(+x[2]===mon) out.push(+x[1]);
   return out.length?out:null;
+}
+// Зарплата и прочие поступления с фиксированной датой: если день выпал на выходной,
+// деньги приходят в последний будний день до него.
+function prevBusiness(dates,i){
+  let j=i;
+  while(j>0 && (dates[j].getDay()===0 || dates[j].getDay()===6)) j--;
+  return j;
 }
 function splitOverDays(ri, ci, dates){
   // возвращает массив сумм по дням периода
@@ -758,7 +767,9 @@ function splitOverDays(ri, ci, dates){
   }
   const dd=daysFromLabel(lbl, dates);
   if(dd){
-    const hit=dd.map(x=>dates.findIndex(d=>d.getDate()===x)).filter(i=>i>=0);
+    let hit=dd.map(x=>dates.findIndex(d=>d.getDate()===x)).filter(i=>i>=0);
+    if(TYPE(ri)==='inc') hit=hit.map(i=>prevBusiness(dates,i));   // выходной → пятница
+    hit=[...new Set(hit)];
     if(hit.length){
       const per=Math.round(v/hit.length);
       hit.forEach((i,k)=> out[i]= k===hit.length-1 ? v-per*(hit.length-1) : per);
