@@ -682,8 +682,11 @@ const PERIODS=[
  ['2026-12-31',1], ['2027-01-01',31]];
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
 const MN=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-// что размазывать ровно по всем дням периода
-const EVEN=/Еда|Ресты|Такси|Продукт|Расходник|Маркетплейс|Бады|Одежда|Здоровье|ДР|подарк|транспорт|Метро/i;
+// Размазываем только по-настоящему ежедневное. Мелочь вроде «Бады 300 ₽ за период»
+// делить на 18 ₽ в день бессмысленно — она ставится одной суммой в середину периода.
+const EVEN=/Еда|Ресты|Такси|Продукт|Метро|транспорт/i;
+const MID =/Бады|Одежда|Здоровье|Расходник|Маркетплейс|ДР|подарк|Качалка|Квартплат|ЖКХ/i;
+const MIN_PER_DAY=300;             // меньше — не дробим
 // «26 числа», «16 и 23 числа» — ставим в эти дни месяца
 function periodEnd(ci){
   const p=PERIODS[ci]; if(!p) return null;
@@ -748,7 +751,7 @@ function splitOverDays(ri, ci, dates){
   const v=data.rows[ri][ci]||0, out=Array(n).fill(0);
   if(!v) return out;
   const lbl=LBL(ri);
-  if(EVEN.test(lbl) && n>1){                       // ровно по дням, остаток — в последний
+  if(EVEN.test(lbl) && n>1 && Math.abs(v)/n>=MIN_PER_DAY){   // ровно по дням, остаток — в последний
     const per=Math.floor(v/n);
     for(let i=0;i<n;i++) out[i]= i===n-1 ? v-per*(n-1) : per;
     return out;
@@ -762,10 +765,23 @@ function splitOverDays(ri, ci, dates){
       return out;
     }
   }
-  out[0]=v;                                        // разовое — в первый день периода
+  out[MID.test(lbl) ? Math.floor(n/2) : 0]=v;      // периодическая мелочь — в середину, разовое — в начало
   return out;
 }
-let dayCi=null, dayDates=[];
+let dayCi=null, dayDates=[], dayFrom=0;   // dayFrom — первый неушедший день периода
+function firstOpenDay(dates){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const i=dates.findIndex(d=>{ const x=new Date(d); x.setHours(0,0,0,0); return x>=t; });
+  return i<0 ? dates.length-1 : i;          // весь период в прошлом → всё в последний день
+}
+// Прошедшие дни не показываем, а их суммы складываем в первый открытый день:
+// незакрытое за 16–25 июля должно висеть на сегодня, а не потеряться.
+function foldPast(parts){
+  const v=parts.slice(dayFrom);
+  let carry=0; for(let i=0;i<dayFrom;i++) carry+=parts[i]||0;
+  v[0]=(v[0]||0)+carry;
+  return v;
+}
 // Правка дня «материализует» разбивку: с этого момента период = сумма своих дней.
 // Обратная связь односторонняя — правка ячейки периода в основной таблице сбрасывает дни.
 function materialize(ri){
@@ -774,8 +790,10 @@ function materialize(ri){
   if(!data.days[k]) data.days[k]=splitOverDays(ri,dayCi,dayDates);
   return data.days[k];
 }
-function setDay(ri,di,val){
+function setDay(ri,vi,val){          // vi — индекс в видимой части
   const arr=materialize(ri);
+  const di=dayFrom+vi;
+  if(vi===0) for(let i=0;i<dayFrom;i++) arr[i]=0;   // прошедшие дни уже схлопнуты в этот
   arr[di]=val;
   const sum=arr.reduce((a,b)=>a+(b||0),0);
   const old=data.rows[ri][dayCi];
@@ -792,7 +810,7 @@ function resetDays(){
   renderDays();
 }
 function renderDays(){
-  const ci=dayCi, dates=dayDates, len=dates.length;
+  const ci=dayCi, dates=dayDates.slice(dayFrom), len=dates.length;
   const rows=data.rows.map((_,i)=>i)
     .filter(i=>data.rows[i][ci] || (data.days && data.days[i+'_'+ci]));
   const ord=[...rows.filter(i=>TYPE(i)==='inc'), ...rows.filter(i=>TYPE(i)!=='inc')];
@@ -802,7 +820,7 @@ function renderDays(){
     }).join('')+'<th>Σ период</th></tr>';
   const inc=Array(len).fill(0), exp=Array(len).fill(0);
   ord.forEach(ri=>{
-    const parts=splitOverDays(ri,ci,dates);
+    const parts=foldPast(splitOverDays(ri,ci,dayDates));
     const man=!!(data.days && data.days[ri+'_'+ci]);
     parts.forEach((v,i)=>{ if(TYPE(ri)==='inc') inc[i]+=v; else exp[i]+=v; });
     h+=`<tr class="${TYPE(ri)}"><td title="${LBL(ri)}">${man?'✎ ':''}${LBL(ri)}</td>`
@@ -838,7 +856,7 @@ function renderDays(){
   });
 }
 function updateDayTotals(){    // быстрый пересчёт итогов без перерисовки полей ввода
-  const t=document.getElementById('dayTable'), len=dayDates.length;
+  const t=document.getElementById('dayTable'), len=dayDates.length-dayFrom;
   const inc=Array(len).fill(0), exp=Array(len).fill(0);
   t.querySelectorAll('input[data-r]').forEach(i=>{
     const ri=+i.dataset.r, di=+i.dataset.d, v=parseFloat(String(i.value).replace(/\s/g,'').replace(',','.'))||0;
@@ -862,14 +880,17 @@ function openDays(ci){
   if(isPast(ci)){ alert('Период уже прошёл — незакрытые суммы перенесены в следующий.'); return; }
   const d0=new Date(iso+'T12:00:00');
   dayDates=[]; for(let i=0;i<len;i++){ const x=new Date(d0); x.setDate(d0.getDate()+i); dayDates.push(x); }
-  dayCi=ci;
-  const last=dayDates[len-1];
+  dayCi=ci; dayFrom=firstOpenDay(dayDates);
+  const first=dayDates[dayFrom], last=dayDates[len-1];
   document.getElementById('dayTitle').textContent =
-    `📆 ${colRange(ci)} по дням · ${d0.getDate()} ${MN[d0.getMonth()]} — ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()} (${len} дн.)`;
+    `📆 ${colRange(ci)} по дням · ${first.getDate()} ${MN[first.getMonth()]} — ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}`
+    + ` (${len-dayFrom} дн.${dayFrom?', прошедшие '+dayFrom+' свёрнуты в первый':''})`;
   document.getElementById('dayHint').innerHTML =
-    'Ячейки редактируются: сумма за период станет суммой своих дней, и в основной таблице пересчитается сама. '
-   +'Строки с ручной разбивкой помечены <b>✎</b>. Пока не тронул — еда, такси, продукты, бады, одежда, здоровье, '
-   +'маркетплейсы и подарки разложены ровно по дням, подписки стоят в своё число, остальное в первый день. '
+    (dayFrom ? '<b>Дни до сегодня не показаны — всё незакрытое по ним сложено в первый день списка.</b> ' : '')
+   +'Ячейки редактируются: сумма за период станет суммой своих дней, и в основной таблице пересчитается сама. '
+   +'Строки с ручной разбивкой помечены <b>✎</b>. Пока не тронул — '
+   +'подписки стоят в своё число, еда, ресты и такси разложены по дням, мелочь вроде бадов и расходников — '
+   +'одной суммой в середину периода, остальное в первый день. '
    +'Правка ячейки периода в основной таблице сбрасывает дневную разбивку обратно на автоматическую. '
    +'Валютная ячейка при правке по дням становится рублёвой.';
   renderDays();
