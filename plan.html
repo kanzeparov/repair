@@ -275,19 +275,26 @@ const RATE=0.12;   // годовая ставка для строки «% на �
 // (минус 5%), цену MEGA с CoinGecko. При смене курса рубли пересчитываются сами.
 let FX=null, CR=null;                          // курсы ЦБ и цена токена
 const uKey=(r,c)=>r+'_'+c;
-function fxRate(){  return (FX&&FX.rate) || data.fxRate || 0; }
-function kztRate(){ return (FX&&FX.kzt&&FX.kzt.rate) || data.kztRate || 0; }
-function gbpRate(){ return (FX&&FX.gbp&&FX.gbp.rate) || data.gbpRate || 0; }
+// Курс ЦБ — база. Продаёшь валюту (доход) — получаешь на 5% меньше,
+// покупаешь (расход) — платишь на 5% больше. SPREAD применяется ко всем валютам.
+const SPREAD=0.05;
+function cbrUsd(){ return (FX&&FX.cbr) || data.cbrUsd || 0; }
+function cbrKzt(){ return (FX&&FX.kzt&&FX.kzt.cbr) || data.cbrKzt || 0; }
+function cbrGbp(){ return (FX&&FX.gbp&&FX.gbp.cbr) || data.cbrGbp || 0; }
+const side=isInc=> isInc ? (1-SPREAD) : (1+SPREAD);
+function fxRate(isInc){  return cbrUsd()*side(isInc); }
+function kztRate(isInc){ return cbrKzt()*side(isInc); }
+function gbpRate(isInc){ return cbrGbp()*side(isInc); }
 function megaUsd(){ return (CR&&CR.mega&&CR.mega.usd) || data.megaUsd || 0; }
 const UNITS={
   usd : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(д|d|\$|у\.?е\.?)\s*$/i, sfx:'д',      name:'$',
-         rub:()=>fxRate()},
+         rub:i=>fxRate(i)},
   kzt : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(₸|тг|тенге|kzt)\s*$/i,  sfx:'тг',     name:'₸',
-         rub:()=>kztRate()},
+         rub:i=>kztRate(i)},
   gbp : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(£|ф|фунт[а-я]*|gbp)\s*$/i, sfx:'ф',  name:'£',
-         rub:()=>gbpRate()},
+         rub:i=>gbpRate(i)},
   mega: {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(mega|мега|меga)\s*$/i,  sfx:' mega',  name:'MEGA',
-         rub:()=>megaUsd()*fxRate()},
+         rub:i=>megaUsd()*fxRate(i)},
 };
 function parseUnit(s){
   for(const u in UNITS){
@@ -306,9 +313,9 @@ function cellText(r,c){                        // что показать в п�
 }
 function cellTitle(r,c){
   const q=unitAt(r,c); if(!q) return '';
-  const rate=UNITS[q.u].rub();
+  const inc=TYPE(r)==='inc', rate=UNITS[q.u].rub(inc);
   return `${q.v} ${UNITS[q.u].name} × ${F2(rate)} ₽ = ${F(data.rows[r][c]||0)} ₽`
-    + (q.u==='mega' ? ` (MEGA $${megaUsd()} × ${F2(fxRate())} ₽)` : '');
+    + `  (ЦБ ${inc?'−':'+'}${SPREAD*100}%: ${inc?'продажа':'покупка'})`;
 }
 function setCell(r,c,raw){                     // запись ячейки: рубли, валюта или токены
   if(!data.units) data.units={};
@@ -316,7 +323,7 @@ function setCell(r,c,raw){                     // запись ячейки: р�
   const k=uKey(r,c), q=parseUnit(raw);
   if(q){
     data.units[k]=q;
-    data.rows[r][c]=Math.round(q.v*UNITS[q.u].rub());   // курса нет → 0, поправит applyRate()
+    data.rows[r][c]=Math.round(q.v*UNITS[q.u].rub(TYPE(r)==='inc'));
   } else {
     delete data.units[k];
     data.rows[r][c]=parseFloat(String(raw).replace(/\s/g,'').replace(',','.'))||0;
@@ -327,31 +334,32 @@ function applyRate(){                          // пересчитать все 
   let n=0;
   for(const k in data.units){
     const q=data.units[k]; if(!q||!UNITS[q.u]) continue;
-    const rate=UNITS[q.u].rub(); if(!rate) continue;
     const [r,c]=k.split('_').map(Number);
     if(!data.rows[r]) continue;
+    const rate=UNITS[q.u].rub(TYPE(r)==='inc'); if(!rate) continue;
     const rub=Math.round(q.v*rate);
     if(data.rows[r][c]!==rub){ data.rows[r][c]=rub; n++; }
   }
   if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
-  if(fxRate())  data.fxRate=fxRate();           // запомнить: пригодится без сети
-  if(kztRate()) data.kztRate=kztRate();
-  if(gbpRate()) data.gbpRate=gbpRate();
+  if(cbrUsd()) data.cbrUsd=cbrUsd();            // запомнить: пригодится без сети
+  if(cbrKzt()) data.cbrKzt=cbrKzt();
+  if(cbrGbp()) data.cbrGbp=cbrGbp();
   if(megaUsd()) data.megaUsd=megaUsd();
   return n;
 }
 function showRate(){
   const el=document.getElementById('fxRate');
   const bits=[];
-  if(fxRate())  bits.push('$ '+F2(fxRate()));
-  if(kztRate()) bits.push('₸ '+kztRate().toFixed(4));
-  if(gbpRate()) bits.push('£ '+F2(gbpRate()));
-  if(megaUsd()) bits.push('MEGA '+F2(megaUsd()*fxRate()));
+  if(cbrUsd()) bits.push('$ '+F2(cbrUsd()));
+  if(cbrGbp()) bits.push('£ '+F2(cbrGbp()));
+  if(cbrKzt()) bits.push('₸ '+cbrKzt().toFixed(4));
+  if(megaUsd()) bits.push('MEGA '+F2(megaUsd()*cbrUsd()));
   el.textContent = bits.length ? bits.join(' · ') : 'курсы не получены';
   const stale=(FX&&FX.stale?' · курс ЦБ старый':'')+(CR&&CR.stale?' · цена MEGA старая':'');
   document.getElementById('fxBox').title=
     (FX&&FX.cbr ? `ЦБ на ${FX.cbrDate||'—'}: $ ${F2(FX.cbr)}, ₸ ${(FX.kzt?FX.kzt.cbr:0).toFixed(4)} — минус ${Math.round((FX.discount||0.05)*100)}%. ` : '')
     + (megaUsd() ? `MEGA $${megaUsd()} (CoinGecko). ` : '')
+    + `Курс ЦБ. Расход считается по ЦБ+${SPREAD*100}% (покупаешь), доход по ЦБ−${SPREAD*100}% (продаёшь). `
     + 'В ячейку можно писать «10д», «20ф», «54990тг», «4167mega».' + stale;
 }
 const F2=n=>new Intl.NumberFormat('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
@@ -522,11 +530,11 @@ function calc(){
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit'];
 const ST_USD={freedom:1,tbc:1,bybit:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
 function recalcStart(){
-  const p=data.startParts||{}, r=fxRate();
+  const p=data.startParts||{}, r=fxRate(true);   // остатки — это то, что продаёшь
   let sum=0, usd=0;
   ST_FIELDS.forEach(k=>{
     const v=p[k]||0;
-    if(ST_USD[k]){ usd+=v; sum+=v*r; } else sum+=v;
+    if(ST_USD[k]){ usd+=v; sum+=v*r; } else sum+=v;   // r = курс продажи
   });
   data.start=Math.round(sum);
   document.getElementById('st_sum').textContent=F(data.start)+' ₽';
