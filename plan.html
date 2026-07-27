@@ -115,8 +115,13 @@
       <input id="st_cash" type="number" value="0" style="width:90px"></span>
     <span class="start">Яндекс:
       <input id="st_ya" type="number" value="0" style="width:90px"></span>
-    <span class="start" id="fxStartBox" title="Freedom + TBank + Bybit. Можно писать в долларах: 2187д">Валюта:
-      <input id="st_fx" type="text" value="0" style="width:110px"></span>
+    <span class="start" title="в долларах">Freedom $:
+      <input id="st_freedom" type="text" value="0" style="width:80px"></span>
+    <span class="start" title="в долларах">TBC $:
+      <input id="st_tbc" type="text" value="0" style="width:70px"></span>
+    <span class="start" title="в долларах">Bybit $:
+      <input id="st_bybit" type="text" value="0" style="width:70px"></span>
+    <span class="start" id="fxStartBox">≈ <b id="st_fxrub" style="font-family:var(--mono)">—</b></span>
     <span class="start">Σ старт: <b id="st_sum" style="font-family:var(--mono)">—</b></span>
     <span class="start" id="fxBox" title="курс ЦБ минус 5%; ячейку можно писать в долларах: 10д">💵 <b id="fxRate" style="font-family:var(--mono)">—</b></span>
     <a id="navHome" href="🗂 ГЛАВНАЯ.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🏠 Главная</a>
@@ -325,12 +330,7 @@ function applyRate(){                          // пересчитать все 
     const rub=Math.round(q.v*rate);
     if(data.rows[r][c]!==rub){ data.rows[r][c]=rub; n++; }
   }
-  const sp=data.startParts;
-  if(sp && sp.fxUsd!=null && fxRate()){         // старт в валюте — тоже по свежему курсу
-    const rub=Math.round(sp.fxUsd*fxRate());
-    if(sp.fx!==rub){ sp.fx=rub; n++; }
-    data.start=ST_FIELDS.reduce((s,k)=>s+(sp[k]||0),0);
-  }
+  if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
   if(fxRate())  data.fxRate=fxRate();           // запомнить: пригодится без сети
   if(kztRate()) data.kztRate=kztRate();
   if(megaUsd()) data.megaUsd=megaUsd();
@@ -514,42 +514,47 @@ function calc(){
     : '0 ₽';
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
-const ST_FIELDS=['raif','tkf','cash','ya','fx'];   // ya — Яндекс Банк, fx — валюта в рублях
+const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit'];
+const ST_USD={freedom:1,tbc:1,bybit:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
+function recalcStart(){
+  const p=data.startParts||{}, r=fxRate();
+  let sum=0, usd=0;
+  ST_FIELDS.forEach(k=>{
+    const v=p[k]||0;
+    if(ST_USD[k]){ usd+=v; sum+=v*r; } else sum+=v;
+  });
+  data.start=Math.round(sum);
+  document.getElementById('st_sum').textContent=F(data.start)+' ₽';
+  const el=document.getElementById('st_fxrub');
+  if(el){ el.textContent=F(Math.round(usd*r))+' ₽';
+    document.getElementById('fxStartBox').title=`$${usd} × ${F2(r)} ₽ = ${F(Math.round(usd*r))} ₽`; }
+}
 function readStart(){
   if(!data.startParts) data.startParts={};
+  const p=data.startParts;
   ST_FIELDS.forEach(k=>{
     const el=document.getElementById('st_'+k);
-    if(k==='fx'){                       // валюту можно вводить долларами: «2187д»
+    if(ST_USD[k]){                      // доллары: и «1917д», и просто «1917»
       const q=parseUnit(el.value);
-      if(q && q.u==='usd'){
-        data.startParts.fxUsd=q.v;
-        data.startParts.fx=Math.round(q.v*fxRate());
-      } else {
-        delete data.startParts.fxUsd;
-        data.startParts.fx=parseFloat(String(el.value).replace(/\s/g,'').replace(',','.'))||0;
-      }
-      return;
+      p[k]= q ? q.v : (parseFloat(String(el.value).replace(/\s/g,'').replace(',','.'))||0);
+    } else {
+      p[k]=parseFloat(String(el.value).replace(/\s/g,'').replace(',','.'))||0;
     }
-    data.startParts[k]=parseFloat(el.value)||0;
   });
-  data.start=ST_FIELDS.reduce((s,k)=>s+data.startParts[k],0);
-  document.getElementById('st_sum').textContent=F(data.start)+' ₽';
+  recalcStart();
 }
 function setStartInputs(){
   const p=data.startParts||{raif:(data.start!=null?data.start:142000)};
-  ST_FIELDS.forEach(k=>{ if(typeof p[k]!=='number') p[k]=0; });   // старые сохранения без ya/fx
+  if(p.fxUsd!=null && p.freedom==null){        // миграция со старого единого поля
+    p.freedom=1917; p.tbc=100; p.bybit=170;
+    delete p.fxUsd; delete p.fx;
+  }
+  ST_FIELDS.forEach(k=>{ if(typeof p[k]!=='number') p[k]=0; });
   data.startParts=p;
   ST_FIELDS.forEach(k=>{
-    const el=document.getElementById('st_'+k);
-    el.value = (k==='fx' && p.fxUsd!=null) ? p.fxUsd+'д' : p[k];
+    document.getElementById('st_'+k).value = ST_USD[k] ? p[k]+'д' : p[k];
   });
-  if(p.fxUsd!=null){                    // подсказка с расшифровкой
-    p.fx=Math.round(p.fxUsd*fxRate());
-    document.getElementById('fxStartBox').title=
-      `Freedom + TBank + Bybit: $${p.fxUsd} × ${F2(fxRate())} ₽ = ${F(p.fx)} ₽`;
-  }
-  data.start=ST_FIELDS.reduce((s,k)=>s+p[k],0);
-  document.getElementById('st_sum').textContent=F(data.start)+' ₽';
+  recalcStart();
 }
 let baseRev=(data&&data.rev)||0;   // версия, от которой ушла эта вкладка
 async function saveState(){
