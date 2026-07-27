@@ -149,7 +149,7 @@ def cbr_usd():
     try:
         with open(RATE_FILE, encoding="utf-8") as f:
             cached = json.load(f)
-        if cached.get("day") == today and "kzt" in cached:
+        if cached.get("day") == today and "kzt" in cached and "gbp" in cached:
             return cached
     except Exception:
         pass
@@ -160,7 +160,7 @@ def cbr_usd():
         got = {}
         for v in root.findall("Valute"):
             code = v.findtext("CharCode")
-            if code in ("USD", "KZT"):
+            if code in ("USD", "KZT", "GBP"):
                 nom = float(v.findtext("Nominal").replace(",", "."))
                 val = float(v.findtext("Value").replace(",", "."))
                 got[code] = val / nom
@@ -169,9 +169,10 @@ def cbr_usd():
                    "cbr": round(got["USD"], 4),
                    "rate": round(got["USD"] * (1 - RATE_DISCOUNT), 6),
                    "discount": RATE_DISCOUNT}
-            if "KZT" in got:
-                out["kzt"] = {"cbr": round(got["KZT"], 6),
-                              "rate": round(got["KZT"] * (1 - RATE_DISCOUNT), 6)}
+            for code, key in (("KZT", "kzt"), ("GBP", "gbp")):
+                if code in got:
+                    out[key] = {"cbr": round(got[code], 6),
+                                "rate": round(got[code] * (1 - RATE_DISCOUNT), 6)}
             _write_json(RATE_FILE, out)
             return out
     except Exception:

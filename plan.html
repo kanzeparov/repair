@@ -277,12 +277,15 @@ let FX=null, CR=null;                          // курсы ЦБ и цена т
 const uKey=(r,c)=>r+'_'+c;
 function fxRate(){  return (FX&&FX.rate) || data.fxRate || 0; }
 function kztRate(){ return (FX&&FX.kzt&&FX.kzt.rate) || data.kztRate || 0; }
+function gbpRate(){ return (FX&&FX.gbp&&FX.gbp.rate) || data.gbpRate || 0; }
 function megaUsd(){ return (CR&&CR.mega&&CR.mega.usd) || data.megaUsd || 0; }
 const UNITS={
   usd : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(д|d|\$|у\.?е\.?)\s*$/i, sfx:'д',      name:'$',
          rub:()=>fxRate()},
   kzt : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(₸|тг|тенге|kzt)\s*$/i,  sfx:'тг',     name:'₸',
          rub:()=>kztRate()},
+  gbp : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(£|ф|фунт[а-я]*|gbp)\s*$/i, sfx:'ф',  name:'£',
+         rub:()=>gbpRate()},
   mega: {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(mega|мега|меga)\s*$/i,  sfx:' mega',  name:'MEGA',
          rub:()=>megaUsd()*fxRate()},
 };
@@ -333,6 +336,7 @@ function applyRate(){                          // пересчитать все 
   if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
   if(fxRate())  data.fxRate=fxRate();           // запомнить: пригодится без сети
   if(kztRate()) data.kztRate=kztRate();
+  if(gbpRate()) data.gbpRate=gbpRate();
   if(megaUsd()) data.megaUsd=megaUsd();
   return n;
 }
@@ -341,13 +345,14 @@ function showRate(){
   const bits=[];
   if(fxRate())  bits.push('$ '+F2(fxRate()));
   if(kztRate()) bits.push('₸ '+kztRate().toFixed(4));
+  if(gbpRate()) bits.push('£ '+F2(gbpRate()));
   if(megaUsd()) bits.push('MEGA '+F2(megaUsd()*fxRate()));
   el.textContent = bits.length ? bits.join(' · ') : 'курсы не получены';
   const stale=(FX&&FX.stale?' · курс ЦБ старый':'')+(CR&&CR.stale?' · цена MEGA старая':'');
   document.getElementById('fxBox').title=
     (FX&&FX.cbr ? `ЦБ на ${FX.cbrDate||'—'}: $ ${F2(FX.cbr)}, ₸ ${(FX.kzt?FX.kzt.cbr:0).toFixed(4)} — минус ${Math.round((FX.discount||0.05)*100)}%. ` : '')
     + (megaUsd() ? `MEGA $${megaUsd()} (CoinGecko). ` : '')
-    + 'В ячейку можно писать «10д», «54990тг», «4167mega».' + stale;
+    + 'В ячейку можно писать «10д», «20ф», «54990тг», «4167mega».' + stale;
 }
 const F2=n=>new Intl.NumberFormat('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
