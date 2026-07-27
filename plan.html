@@ -513,7 +513,7 @@ function calc(){
   }).join('');
   document.getElementById('rIncM').innerHTML='<td class="lbl">Доход за месяц</td>'+monCells(inc);
   document.getElementById('rExpM').innerHTML='<td class="lbl">Расход за месяц</td>'+monCells(exp);
-  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток ('+(RATE*100)+'% годовых, ежедн.)</td>'
+  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток ('+(RATE*100)+'% годовых, только Райф)</td>'
     +MONTHS.map((m,mi)=>{ const sp=mspan(m); if(!sp) return '';
       return `<td class="m" colspan="${sp}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено в конце месяца">${F(pct[mi])}</td>`; }).join('');
   const sI=inc.reduce((a,b)=>a+b,0)+pct.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
@@ -891,10 +891,12 @@ function renderDays(){
   h+=`<tr class="tot t-exp"><td>Расход за день</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
   // % начисляются на остаток каждого дня, но капитализируются в конце месяца —
   // ровно как в основной таблице, поэтому база для начисления не растёт внутри периода
+  const off=nonRaifStart();
   let run=prevDiff(ci), runs=[], pcts=[], acc=0;
   for(let i=0;i<len;i++){
     run+=inc[i]-exp[i];
-    const p = run>0 ? run*RATE/365 : 0;
+    const base=run-off;                       // проценты только на рубли в Райфе
+    const p = base>0 ? base*RATE/365 : 0;
     acc+=p; pcts.push(p); runs.push(run+acc);
   }
   h+=`<tr class="tot t-inc"><td>% на остаток за день (${RATE*100}% годовых)</td>`
@@ -936,10 +938,12 @@ function updateDayTotals(){    // быстрый пересчёт итогов �
     if(td[arr.length+1]) td[arr.length+1].textContent=F(arr.reduce((a,b)=>a+b,0)); };
   if(rows[0]) put(rows[0],inc);
   if(rows[1]) put(rows[1],exp);
+  const off=nonRaifStart();
   let run=prevDiff(dayCi), runs=[], pcts=[], acc=0;
   for(let i=0;i<len;i++){
     run+=inc[i]-exp[i];
-    const p = run>0 ? run*RATE/365 : 0;
+    const base=run-off;
+    const p = base>0 ? base*RATE/365 : 0;
     acc+=p; pcts.push(p); runs.push(run+acc);
   }
   if(rows[2]) put(rows[2],pcts);
@@ -1010,10 +1014,16 @@ function dayFlows(){
   }
   return flow;
 }
+// На вкладе работают только рубли в Райфе. Яндекс, наличные, кредитка ТКФ и валюта
+// на Freedom/TBC/Bybit процентов не приносят — вычитаем их из базы начисления.
+function nonRaifStart(){
+  const p=data.startParts||{};
+  return Math.max(0,(data.start||0)-(p.raif||0));
+}
 function runBalance(){
   // start — это деньги СЕГОДНЯ, а не на 1 июля. Поэтому проценты копим только с
   // сегодняшнего дня: за прошедшие дни начислять не на что, они уже прожиты.
-  const flow=dayFlows(), t=today0();
+  const flow=dayFlows(), t=today0(), off=nonRaifStart();
   let run=data.start||0;
   const dif=[], pct=[], avgs=[];
   MONTHS.forEach(m=>{
@@ -1023,7 +1033,7 @@ function runBalance(){
         const f=flow.get(dkey(x))||{i:0,e:0};
         run+=f.i-f.e;
         const d=new Date(x); d.setHours(0,0,0,0);
-        if(d>=t){ acc+=run; days++; }      // прошедшие дни в базу не идут
+        if(d>=t){ acc+=Math.max(0,run-off); days++; }   // база = только рубли в Райфе
       });
       dif[ci]=run;                         // остаток на конец периода
     });
