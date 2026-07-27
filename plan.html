@@ -944,8 +944,11 @@ function periodDates(ci){
   for(let k=0;k<p[1];k++){ const x=new Date(d0); x.setDate(d0.getDate()+k); out.push(x); }
   return out;
 }
+function today0(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
 function dayFlows(){
-  const flow=new Map();
+  // Всё, что приходится на дни до сегодня, сворачивается в сегодня — так же, как в
+  // дневной таблице. Иначе движок разносит суммы по уже прошедшим дням.
+  const flow=new Map(), t=today0(), tkey=dkey(t);
   for(let ci=0;ci<COLS.length;ci++){
     const dates=periodDates(ci); if(!dates.length) continue;
     data.rows.forEach((row,ri)=>{
@@ -953,7 +956,9 @@ function dayFlows(){
       const isInc=TYPE(ri)==='inc';
       splitOverDays(ri,ci,dates).forEach((v,k)=>{
         if(!v) return;
-        const key=dkey(dates[k]), o=flow.get(key)||{i:0,e:0};
+        const d=new Date(dates[k]); d.setHours(0,0,0,0);
+        const key = d<t ? tkey : dkey(dates[k]);
+        const o=flow.get(key)||{i:0,e:0};
         if(isInc) o.i+=v; else o.e+=v;
         flow.set(key,o);
       });
@@ -962,7 +967,9 @@ function dayFlows(){
   return flow;
 }
 function runBalance(){
-  const flow=dayFlows();
+  // start — это деньги СЕГОДНЯ, а не на 1 июля. Поэтому проценты копим только с
+  // сегодняшнего дня: за прошедшие дни начислять не на что, они уже прожиты.
+  const flow=dayFlows(), t=today0();
   let run=data.start||0;
   const dif=[], pct=[], avgs=[];
   MONTHS.forEach(m=>{
@@ -970,7 +977,9 @@ function runBalance(){
     m.cols.forEach(ci=>{
       periodDates(ci).forEach(x=>{
         const f=flow.get(dkey(x))||{i:0,e:0};
-        run+=f.i-f.e; acc+=run; days++;
+        run+=f.i-f.e;
+        const d=new Date(x); d.setHours(0,0,0,0);
+        if(d>=t){ acc+=run; days++; }      // прошедшие дни в базу не идут
       });
       dif[ci]=run;                         // остаток на конец периода
     });
