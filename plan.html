@@ -557,9 +557,9 @@ function calc(){
   }).join('');
   document.getElementById('rIncM').innerHTML='<td class="lbl">Доход за месяц</td>'+monCells(inc);
   document.getElementById('rExpM').innerHTML='<td class="lbl">Расход за месяц</td>'+monCells(exp);
-  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток ('+(RATE*100)+'% годовых, только Райф)</td>'
+  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток ('+(RATE*100)+'% годовых, Райф, выплата в конце месяца)</td>'
     +MONTHS.map((m,mi)=>{ const sp=mspan(m); if(!sp) return '';
-      return `<td class="m" colspan="${sp}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено в конце месяца">${F(pct[mi])}</td>`; }).join('');
+      return `<td class="m" colspan="${sp}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено за месяц, банк зачислит в последний день месяца">${F(pct[mi])}</td>`; }).join('');
   const sI=inc.reduce((a,b)=>a+b,0)+pct.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
   const spN=data.startParts||{}, usdNow=(spN.freedom||0)+(spN.tbc||0)+(spN.bybit||0);
   document.getElementById('kNow').textContent=F(data.start||0)+' ₽';
@@ -954,10 +954,10 @@ function renderDays(){
     const p = run>0 ? run*RATE/365 : 0;
     acc+=p; pcts.push(p); runs.push(run);
   }
-  h+=`<tr class="tot t-inc"><td>% начислено за день (${RATE*100}% годовых) — придут 5-го</td>`
+  h+=`<tr class="tot t-inc"><td>% начислено за день (${RATE*100}% годовых) — придут в последний день месяца</td>`
     + pcts.map(v=>`<td>${F(v)}</td>`).join('')
     + `<td>${F(acc)}</td></tr>`;
-  h+=`<tr class="tot t-inc"><td>% зачислены на счёт (5-го числа)</td>`
+  h+=`<tr class="tot t-inc"><td>% зачислены на счёт (последний день месяца)</td>`
     + crd.map(v=>`<td>${v?F(v):'—'}</td>`).join('')
     + `<td>${F(crd.reduce((a,b)=>a+b,0))}</td></tr>`;
   h+=`<tr class="tot t-dif"><td>Остаток на конец дня</td>`
@@ -1104,21 +1104,20 @@ function nonRaifStart(){
 function runBalance(){
   // start — это деньги СЕГОДНЯ, а не на 1 июля. Поэтому проценты копим только с
   // сегодняшнего дня: за прошедшие дни начислять не на что, они уже прожиты.
-  // Проценты капают на остаток каждого дня, но БАНК ПЛАТИТ ИХ 5-ГО ЧИСЛА СЛЕДУЮЩЕГО
-  // месяца. До этой даты они не лежат на счёте, тратить их нельзя — поэтому в остаток
-  // они попадают одним зачислением 5-го, а не растворяются по дням.
+  // Проценты капают на остаток каждого дня, но БАНК ПЛАТИТ ИХ В ПОСЛЕДНИЙ ДЕНЬ МЕСЯЦА.
+  // До этой даты они не лежат на счёте и тратить их нельзя — поэтому в остаток они
+  // попадают одним зачислением 31-го, а не растворяются по дням.
   const flow=dayFlows(), t=today0();
+  const lastDay=x=>new Date(x.getFullYear(),x.getMonth()+1,0).getDate();
   let run=(data.startParts&&data.startParts.raif)||0;   // только рубли в Райфе
   let usd=startUsd(), bought=0;
   const dif=[], pct=[], avgs=[], usdDif=[], dip=[], credits=new Map();
-  let pendPrev=0, pendCur=0, curM=null;   // начислено за прошлый / текущий месяц
+  let pend=0;                              // начислено с начала месяца, ещё не выплачено
   MONTHS.forEach(m=>{
     let acc=0, days=0, mAcc=0;             // Σ остатков по дням месяца, Σ начисленного
     m.cols.forEach(ci=>{
       let low=Infinity;
       periodDates(ci).forEach(x=>{
-        if(curM!==null && x.getMonth()!==curM){ pendPrev+=pendCur; pendCur=0; }
-        curM=x.getMonth();
         const f=flow.get(dkey(x))||{i:0,e:0,ui:0,ue:0};
         run+=f.i-f.e;
         usd+=(f.ui||0)-(f.ue||0);
@@ -1126,13 +1125,13 @@ function runBalance(){
           const need=-usd, cost=need*cbrUsd()*(1+SPREAD);
           run-=cost; bought+=cost; usd=0;
         }
-        if(x.getDate()===5 && pendPrev>0){ // выплата процентов за прошлый месяц
-          run+=pendPrev; credits.set(dkey(x),pendPrev); pendPrev=0;
-        }
         const d=new Date(x); d.setHours(0,0,0,0);
         if(d>=t){
           acc+=Math.max(0,run); days++; if(run<low) low=run;
-          if(run>0 && m.key!=='янв.27'){ const p=run*RATE/365; pendCur+=p; mAcc+=p; }
+          if(run>0 && m.key!=='янв.27'){ const p=run*RATE/365; pend+=p; mAcc+=p; }
+        }
+        if(x.getDate()===lastDay(x) && pend>0){   // выплата процентов за месяц
+          run+=pend; credits.set(dkey(x),pend); pend=0;
         }
       });
       dif[ci]=run; usdDif[ci]=usd;
