@@ -380,7 +380,9 @@ grid.addEventListener('click',e=>{
   if(inp) showCell(+inp.dataset.r,+inp.dataset.c);
 });
 
-let hideEmpty=false, HID=new Set();   // по умолчанию ничего не прячем
+// Пустые столбцы прячем по умолчанию — половина колонок к концу года пустая и только
+// растягивает таблицу. Выбор запоминается, кнопка «👁 Все столбцы» его переключает.
+let hideEmpty=(localStorage.getItem('hideEmptyCols')??'1')==='1', HID=new Set();
 // Снимок пустых колонок берётся при загрузке и по кнопке, а не на каждой перерисовке:
 // иначе колонка исчезала прямо в момент, когда обнуляешь в ней последнюю ячейку.
 let emptySnap=null;
@@ -654,6 +656,7 @@ document.getElementById('hidecols').onclick=()=>{
   hideEmpty=!hideEmpty;
   refreshEmptyCols();                 // пересобрать список пустых по кнопке
   document.getElementById('hidecols').classList.toggle('on',hideEmpty);
+  try{ localStorage.setItem('hideEmptyCols',hideEmpty?'1':'0'); }catch(e){}
   document.getElementById('hidecols').textContent=hideEmpty?'🙈 Пустые столбцы':'👁 Все столбцы';
   build();
 };
