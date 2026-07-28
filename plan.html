@@ -942,18 +942,25 @@ function renderDays(){
   const cell=(a)=>a.map(v=>`<td>${F(v)}</td>`).join('');
   h+=`<tr class="tot t-inc"><td>Доход за день</td>${cell(inc)}<td>${F(inc.reduce((a,b)=>a+b,0))}</td></tr>`;
   h+=`<tr class="tot t-exp"><td>Расход за день</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
-  // % начисляются на остаток каждого дня, но капитализируются в конце месяца —
-  // ровно как в основной таблице, поэтому база для начисления не растёт внутри периода
-  let run=prevDiff(ci), runs=[], pcts=[], acc=0;   // prevDiff — уже только рубли в Райфе
+  // % капают каждый день, но приходят на счёт 5-го числа следующего месяца — до этого
+  // дня их нет в остатке. Поэтому «начислено» и «зачислено» — две разные строки.
+  const CRD=runBalance().credits;
+  let run=prevDiff(ci), runs=[], pcts=[], crd=[], acc=0;   // prevDiff — только рубли в Райфе
+  let pre=0; for(let i=0;i<dayFrom;i++) pre+=CRD.get(dkey(dayDates[i]))||0;
   for(let i=0;i<len;i++){
     run+=inc[i]-exp[i];
+    const c=(CRD.get(dkey(dayDates[dayFrom+i]))||0)+(i===0?pre:0);
+    run+=c; crd.push(c);
     const p = run>0 ? run*RATE/365 : 0;
-    acc+=p; pcts.push(p); runs.push(run+acc);
+    acc+=p; pcts.push(p); runs.push(run);
   }
-  h+=`<tr class="tot t-inc"><td>% на остаток за день (${RATE*100}% годовых)</td>`
+  h+=`<tr class="tot t-inc"><td>% начислено за день (${RATE*100}% годовых) — придут 5-го</td>`
     + pcts.map(v=>`<td>${F(v)}</td>`).join('')
     + `<td>${F(acc)}</td></tr>`;
-  h+=`<tr class="tot t-dif"><td>Остаток на конец дня (с %)</td>`
+  h+=`<tr class="tot t-inc"><td>% зачислены на счёт (5-го числа)</td>`
+    + crd.map(v=>`<td>${v?F(v):'—'}</td>`).join('')
+    + `<td>${F(crd.reduce((a,b)=>a+b,0))}</td></tr>`;
+  h+=`<tr class="tot t-dif"><td>Остаток на конец дня</td>`
     + runs.map(v=>`<td class="${v<0?'neg':''}">${F(v)}</td>`).join('')
     + `<td class="${runs[len-1]<0?'neg':''}">${F(runs[len-1])}</td></tr>`;
   const t=document.getElementById('dayTable');
@@ -989,14 +996,19 @@ function updateDayTotals(){    // быстрый пересчёт итогов �
     if(td[arr.length+1]) td[arr.length+1].textContent=F(arr.reduce((a,b)=>a+b,0)); };
   if(rows[0]) put(rows[0],inc);
   if(rows[1]) put(rows[1],exp);
-  let run=prevDiff(dayCi), runs=[], pcts=[], acc=0;
+  const CRD=runBalance().credits;
+  let run=prevDiff(dayCi), runs=[], pcts=[], crd=[], acc=0;
+  let pre=0; for(let i=0;i<dayFrom;i++) pre+=CRD.get(dkey(dayDates[i]))||0;
   for(let i=0;i<len;i++){
     run+=inc[i]-exp[i];
+    const c=(CRD.get(dkey(dayDates[dayFrom+i]))||0)+(i===0?pre:0);
+    run+=c; crd.push(c);
     const p = run>0 ? run*RATE/365 : 0;
-    acc+=p; pcts.push(p); runs.push(run+acc);
+    acc+=p; pcts.push(p); runs.push(run);
   }
   if(rows[2]) put(rows[2],pcts);
-  if(rows[3]){ const td=rows[3].querySelectorAll('td');
+  if(rows[3]) put(rows[3],crd);
+  if(rows[4]){ const td=rows[4].querySelectorAll('td');
     runs.forEach((v,i)=>{ if(td[i+1]){ td[i+1].textContent=F(v); td[i+1].classList.toggle('neg',v<0); } });
     if(td[len+1]){ td[len+1].textContent=F(runs[len-1]); td[len+1].classList.toggle('neg',runs[len-1]<0); } }
 }
@@ -1092,15 +1104,21 @@ function nonRaifStart(){
 function runBalance(){
   // start — это деньги СЕГОДНЯ, а не на 1 июля. Поэтому проценты копим только с
   // сегодняшнего дня: за прошедшие дни начислять не на что, они уже прожиты.
+  // Проценты капают на остаток каждого дня, но БАНК ПЛАТИТ ИХ 5-ГО ЧИСЛА СЛЕДУЮЩЕГО
+  // месяца. До этой даты они не лежат на счёте, тратить их нельзя — поэтому в остаток
+  // они попадают одним зачислением 5-го, а не растворяются по дням.
   const flow=dayFlows(), t=today0();
   let run=(data.startParts&&data.startParts.raif)||0;   // только рубли в Райфе
   let usd=startUsd(), bought=0;
-  const dif=[], pct=[], avgs=[], usdDif=[], dip=[];   // dip — минимум ВНУТРИ периода
+  const dif=[], pct=[], avgs=[], usdDif=[], dip=[], credits=new Map();
+  let pendPrev=0, pendCur=0, curM=null;   // начислено за прошлый / текущий месяц
   MONTHS.forEach(m=>{
-    let acc=0, days=0;                     // Σ остатков по дням месяца
+    let acc=0, days=0, mAcc=0;             // Σ остатков по дням месяца, Σ начисленного
     m.cols.forEach(ci=>{
       let low=Infinity;
       periodDates(ci).forEach(x=>{
+        if(curM!==null && x.getMonth()!==curM){ pendPrev+=pendCur; pendCur=0; }
+        curM=x.getMonth();
         const f=flow.get(dkey(x))||{i:0,e:0,ui:0,ue:0};
         run+=f.i-f.e;
         usd+=(f.ui||0)-(f.ue||0);
@@ -1108,19 +1126,22 @@ function runBalance(){
           const need=-usd, cost=need*cbrUsd()*(1+SPREAD);
           run-=cost; bought+=cost; usd=0;
         }
+        if(x.getDate()===5 && pendPrev>0){ // выплата процентов за прошлый месяц
+          run+=pendPrev; credits.set(dkey(x),pendPrev); pendPrev=0;
+        }
         const d=new Date(x); d.setHours(0,0,0,0);
-        if(d>=t){ acc+=Math.max(0,run); days++; if(run<low) low=run; }
+        if(d>=t){
+          acc+=Math.max(0,run); days++; if(run<low) low=run;
+          if(run>0 && m.key!=='янв.27'){ const p=run*RATE/365; pendCur+=p; mAcc+=p; }
+        }
       });
       dif[ci]=run; usdDif[ci]=usd;
       dip[ci]=isFinite(low)?low:run;       // самый низкий день периода
     });
     avgs.push(days?acc/days:0);            // средний дневной остаток
-    const p=(acc>0 && m.key!=='янв.27') ? acc*RATE/365 : 0;
-    pct.push(p);
-    run+=p;
-    dif[m.cols[m.cols.length-1]]=run;      // конец месяца — уже с процентами
+    pct.push(mAcc);                        // начислено за месяц — придёт 5-го следующего
   });
-  return {dif,pct,avgs,usdDif,bought,dip};
+  return {dif,pct,avgs,usdDif,bought,dip,credits};
 }
 function prevDiff(ci){        // рубли в Райфе на конец предыдущего периода
   if(ci<=0) return (data.startParts&&data.startParts.raif)||0;
