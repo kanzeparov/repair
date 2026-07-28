@@ -434,6 +434,7 @@ function build(){
   h+='<tr class="tot t-inc" id="rInc"></tr><tr class="tot t-inc t-mon" id="rIncM"></tr>'
     +'<tr class="tot t-exp" id="rExp"></tr><tr class="tot t-exp t-mon" id="rExpM"></tr>'
     +'<tr class="tot t-dif" id="rDif"></tr>'
+    +'<tr class="tot t-inc" id="rUsd"></tr>'
     +'<tr class="tot t-inc t-mon" id="rPct"></tr>';
   grid.innerHTML=h;
   grid.querySelectorAll('td.lbl[contenteditable]').forEach(td=>{
@@ -500,11 +501,15 @@ function calc(){
   // идём месяц за месяцем, каждый остаток взвешиваем по числу дней, что он держится,
   // начисляем Σ(остаток×дни)×ставка/365 в конце месяца и добавляем к остатку —
   // следующий месяц считается уже от увеличенного остатка.
-  const {dif,pct,avgs}=runBalance();
+  const {dif,pct,avgs,usdDif,bought}=runBalance();
   const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
   document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map((v,i)=>HID.has(i)?'':cell(v)).join('');
   document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map((v,i)=>HID.has(i)?'':cell(v)).join('');
-  document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим)</td>'+dif.map((v,i)=>HID.has(i)?'':cell(v,1)).join('');
+  document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим, только Райф ₽)</td>'+dif.map((v,i)=>HID.has(i)?'':cell(v,1)).join('');
+  const F$=n=>'$'+new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
+  document.getElementById('rUsd').innerHTML=
+    `<td class="lbl" title="докуплено валюты за план: ${F(bought)} ₽">Валюта (нарастающим, $)</td>`
+    +usdDif.map((v,i)=>HID.has(i)?'':`<td title="${F((v||0)*fxRate(true))} ₽ по курсу продажи">${F$(v||0)}</td>`).join('');
   const mspan=m=>m.cols.filter(i=>!HID.has(i)).length;
   const monCells=(arr,neg)=>MONTHS.map(m=>{
     const sp=mspan(m); if(!sp) return '';
@@ -891,12 +896,10 @@ function renderDays(){
   h+=`<tr class="tot t-exp"><td>Расход за день</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
   // % начисляются на остаток каждого дня, но капитализируются в конце месяца —
   // ровно как в основной таблице, поэтому база для начисления не растёт внутри периода
-  const off=nonRaifStart();
-  let run=prevDiff(ci), runs=[], pcts=[], acc=0;
+  let run=prevDiff(ci), runs=[], pcts=[], acc=0;   // prevDiff — уже только рубли в Райфе
   for(let i=0;i<len;i++){
     run+=inc[i]-exp[i];
-    const base=run-off;                       // проценты только на рубли в Райфе
-    const p = base>0 ? base*RATE/365 : 0;
+    const p = run>0 ? run*RATE/365 : 0;
     acc+=p; pcts.push(p); runs.push(run+acc);
   }
   h+=`<tr class="tot t-inc"><td>% на остаток за день (${RATE*100}% годовых)</td>`
@@ -938,12 +941,10 @@ function updateDayTotals(){    // быстрый пересчёт итогов �
     if(td[arr.length+1]) td[arr.length+1].textContent=F(arr.reduce((a,b)=>a+b,0)); };
   if(rows[0]) put(rows[0],inc);
   if(rows[1]) put(rows[1],exp);
-  const off=nonRaifStart();
   let run=prevDiff(dayCi), runs=[], pcts=[], acc=0;
   for(let i=0;i<len;i++){
     run+=inc[i]-exp[i];
-    const base=run-off;
-    const p = base>0 ? base*RATE/365 : 0;
+    const p = run>0 ? run*RATE/365 : 0;
     acc+=p; pcts.push(p); runs.push(run+acc);
   }
   if(rows[2]) put(rows[2],pcts);
@@ -993,6 +994,17 @@ function periodDates(ci){
   return out;
 }
 function today0(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
+// Любая нерублёвая ячейка сводится к долларам по кросс-курсу ЦБ: тенге и фунты
+// списываются с той же валютной карты и едят тот же остаток.
+function usdOf(q){
+  if(!q) return 0;
+  if(q.u==='usd')  return q.v;
+  if(q.u==='mega') return q.v*megaUsd();
+  if(q.u==='gbp')  return cbrUsd()? q.v*cbrGbp()/cbrUsd() : 0;
+  if(q.u==='kzt')  return cbrUsd()? q.v*cbrKzt()/cbrUsd() : 0;
+  return 0;
+}
+function startUsd(){ const p=data.startParts||{}; return (p.freedom||0)+(p.tbc||0)+(p.bybit||0); }
 function dayFlows(){
   // Всё, что приходится на дни до сегодня, сворачивается в сегодня — так же, как в
   // дневной таблице. Иначе движок разносит суммы по уже прошедшим дням.
@@ -1002,12 +1014,21 @@ function dayFlows(){
     data.rows.forEach((row,ri)=>{
       if(!row[ci]) return;
       const isInc=TYPE(ri)==='inc';
-      splitOverDays(ri,ci,dates).forEach((v,k)=>{
+      const q=data.units && data.units[ri+'_'+ci];
+      const parts=splitOverDays(ri,ci,dates);
+      const tot=parts.reduce((a,b)=>a+b,0) || 1;
+      const usdTot=q?usdOf(q):0;
+      parts.forEach((v,k)=>{
         if(!v) return;
         const d=new Date(dates[k]); d.setHours(0,0,0,0);
         const key = d<t ? tkey : dkey(dates[k]);
-        const o=flow.get(key)||{i:0,e:0};
-        if(isInc) o.i+=v; else o.e+=v;
+        const o=flow.get(key)||{i:0,e:0,ui:0,ue:0};
+        if(q){                                   // валютная ячейка — рубли не трогает
+          const u=usdTot*v/tot;
+          if(isInc) o.ui+=u; else o.ue+=u;
+        } else {
+          if(isInc) o.i+=v; else o.e+=v;
+        }
         flow.set(key,o);
       });
     });
@@ -1023,19 +1044,25 @@ function nonRaifStart(){
 function runBalance(){
   // start — это деньги СЕГОДНЯ, а не на 1 июля. Поэтому проценты копим только с
   // сегодняшнего дня: за прошедшие дни начислять не на что, они уже прожиты.
-  const flow=dayFlows(), t=today0(), off=nonRaifStart();
-  let run=data.start||0;
-  const dif=[], pct=[], avgs=[];
+  const flow=dayFlows(), t=today0();
+  let run=(data.startParts&&data.startParts.raif)||0;   // только рубли в Райфе
+  let usd=startUsd(), bought=0;
+  const dif=[], pct=[], avgs=[], usdDif=[];
   MONTHS.forEach(m=>{
     let acc=0, days=0;                     // Σ остатков по дням месяца
     m.cols.forEach(ci=>{
       periodDates(ci).forEach(x=>{
-        const f=flow.get(dkey(x))||{i:0,e:0};
+        const f=flow.get(dkey(x))||{i:0,e:0,ui:0,ue:0};
         run+=f.i-f.e;
+        usd+=(f.ui||0)-(f.ue||0);
+        if(usd<0){                         // валюты не хватило — докупаем по ЦБ+5%
+          const need=-usd, cost=need*cbrUsd()*(1+SPREAD);
+          run-=cost; bought+=cost; usd=0;
+        }
         const d=new Date(x); d.setHours(0,0,0,0);
-        if(d>=t){ acc+=Math.max(0,run-off); days++; }   // база = только рубли в Райфе
+        if(d>=t){ acc+=Math.max(0,run); days++; }
       });
-      dif[ci]=run;                         // остаток на конец периода
+      dif[ci]=run; usdDif[ci]=usd;
     });
     avgs.push(days?acc/days:0);            // средний дневной остаток
     const p=(acc>0 && m.key!=='янв.27') ? acc*RATE/365 : 0;
@@ -1043,10 +1070,10 @@ function runBalance(){
     run+=p;
     dif[m.cols[m.cols.length-1]]=run;      // конец месяца — уже с процентами
   });
-  return {dif,pct,avgs};
+  return {dif,pct,avgs,usdDif,bought};
 }
-function prevDiff(ci){        // остаток на конец предыдущего периода (с процентами прошлых месяцев)
-  if(ci<=0) return data.start||0;
+function prevDiff(ci){        // рубли в Райфе на конец предыдущего периода
+  if(ci<=0) return (data.startParts&&data.startParts.raif)||0;
   return runBalance().dif[ci-1];
 }
 
