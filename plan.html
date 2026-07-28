@@ -398,7 +398,10 @@ function build(){
   for(let c=0;c<COLS.length;c++) if(isPast(c)) HID.add(c);   // прошедшее не показываем
   let h='<tr><th>Статья</th>'+COLS.map((c,i)=>HID.has(i)?''
     :`<th class="colhead" data-c="${i}" title="${c} · клик — разложить период по дням">${colRange(i)}</th>`).join('')+'</tr>';
-  const _idx=data.rows.map((_,i)=>i);
+  // data.hidden — строки, убранные вручную (закрытые сделки и т.п.). Они остаются в
+  // файле и в суммах, но не мозолят глаза; вернуть можно кнопкой ниже таблицы.
+  const HR=new Set(data.hidden||[]);
+  const _idx=data.rows.map((_,i)=>i).filter(i=>!HR.has(i));
   const _ord=[..._idx.filter(i=>TYPE(i)==='inc'), ..._idx.filter(i=>TYPE(i)!=='inc')];
   _ord.forEach(ri=>{
     const lb=LBL(ri);
@@ -413,6 +416,9 @@ function build(){
     }
     h+='</tr>';
   });
+  if(HR.size) h+=`<tr class="exp"><td class="lbl" style="opacity:.6">— скрыто строк: ${HR.size} `
+    +`<a href="#" id="unhide" style="color:var(--accent)">показать</a></td>`
+    +COLS.map((c,i)=>HID.has(i)?'':'<td></td>').join('')+'</tr>';
   h+='<tr class="tot t-inc" id="rInc"></tr><tr class="tot t-inc t-mon" id="rIncM"></tr>'
     +'<tr class="tot t-exp" id="rExp"></tr><tr class="tot t-exp t-mon" id="rExpM"></tr>'
     +'<tr class="tot t-dif" id="rDif"></tr>'
@@ -640,6 +646,10 @@ document.getElementById('logbtn').onclick=()=>{
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='finplan-log.json'; a.click();
 };
+grid.addEventListener('click',e=>{
+  if(e.target.id!=='unhide') return;
+  e.preventDefault(); data.hidden=[]; build(); autoSave();
+});
 document.getElementById('hidecols').onclick=()=>{
   hideEmpty=!hideEmpty;
   refreshEmptyCols();                 // пересобрать список пустых по кнопке
