@@ -426,6 +426,12 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json(crypto_price())
         if self.path == "/api/portfolio":
             return self._json(read_portfolio())
+        if self.path == "/api/facts":          # факты из выписок, вне репозитория
+            try:
+                with open(os.path.join(DIR, "facts.json"), encoding="utf-8") as fh:
+                    return self._json(json.load(fh))
+            except Exception:
+                return self._json({})
         if self.path == "/":
             self.path = "/index.html"
         return super().do_GET()
