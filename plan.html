@@ -130,7 +130,7 @@
     <button id="save">💾 Сохранить</button>
     <button id="csv">⬇ CSV</button>
     <button id="addrow">＋ Статья</button>
-    <button id="hidecols" class="on">🙈 Пустые столбцы</button>
+    <button id="hidecols">👁 Все столбцы</button>
     <button id="undo">↶ Отменить</button>
     <button id="logbtn">📜 Журнал</button>
     <button id="backup">⛃ Бэкап</button>
@@ -399,7 +399,7 @@ grid.addEventListener('click',e=>{
   if(inp) showCell(+inp.dataset.r,+inp.dataset.c);
 });
 
-let hideEmpty=true, HID=new Set();
+let hideEmpty=false, HID=new Set();   // по умолчанию ничего не прячем
 // Снимок пустых колонок берётся при загрузке и по кнопке, а не на каждой перерисовке:
 // иначе колонка исчезала прямо в момент, когда обнуляешь в ней последнюю ячейку.
 let emptySnap=null;
