@@ -529,8 +529,13 @@ function calc(){
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
   document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
   const uEnd=usdDif[COLS.length-1]||0;
-  document.getElementById('kUsd').textContent=F$(uEnd);
-  document.getElementById('kAll').textContent=F(dif[COLS.length-1]+uEnd*fxRate(true))+' ₽';
+  const sp0=data.startParts||{};
+  const other=(sp0.ya||0)+(sp0.cash||0)+(sp0.tkf||0);      // Яндекс, наличные, ТКФ
+  const all=dif[COLS.length-1]+uEnd*fxRate(true)+other;
+  document.getElementById('kUsd').textContent=F$(uEnd)+' · '+F(uEnd*fxRate(true))+' ₽';
+  document.getElementById('kAll').textContent=F(all)+' ₽';
+  document.getElementById('kAll').parentNode.title=
+    `Райф ${F(dif[COLS.length-1])} + валюта ${F(uEnd*fxRate(true))} + Яндекс/наличные ${F(other)} = ${F(all)} ₽`;
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit'];
