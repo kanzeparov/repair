@@ -364,7 +364,15 @@ def port_busy():
     with socket.socket() as s:
         return s.connect_ex(("127.0.0.1", PORT)) == 0
 
+def _term(sig, frm):
+    # pkill шлёт TERM: без обработчика finally не выполняется и накопленный
+    # за QUIET-окно коммит терялся до следующего сохранения
+    git_commit.flush(); git_commit_tasks.flush()
+    raise SystemExit(0)
+
 if __name__ == "__main__":
+    import signal
+    signal.signal(signal.SIGTERM, _term)
     # трекер уже поднят (например, руками из терминала) — не падать с трейсбеком
     # «Address already in use», а просто открыть работающий
     if port_busy():

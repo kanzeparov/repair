@@ -57,6 +57,8 @@
   tr.tot td{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:6px;white-space:nowrap}
   tr.t-inc td{background:var(--inc)} tr.t-exp td{background:var(--exp)} tr.t-dif td{background:var(--dif)}
   tr.t-dif td.neg{color:var(--crit)}
+  tr.t-dif small.dip{display:block;font-size:9.5px;font-weight:400;color:var(--muted);margin-top:1px}
+  tr.t-dif small.dip.bad{color:var(--crit);font-weight:700}
   tr.t-mon td.m{text-align:center;font-weight:700}
   tr.t-mon td.m+td.m{border-left:1px solid var(--line)}
   tr.t-mon td.lbl{font-weight:400;color:var(--muted)}
@@ -524,11 +526,22 @@ function calc(){
   // идём месяц за месяцем, каждый остаток взвешиваем по числу дней, что он держится,
   // начисляем Σ(остаток×дни)×ставка/365 в конце месяца и добавляем к остатку —
   // следующий месяц считается уже от увеличенного остатка.
-  const {dif,pct,avgs,usdDif,bought}=runBalance();
+  const {dif,pct,avgs,usdDif,bought,dip}=runBalance();
   const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
   document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map((v,i)=>HID.has(i)?'':cell(v)).join('');
   document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map((v,i)=>HID.has(i)?'':cell(v)).join('');
-  document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим, только Райф ₽)</td>'+dif.map((v,i)=>HID.has(i)?'':cell(v,1)).join('');
+  // в ячейке две цифры: остаток на конец периода и минимум внутри него —
+  // иначе провал между платежами и зарплатой не виден вообще
+  document.getElementById('rDif').innerHTML=
+    '<td class="lbl">Разница (нарастающим, только Райф ₽)</td>'
+    + dif.map((v,i)=>{
+        if(HID.has(i)) return '';
+        const lo=dip[i];
+        const showLo = lo<0 || (v-lo)>Math.max(50000, Math.abs(v)*0.15);
+        return `<td class="${v<0?'neg':''}">${F(v)}`
+          + (showLo?`<small class="dip ${lo<0?'bad':''}">мин ${F(lo)}</small>`:'')
+          + '</td>';
+      }).join('');
   const F$=n=>'$'+new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
   window.F$=F$;
   document.getElementById('rUsd').innerHTML=
@@ -789,7 +802,7 @@ function rollPast(){
       const tu=data.units && data.units[ri+'_'+to];
       if(su && tu && su.u===tu.u){                 // та же валюта — складываем единицы
         tu.v = +(tu.v + su.v).toFixed(6);
-        row[to]=Math.round(tu.v*UNITS[tu.u].rub());
+        row[to]=Math.round(tu.v*UNITS[tu.u].rub(TYPE(ri)==='inc'));
       } else if(su && !tu && !row[to]){            // цель пуста — переносим валюту как есть
         data.units[ri+'_'+to]={v:su.v,u:su.u};
         row[to]=v;
@@ -1080,10 +1093,11 @@ function runBalance(){
   const flow=dayFlows(), t=today0();
   let run=(data.startParts&&data.startParts.raif)||0;   // только рубли в Райфе
   let usd=startUsd(), bought=0;
-  const dif=[], pct=[], avgs=[], usdDif=[];
+  const dif=[], pct=[], avgs=[], usdDif=[], dip=[];   // dip — минимум ВНУТРИ периода
   MONTHS.forEach(m=>{
     let acc=0, days=0;                     // Σ остатков по дням месяца
     m.cols.forEach(ci=>{
+      let low=Infinity;
       periodDates(ci).forEach(x=>{
         const f=flow.get(dkey(x))||{i:0,e:0,ui:0,ue:0};
         run+=f.i-f.e;
@@ -1093,9 +1107,10 @@ function runBalance(){
           run-=cost; bought+=cost; usd=0;
         }
         const d=new Date(x); d.setHours(0,0,0,0);
-        if(d>=t){ acc+=Math.max(0,run); days++; }
+        if(d>=t){ acc+=Math.max(0,run); days++; if(run<low) low=run; }
       });
       dif[ci]=run; usdDif[ci]=usd;
+      dip[ci]=isFinite(low)?low:run;       // самый низкий день периода
     });
     avgs.push(days?acc/days:0);            // средний дневной остаток
     const p=(acc>0 && m.key!=='янв.27') ? acc*RATE/365 : 0;
@@ -1103,7 +1118,7 @@ function runBalance(){
     run+=p;
     dif[m.cols[m.cols.length-1]]=run;      // конец месяца — уже с процентами
   });
-  return {dif,pct,avgs,usdDif,bought};
+  return {dif,pct,avgs,usdDif,bought,dip};
 }
 function prevDiff(ci){        // рубли в Райфе на конец предыдущего периода
   if(ci<=0) return (data.startParts&&data.startParts.raif)||0;
