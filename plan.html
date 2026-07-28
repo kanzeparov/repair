@@ -309,14 +309,25 @@ function parseUnit(s){
   return null;
 }
 function unitAt(r,c){ return data.units && data.units[uKey(r,c)] || null; }
-function cellText(r,c){                        // что показать в поле ввода
+function cellRaw(r,c){                         // как ячейка вводится
   const q=unitAt(r,c);
   return q ? q.v+UNITS[q.u].sfx : (data.rows[r][c]||0);
+}
+function cellText(r,c){                        // что видно в поле
+  const q=unitAt(r,c);
+  if(q && q.u==='mega'){                       // токены показываем в долларах
+    const usd=q.v*megaUsd();
+    return '$'+new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(usd));
+  }
+  return cellRaw(r,c);
 }
 function cellTitle(r,c){
   const q=unitAt(r,c); if(!q) return '';
   const inc=TYPE(r)==='inc', rate=UNITS[q.u].rub(inc);
-  return `${q.v} ${UNITS[q.u].name} × ${F2(rate)} ₽ = ${F(data.rows[r][c]||0)} ₽`
+  const head = q.u==='mega'
+    ? `${q.v} MEGA × $${megaUsd()} = $${(q.v*megaUsd()).toFixed(2)}`
+    : `${q.v} ${UNITS[q.u].name}`;
+  return `${head} × ${F2(rate)} ₽ = ${F(data.rows[r][c]||0)} ₽`
     + `  (ЦБ ${inc?'−':'+'}${SPREAD*100}%: ${inc?'продажа':'покупка'})`;
 }
 function setCell(r,c,raw){                     // запись ячейки: рубли, валюта или токены
@@ -427,6 +438,7 @@ function build(){
     for(let ci=0;ci<COLS.length;ci++){
       if(HID.has(ci)) continue;
       const uq=unitAt(ri,ci);
+      // подпись показывает и токены, и доллары
       h+=`<td><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}"`
         +(uq?` class="usd" title="${cellTitle(ri,ci)}"`:'')
         +` value="${cellText(ri,ci)}"></td>`;
@@ -471,8 +483,17 @@ function build(){
         }
       }
     });
-    inp.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value;
-      e.target.dataset.origRub=data.rows[+e.target.dataset.r][+e.target.dataset.c]||0; });
+    inp.addEventListener('focus',e=>{
+      const r=+e.target.dataset.r, c=+e.target.dataset.c;
+      e.target.value=cellRaw(r,c);            // на редактирование — исходный вид «4167mega»
+      e.target.dataset.orig=e.target.value;
+      e.target.dataset.origRub=data.rows[r][c]||0;
+      e.target.select();
+    });
+    inp.addEventListener('blur',e=>{
+      const r=+e.target.dataset.r, c=+e.target.dataset.c;
+      e.target.value=cellText(r,c);           // обратно в долларовый вид
+    });
     inp.addEventListener('change',e=>{
       const r=+e.target.dataset.r,c=+e.target.dataset.c;
       const o=parseFloat(e.target.dataset.origRub)||0;      // в журнал всегда рубли
