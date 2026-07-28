@@ -652,6 +652,9 @@ grid.addEventListener('click',e=>{
   if(e.target.id!=='unhide') return;
   e.preventDefault(); data.hidden=[]; build(); autoSave();
 });
+// начальное состояние кнопки — под сохранённый выбор
+document.getElementById('hidecols').classList.toggle('on',hideEmpty);
+document.getElementById('hidecols').textContent=hideEmpty?'🙈 Пустые столбцы':'👁 Все столбцы';
 document.getElementById('hidecols').onclick=()=>{
   hideEmpty=!hideEmpty;
   refreshEmptyCols();                 // пересобрать список пустых по кнопке

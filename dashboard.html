@@ -84,6 +84,9 @@ button:hover{border-color:var(--accent);color:var(--accent)}
   <section><h2>Самые тяжёлые месяцы</h2><div class="scroll"><table id="months"></table></div></section>
 </div>
 
+<section><h2>Финансовый инбокс <small id="inboxN"></small></h2>
+  <div class="facts" id="inbox"></div></section>
+
 <section><h2>Факты из выписок <small id="factsPeriod"></small></h2>
   <div class="facts" id="facts"></div></section>
 
@@ -206,6 +209,20 @@ function tbl(el,head,rows,empty){
     .sort((a,b)=>a.dip-b.dip).slice(0,6);
   tbl('months',[['месяц',0],['минимум',1],['конец',1],['%',1]],
     M.map(m=>[m.name,`<span class="${m.dip<100000?'neg':''}">${F(m.dip)}</span>`,F(m.end),'+'+F(m.pct)]),'—');
+
+  // финансовый инбокс — задачи без даты, сгруппированные по [Категории] в тексте
+  const IB=((tasks&&tasks.tasks)||[]).filter(t=>!t.done&&!t.date&&t.fin);
+  const byGrp={};
+  IB.forEach(t=>{ const m=/^\[([^\]]+)\]\s*(.*)$/.exec(t.txt||'');
+    const g=m?m[1]:'Прочее', s=m?m[2]:t.txt;
+    (byGrp[g]=byGrp[g]||[]).push(s); });
+  document.getElementById('inboxN').textContent=IB.length?IB.length+' без даты':'';
+  document.getElementById('inbox').innerHTML=Object.keys(byGrp).length
+    ? Object.entries(byGrp).map(([g,list])=>
+        `<div class="fact"><div class="t">${esc(g)}</div>`
+        +`<div class="v" style="font-size:13.5px">${list.length} шт.</div>`
+        +`<div class="s">${list.map(esc).join('<br>')}</div></div>`).join('')
+    : '<div class="muted">инбокс пуст</div>';
 
   // факты
   if(facts&&facts.cards){
