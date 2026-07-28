@@ -139,6 +139,7 @@
     <span class="start" id="saveInfo"></span>
     <span id="cellInfo" style="font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:5px 10px;display:none"></span>
     <span class="kpi">
+      <span title="ликвидные деньги на сегодня">Сейчас <b id="kNow">—</b></span>
       <span>Σ Доход <b id="kInc">—</b></span>
       <span>Σ Расход <b id="kExp">—</b></span>
       <span>Итог 31.12 ₽ <b id="kDec">—</b></span>
@@ -524,6 +525,11 @@ function calc(){
     +MONTHS.map((m,mi)=>{ const sp=mspan(m); if(!sp) return '';
       return `<td class="m" colspan="${sp}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено в конце месяца">${F(pct[mi])}</td>`; }).join('');
   const sI=inc.reduce((a,b)=>a+b,0)+pct.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
+  const spN=data.startParts||{}, usdNow=(spN.freedom||0)+(spN.tbc||0)+(spN.bybit||0);
+  document.getElementById('kNow').textContent=F(data.start||0)+' ₽';
+  document.getElementById('kNow').parentNode.title=
+    `Райф ${F(spN.raif||0)} + Яндекс ${F(spN.ya||0)} + наличные ${F(spN.cash||0)}`
+    +` + валюта $${usdNow} (${F(usdNow*fxRate(true))} ₽) = ${F(data.start||0)} ₽`;
   document.getElementById('kInc').textContent=F(sI)+' ₽';
   document.getElementById('kExp').textContent=F(sE)+' ₽';
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
