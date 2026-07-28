@@ -141,9 +141,10 @@
     <span class="kpi">
       <span>Σ Доход <b id="kInc">—</b></span>
       <span>Σ Расход <b id="kExp">—</b></span>
-      <span>Итог 31.12 <b id="kDec">—</b></span>
-      <span style="color:var(--accent)">Итог янв.27 <b id="kEnd">—</b></span>
-      <span>Ипотека-2 <b id="kMort">—</b></span>
+      <span>Итог 31.12 ₽ <b id="kDec">—</b></span>
+      <span style="color:var(--accent)">Итог янв.27 ₽ <b id="kEnd">—</b></span>
+      <span>Валюта <b id="kUsd">—</b></span>
+      <span title="рубли + валюта по курсу продажи">Всего <b id="kAll">—</b></span>
     </span>
   </div>
 
@@ -507,6 +508,7 @@ function calc(){
   document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map((v,i)=>HID.has(i)?'':cell(v)).join('');
   document.getElementById('rDif').innerHTML='<td class="lbl">Разница (нарастающим, только Райф ₽)</td>'+dif.map((v,i)=>HID.has(i)?'':cell(v,1)).join('');
   const F$=n=>'$'+new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
+  window.F$=F$;
   document.getElementById('rUsd').innerHTML=
     `<td class="lbl" title="докуплено валюты за план: ${F(bought)} ₽">Валюта (нарастающим, $)</td>`
     +usdDif.map((v,i)=>HID.has(i)?'':`<td title="${F((v||0)*fxRate(true))} ₽ по курсу продажи">${F$(v||0)}</td>`).join('');
@@ -526,10 +528,9 @@ function calc(){
   document.getElementById('kExp').textContent=F(sE)+' ₽';
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
   document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
-  const need=Math.max(0,-dif[12]);
-  document.getElementById('kMort').textContent = need>0
-    ? F(need)+' ₽ · ~'+F(annuity(need,0.078/12,240))+'/мес @7,8%/20л'
-    : '0 ₽';
+  const uEnd=usdDif[COLS.length-1]||0;
+  document.getElementById('kUsd').textContent=F$(uEnd);
+  document.getElementById('kAll').textContent=F(dif[COLS.length-1]+uEnd*fxRate(true))+' ₽';
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit'];
