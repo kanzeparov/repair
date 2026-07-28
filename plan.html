@@ -123,6 +123,8 @@
       <input id="st_tbc" type="text" value="0" style="width:70px"></span>
     <span class="start" title="в долларах">Bybit $:
       <input id="st_bybit" type="text" value="0" style="width:70px"></span>
+    <span class="start" title="наличные доллары">Нал $:
+      <input id="st_cashusd" type="text" value="0" style="width:70px"></span>
     <span class="start" id="fxStartBox">≈ <b id="st_fxrub" style="font-family:var(--mono)">—</b></span>
     <span class="start">Σ старт: <b id="st_sum" style="font-family:var(--mono)">—</b></span>
     <span class="start" id="fxBox" title="курс ЦБ минус 5%; ячейку можно писать в долларах: 10д">💵 <b id="fxRate" style="font-family:var(--mono)">—</b></span>
@@ -578,8 +580,8 @@ function calc(){
     `Райф ${F(dif[COLS.length-1])} + валюта ${F(uEnd*fxRate(true))} + Яндекс/наличные ${F(other)} = ${F(all)} ₽`;
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
-const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit'];
-const ST_USD={freedom:1,tbc:1,bybit:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
+const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
+const ST_USD={freedom:1,tbc:1,bybit:1,cashusd:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
 function recalcStart(){
   const p=data.startParts||{}, r=fxRate(true);   // остатки — это то, что продаёшь
   let sum=0, usd=0;
