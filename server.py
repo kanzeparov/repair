@@ -2,7 +2,7 @@
 """Локальный трекер трат. Zero-deps: только стандартная библиотека.
 Запуск: python3 server.py  →  http://localhost:8765
 Данные: data.json рядом с этим файлом (внутри Obsidian vault → бэкапится)."""
-import json, os, http.server, socketserver, webbrowser, threading, subprocess, datetime, time
+import json, os, re, http.server, socketserver, webbrowser, threading, subprocess, datetime, time
 
 def git(args):
     try:
@@ -140,6 +140,125 @@ RATE_FILE = os.path.join(DIR, "rate.json")
 RATE_DISCOUNT = 0.05          # курс ЦБ минус 5%
 
 CRYPTO_FILE = os.path.join(DIR, "crypto.json")
+
+# ---- портфель крипты: DeBank Pro + floor с CoinGecko ------------------------
+# Пересчёт стоит денег (DeBank списывает units), поэтому руками и с подтверждением.
+PORT_FILE    = os.path.join(DIR, "portfolio.json")
+DEBANK_KEY_F = os.path.join(DIR, ".debank")          # ключ вне репозитория
+WALLETS_MD   = os.path.join(DIR, "..", "Финансы", "Крипта", "Кошельки.md")
+CG_PLATFORM  = {"eth": "ethereum", "matic": "polygon-pos", "arb": "arbitrum-one",
+                "op": "optimistic-ethereum", "base": "base", "bsc": "binance-smart-chain",
+                "avax": "avalanche", "ftm": "fantom", "xdai": "xdai"}
+CG_MAX       = 25            # столько контрактов проверяем на CoinGecko за один пересчёт
+
+def debank_key():
+    k = os.environ.get("DEBANK_KEY", "").strip()
+    if k:
+        return k
+    try:
+        with open(DEBANK_KEY_F, encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+def wallets():
+    """Адреса берём из заметки в vault — в публичный репозиторий они не попадают."""
+    try:
+        with open(WALLETS_MD, encoding="utf-8") as f:
+            txt = f.read()
+    except Exception:
+        return []
+    seen, out = set(), []
+    for a in re.findall(r"0x[0-9a-fA-F]{40}", txt):
+        low = a.lower()
+        if low not in seen:
+            seen.add(low); out.append(a)
+    return out
+
+def _debank(path, key, **params):
+    import urllib.parse, urllib.request
+    url = "https://pro-openapi.debank.com" + path + "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"AccessKey": key, "accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode())
+
+def read_portfolio():
+    try:
+        with open(PORT_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def recount_portfolio():
+    """Полный пересчёт: токены по всем адресам + NFT по минимальному floor CoinGecko."""
+    import concurrent.futures, time as _t
+    key = debank_key()
+    if not key:
+        return {"error": "нет ключа DeBank — положи его в money-tracker/.debank"}
+    addrs = wallets()
+    if not addrs:
+        return {"error": "не нашёл адреса в Финансы/Крипта/Кошельки.md"}
+
+    tokens, per_addr, nfts, errors = 0.0, {}, [], []
+
+    def one(a):
+        tot = _debank("/v1/user/total_balance", key, id=a).get("total_usd_value") or 0
+        lst = []
+        try:
+            lst = _debank("/v1/user/all_nft_list", key, id=a, is_all="true") or []
+        except Exception as e:
+            errors.append("nft %s: %s" % (a[:10], e))
+        return a, float(tot), lst
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        for fut in concurrent.futures.as_completed([ex.submit(one, a) for a in addrs]):
+            try:
+                a, tot, lst = fut.result()
+            except Exception as e:
+                errors.append(str(e)); continue
+            tokens += tot; per_addr[a] = round(tot, 2); nfts.extend(lst)
+
+    # группируем NFT по контракту, дороже по оценке DeBank — проверяем раньше
+    groups = {}
+    for n in nfts:
+        cid, chain = n.get("contract_id"), n.get("chain")
+        if not cid:
+            continue
+        g = groups.setdefault((chain, cid), {"n": 0, "est": 0.0, "name": n.get("collection_id") or cid})
+        g["n"] += 1
+        g["est"] += float(n.get("usd_value") or 0)
+    order = sorted(groups.items(), key=lambda kv: -kv[1]["est"])
+
+    nft_usd, confirmed, checked = 0.0, [], 0
+    for (chain, cid), g in order[:CG_MAX]:
+        plat = CG_PLATFORM.get(chain)
+        if not plat:
+            continue
+        checked += 1
+        try:
+            import urllib.request
+            u = "https://api.coingecko.com/api/v3/nfts/%s/contract/%s" % (plat, cid)
+            with urllib.request.urlopen(u, timeout=20) as r:
+                j = json.loads(r.read().decode())
+            fl = ((j.get("floor_price") or {}).get("usd")) or 0
+            if fl:
+                nft_usd += float(fl) * g["n"]
+                confirmed.append({"name": j.get("name") or g["name"], "n": g["n"], "floor": round(float(fl), 2)})
+        except Exception:
+            pass                       # коллекцию не знают — считаем нулём, как и раньше
+        _t.sleep(1.5)                  # CoinGecko лимитирует бесплатный доступ
+
+    out = {"day": datetime.date.today().isoformat(),
+           "ts": datetime.datetime.now().isoformat(timespec="seconds"),
+           "tokens": round(tokens, 2), "nft": round(nft_usd, 2),
+           "total": round(tokens + nft_usd, 2),
+           "addrs": len(addrs), "nft_count": len(nfts),
+           "collections": len(groups), "checked": checked,
+           "skipped": max(0, len(groups) - checked),   # без тихих усечений
+           "confirmed": confirmed, "per_addr": per_addr,
+           "errors": errors[:10]}
+    _write_json(PORT_FILE, out)
+    return out
 
 def cbr_usd():
     """Курсы ЦБ (доллар и тенге), кэш на сутки. Тянет сервер, а не браузер: у cbr.ru нет CORS.
@@ -305,6 +424,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json(cbr_usd())
         if self.path == "/api/crypto":
             return self._json(crypto_price())
+        if self.path == "/api/portfolio":
+            return self._json(read_portfolio())
         if self.path == "/":
             self.path = "/index.html"
         return super().do_GET()
@@ -347,6 +468,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             os.replace(TASKS + ".tmp", TASKS)
             git_commit_tasks("tasks: change")
             return self._json({"ok": True})
+        if self.path == "/api/portfolio/recount":   # платная операция — только по кнопке
+            return self._json(recount_portfolio())
         if self.path == "/api/plan":
             if not self._rev_ok(PLAN, body):
                 return self._json({"error": "stale rev — обнови вкладку"}, 409)

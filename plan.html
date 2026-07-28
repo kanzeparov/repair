@@ -1203,7 +1203,54 @@ async function loadRate(){
       if(rp.moved) autoSave(); } }
 }catch(e){}
   await loadRate();          // курс — после плана, иначе пересчёт лёг бы на старые данные
+  await checkCrypto();       // крипта протухла? предложить пересчёт
 })();
+
+// ---- крипта: напоминание о пересчёте -------------------------------------
+// Портфель меняется каждый день, а строка в плане замирает на дате пересчёта.
+// Если данным больше 3 дней — спрашиваем, обновить ли. Сам не обновляю: запрос
+// к DeBank Pro платный, списываются units.
+const CRYPTO_STALE_DAYS=3;
+const cryptoRow=()=> (data.labels||[]).findIndex(l=>/Продажа крипты/i.test(l||''));
+function setCrypto(usd, tokens, nft){
+  const ri=cryptoRow(); if(ri<0) return false;
+  const ci=data.rows[ri].findIndex(v=>v);           // колонка, где строка стоит сейчас
+  if(ci<0) return false;
+  data.units=data.units||{};
+  data.units[ri+'_'+ci]={v:Math.round(usd),u:'usd'};
+  data.rows[ri][ci]=Math.round(usd*fxRate(true));
+  data.labels[ri]='Продажа крипты: токены $'+F(tokens)+' + NFT по floor $'+F(nft)
+                 +' = $'+F(usd)+' (55 EVM-кошельков)';
+  delete (data.days||{})[ri+'_'+ci];                // ручная разбивка больше не актуальна
+  return true;
+}
+async function checkCrypto(){
+  let p=null;
+  try{ const r=await fetch('/api/portfolio',{cache:'no-store'}); if(r.ok) p=await r.json(); }catch(e){ return; }
+  const day=p&&p.day, base=day||(data.cryptoDay||'');
+  if(!base) return;                                  // ни разу не считали — не пристаём
+  const age=Math.floor((today0()-new Date(base+'T12:00:00'))/86400000);
+  if(age<CRYPTO_STALE_DAYS) return;
+  const ok=confirm('Данные по крипте от '+base+' — им уже '+age+' дн.\n\n'
+    +'Пересчитать сейчас?\n\n⚠️ Это ПЛАТНАЯ операция: DeBank Pro спишет units '
+    +'за 55 кошельков (баланс + список NFT). Floor берётся с CoinGecko, минимальный. '
+    +'Займёт около минуты.');
+  if(!ok){ document.getElementById('saveInfo').textContent=
+             'крипта не пересчитана (данным '+age+' дн.) — обновить можно перезагрузкой страницы'; return; }
+  document.getElementById('saveInfo').textContent='считаю крипту через DeBank… это займёт ~минуту';
+  try{
+    const r=await fetch('/api/portfolio/recount',{method:'POST',body:'{}'});
+    const j=await r.json();
+    if(j.error){ document.getElementById('saveInfo').textContent='крипта: '+j.error; return; }
+    if(setCrypto(j.total,j.tokens,j.nft)){
+      build(); autoSave();
+      document.getElementById('saveInfo').textContent=
+        'крипта пересчитана: токены $'+F(j.tokens)+' + NFT $'+F(j.nft)+' = $'+F(j.total)
+        +' · кошельков '+j.addrs+' · коллекций проверено '+j.checked+' из '+j.collections
+        +(j.skipped?' (остальные '+j.skipped+' считаны нулём)':'');
+    }
+  }catch(e){ document.getElementById('saveInfo').textContent='крипта: пересчёт не удался ('+e+')'; }
+}
 </script>
 
 <div id="taxblock" style="max-width:1200px;margin:22px 0 10px;background:rgba(138,90,24,.08);border:1px solid rgba(138,90,24,.4);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.55">
