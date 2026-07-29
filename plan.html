@@ -28,6 +28,9 @@
   .bar button{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;
     background:var(--card);color:var(--ink);cursor:pointer}
   #save.dirty{background:var(--accent);border-color:var(--accent);color:#fff}
+  tr.tips td.tip{font-size:10.5px;line-height:1.3;color:var(--accent);
+    background:var(--accent-soft);vertical-align:top;padding:4px 5px;white-space:normal;min-width:96px}
+  tr.tips td.lbl{font-size:11px;color:var(--muted)}
   #hidecols.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .bar .start{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
   .bar input{width:110px;font-family:var(--mono);font-size:12.5px;padding:6px 8px;
@@ -835,6 +838,44 @@ function resetDays(){
   if(n){ calc(); autoSave(); }
   renderDays();
 }
+// Подсказка по экономии на конкретный день. Правила выведены из моих же выписок и
+// тарифов: 3% по MCC даёт Райффайзен Подписка, 7–10% — категории Яндекс Pay, а даты
+// компенсаций и списаний фиксированные. Ничего не выдумываем — только то, что проверено.
+// Подсказка по экономии на конкретный день. Ежедневную мелочь (еда, рестораны, такси)
+// сюда не пишем — она есть в каждом дне и подсказка превращалась в шум. Постоянное
+// правило вынесено одной строкой над таблицей, а по дням — только то, что уникально:
+// календарные даты банков и разовые платежи. Правила взяты из тарифов и моих выписок.
+const TIP_ROW=[
+  [/Подписка/i,                             'списание подписки — проверь, нужна ли ещё'],
+  [/Маркетплейс/i,                          'сверить цену на Озоне: кредитный лимит 49 000 не выбран'],
+  [/Квартплат|ЖКХ|коммунал/i,               'платить картой, а не из приложения ЖКХ — иначе кэшбэк теряется'],
+  [/Одежда|Здоровье|Бады|Расходник|Линзы|Зубной|Качалка/i, 'MCC 5999/5311 → 3% по подписке Райфа'],
+  [/Поездка|Путешествие|билет|Новый год/i,  'билеты и жильё — картой с кэшбэком, не наличными'],
+  [/доллар|валют/i,                         'сверить курс с ЦБ: спред обменника бывает шире 5%'],
+  [/ипотек|кредит/i,                         'после платежа сразу забрать справку о погашении'],
+  [/ДР|подарк/i,                            'подарки — маркетплейсом с кэшбэком, а не наличными'],
+  [/кладов/i,                               'оплата кладовой — картой, MCC 3%'],
+];
+function dayTip(x, i){
+  const d=x.getDate(), last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();
+  const out=[];
+  if(d===28)    out.push('<b>выбрать категории Яндекс Pay на след. месяц</b>');
+  if(d===26)    out.push('придёт компенсация Райфа 8 500 ₽');
+  if(d===25)    out.push('проверить оборот по Райфу: 150 000 ₽/мес → бизнес-залы');
+  if(d===last)  out.push('проценты по накопительному за месяц');
+  const seen=new Set();
+  dayRows.forEach(ri=>{
+    if(TYPE(ri)==='inc') return;
+    const lbl=LBL(ri);
+    if(EVEN.test(lbl)) return;              // ежедневная мелочь — не повторяем каждый день
+    const parts=foldPast(splitOverDays(ri,dayCi,dayDates));
+    if(!parts[i]) return;
+    for(const [re,tip] of TIP_ROW){
+      if(re.test(lbl) && !seen.has(tip)){ seen.add(tip); out.push(tip); break; }
+    }
+  });
+  return out.slice(0,3).join(' · ');
+}
 function renderDays(){
   const ci=dayCi, dates=dayDates.slice(dayFrom), len=dates.length;
   // Состав строк зафиксирован при открытии: обнулил ячейки — строка остаётся на месте
@@ -844,6 +885,9 @@ function renderDays(){
       const we=(x.getDay()===0||x.getDay()===6)?' class="we"':'';
       return `<th${we}>${WD[x.getDay()]} ${x.getDate()}</th>`;
     }).join('')+'<th>Σ период</th></tr>';
+  h+='<tr class="tips"><td class="lbl">💡 как сэкономить</td>'
+    + dates.map((x,i)=>{ const t=dayTip(x,i); return `<td class="tip">${t||''}</td>`; }).join('')
+    + '<td></td></tr>';
   const inc=Array(len).fill(0), exp=Array(len).fill(0);
   ord.forEach(ri=>{
     const parts=foldPast(splitOverDays(ri,ci,dayDates));
@@ -944,7 +988,11 @@ function openDays(ci){
     `📆 ${colRange(ci)} по дням · ${first.getDate()} ${MN[first.getMonth()]} — ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}`
     + ` (${len-dayFrom} дн.${dayFrom?', прошедшие '+dayFrom+' свёрнуты в первый':''})`;
   document.getElementById('dayHint').innerHTML =
-    (dayFrom ? '<b>Дни до сегодня не показаны — всё незакрытое по ним сложено в первый день списка.</b> ' : '')
+    '<b>💡 Постоянное правило:</b> еда, продукты, рестораны, кальянные и такси — <b>всегда картой Райфа</b>: '
+   +'MCC 5411/5812/5813/5814/4121/3990 дают 3% по Подписке вместо 1,5%. Такси через Райф выгоднее, чем через '
+   +'Яндекс Pay без категории (3% против 2%). Лавка от 1 000 ₽ и категория месяца — наоборот, через Яндекс Pay (7–10%). '
+   +'В строке 💡 ниже — только то, что уникально для конкретного дня.<br>'
+   +(dayFrom ? '<b>Дни до сегодня не показаны — всё незакрытое по ним сложено в первый день списка.</b> ' : '')
    +'Ячейки редактируются: сумма за период станет суммой своих дней, и в основной таблице пересчитается сама. '
    +'Строки с ручной разбивкой помечены <b>✎</b>. Пока не тронул — '
    +'подписки стоят в своё число, еда, ресты и такси разложены по дням, мелочь вроде бадов и расходников — '
