@@ -146,7 +146,7 @@ CRYPTO_FILE = os.path.join(DIR, "crypto.json")
 PORT_FILE    = os.path.join(DIR, "portfolio.json")
 DEBANK_KEY_F = os.path.join(DIR, ".debank")          # ключ вне репозитория
 WALLETS_MD   = os.path.join(DIR, "..", "Финансы", "Крипта", "Кошельки.md")
-CG_PLATFORM  = {"eth": "ethereum", "matic": "polygon-pos", "arb": "arbitrum-one",
+CG_PLATFORM  = {"eth": "ethereum", "matic": "polygon-pos", "arb": "arbitrum-one", "era": "zksync",
                 "op": "optimistic-ethereum", "base": "base", "bsc": "binance-smart-chain",
                 "avax": "avalanche", "ftm": "fantom", "xdai": "xdai"}
 CG_MAX       = 25            # столько контрактов проверяем на CoinGecko за один пересчёт
@@ -224,10 +224,14 @@ def recount_portfolio():
         cid, chain = n.get("contract_id"), n.get("chain")
         if not cid:
             continue
-        g = groups.setdefault((chain, cid), {"n": 0, "est": 0.0, "name": n.get("collection_id") or cid})
-        g["n"] += 1
-        g["est"] += float(n.get("usd_value") or 0)
-    order = sorted(groups.items(), key=lambda kv: -kv[1]["est"])
+        # DeBank отдаёт цену в usd_price (не usd_value — там всегда 0) и человеческое
+        # имя в collection_name. Раньше группы ранжировались нулями, и до настоящих
+        # коллекций очередь просто не доходила.
+        g = groups.setdefault((chain, cid), {"n": 0, "est": 0.0,
+                              "name": n.get("collection_name") or n.get("contract_name") or cid})
+        g["n"] += int(n.get("amount") or 1)
+        g["est"] = max(g["est"], float(n.get("usd_price") or 0))
+    order = sorted(groups.items(), key=lambda kv: -(kv[1]["est"] * kv[1]["n"]))
 
     nft_usd, confirmed, checked = 0.0, [], 0
     for (chain, cid), g in order[:CG_MAX]:
