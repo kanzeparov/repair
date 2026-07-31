@@ -335,6 +335,45 @@ def crypto_price():
         return cached
     return {"error": "цена MEGA недоступна"}
 
+
+STOCK_FILE = os.path.join(DIR, "stocks.json")
+TICKERS = ["PLZL"]                   # что тянем с Мосбиржи
+
+def stock_px():
+    """Цены акций с MOEX ISS, кэш на сутки. Берём LAST, если торги идут, иначе PREVPRICE."""
+    today = datetime.date.today().isoformat()
+    cached = None
+    try:
+        with open(STOCK_FILE, encoding="utf-8") as f:
+            cached = json.load(f)
+        if cached.get("day") == today:
+            return cached
+    except Exception:
+        pass
+    out = {"day": today, "px": {}, "src": "moex/iss"}
+    try:
+        import urllib.request
+        for t in TICKERS:
+            u = ("https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/"
+                 + t + ".json?iss.meta=off&iss.only=marketdata,securities"
+                 "&securities.columns=SECID,PREVPRICE&marketdata.columns=SECID,LAST")
+            with urllib.request.urlopen(u, timeout=12) as r:
+                j = json.loads(r.read().decode())
+            last = (j.get("marketdata", {}).get("data") or [[None, None]])[0][1]
+            prev = (j.get("securities", {}).get("data") or [[None, None]])[0][1]
+            px = last or prev
+            if px:
+                out["px"][t] = float(px)
+        if out["px"]:
+            _write_json(STOCK_FILE, out)
+            return out
+    except Exception:
+        pass
+    if cached:
+        cached = dict(cached); cached["stale"] = True
+        return cached
+    return {"error": "цены MOEX недоступны"}
+
 def read_plan():
     """plan.json + подшитый обратно журнал — клиент видит единый объект, как раньше."""
     d = {}
@@ -428,6 +467,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json(cbr_usd())
         if self.path == "/api/crypto":
             return self._json(crypto_price())
+        if self.path == "/api/stocks":
+            return self._json(stock_px())
         if self.path == "/api/portfolio":
             return self._json(read_portfolio())
         if self.path == "/api/facts":          # факты из выписок, вне репозитория

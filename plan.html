@@ -268,7 +268,16 @@ const UNITS={
          rub:i=>gbpRate(i)},
   mega: {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(mega|мега|меga)\s*$/i,  sfx:' mega',  name:'MEGA',
          rub:i=>megaUsd()*fxRate(i)},
+  // Акции торгуются в рублях: валютный спред к ним не применяется, курс ЦБ ни при чём.
+  plzl: {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(plzl|полюс|плзл)\s*$/i, sfx:' plzl', name:'Полюс',
+         rub:()=>plzlPx()},
 };
+function plzlPx(){ return (ST&&ST.px&&ST.px.PLZL) || data.plzlPx || 0; }
+// Ячейка может нести ещё и рублёвый довесок (деньги на брокерском счёте помимо бумаг).
+function unitRub(q,isInc){
+  if(!q||!UNITS[q.u]) return 0;
+  return Math.round(q.v*UNITS[q.u].rub(isInc) + (q.add||0));
+}
 function parseUnit(s){
   for(const u in UNITS){
     const m=UNITS[u].re.exec(String(s));
@@ -298,7 +307,10 @@ function cellTitle(r,c){
   const head = q.u==='mega'
     ? `${q.v} MEGA × $${megaUsd()} = $${(q.v*megaUsd()).toFixed(2)}`
     : `${q.v} ${UNITS[q.u].name}`;
-  return `${head} × ${F2(rate)} ₽ = ${F(data.rows[r][c]||0)} ₽`
+  const plus = q.add ? ` + ${F(q.add)} ₽ на счёте` : '';
+  if(RUB_UNITS[q.u])
+    return `${q.v} шт × ${F2(rate)} ₽${plus} = ${F(data.rows[r][c]||0)} ₽ (цена MOEX, обновляется сама)`;
+  return `${head} × ${F2(rate)} ₽${plus} = ${F(data.rows[r][c]||0)} ₽`
     + `  (ЦБ ${inc?'−':'+'}${SPREAD*100}%: ${inc?'продажа':'покупка'})`;
 }
 function setCell(r,c,raw){                     // запись ячейки: рубли, валюта или токены
@@ -307,7 +319,7 @@ function setCell(r,c,raw){                     // запись ячейки: р�
   const k=uKey(r,c), q=parseUnit(raw);
   if(q){
     data.units[k]=q;
-    data.rows[r][c]=Math.round(q.v*UNITS[q.u].rub(TYPE(r)==='inc'));
+    data.rows[r][c]=unitRub(q,TYPE(r)==='inc');
   } else {
     delete data.units[k];
     data.rows[r][c]=parseFloat(String(raw).replace(/\s/g,'').replace(',','.'))||0;
@@ -321,7 +333,7 @@ function applyRate(){                          // пересчитать все 
     const [r,c]=k.split('_').map(Number);
     if(!data.rows[r]) continue;
     const rate=UNITS[q.u].rub(TYPE(r)==='inc'); if(!rate) continue;
-    const rub=Math.round(q.v*rate);
+    const rub=unitRub(q,TYPE(r)==='inc');
     if(data.rows[r][c]!==rub){ data.rows[r][c]=rub; n++; }
   }
   if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
@@ -329,6 +341,7 @@ function applyRate(){                          // пересчитать все 
   if(cbrKzt()) data.cbrKzt=cbrKzt();
   if(cbrGbp()) data.cbrGbp=cbrGbp();
   if(megaUsd()) data.megaUsd=megaUsd();
+  if(plzlPx()) data.plzlPx=plzlPx();
   return n;
 }
 function showRate(){
@@ -775,7 +788,7 @@ function rollPast(){
       const tu=data.units && data.units[ri+'_'+to];
       if(su && tu && su.u===tu.u){                 // та же валюта — складываем единицы
         tu.v = +(tu.v + su.v).toFixed(6);
-        row[to]=Math.round(tu.v*UNITS[tu.u].rub(TYPE(ri)==='inc'));
+        row[to]=unitRub(tu,TYPE(ri)==='inc');
       } else if(su && !tu && !row[to]){            // цель пуста — переносим валюту как есть
         data.units[ri+'_'+to]={v:su.v,u:su.u};
         row[to]=v;
@@ -1015,10 +1028,12 @@ build();
 // курс ЦБ − 5%: сначала план, потом курс — иначе пересчёт лёг бы на старые данные
 async function loadRate(){
   try{
-    const [r,c]=await Promise.all([fetch('/api/rate',{cache:'no-store'}),
-                                   fetch('/api/crypto',{cache:'no-store'})]);
+    const [r,c,st]=await Promise.all([fetch('/api/rate',{cache:'no-store'}),
+                                      fetch('/api/crypto',{cache:'no-store'}),
+                                      fetch('/api/stocks',{cache:'no-store'})]);
     if(r.ok) FX=await r.json();
     if(c.ok) CR=await c.json();
+    if(st.ok) ST=await st.json();
   }catch(e){}
   showRate();
   if(applyRate()){          // курс изменился — рублёвые суммы долларовых ячеек поехали

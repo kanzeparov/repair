@@ -122,7 +122,11 @@ function periodDates(ci){
 function today0(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
 // Любая нерублёвая ячейка сводится к долларам по кросс-курсу ЦБ: тенге и фунты
 // списываются с той же валютной карты и едят тот же остаток.
+// Единицы, которые уже выражены в рублях (акции на Мосбирже). Такая ячейка не трогает
+// долларовый пул — иначе продажа Полюса «пополняла» бы валюту, которой нет.
+const RUB_UNITS={plzl:1};
 function usdOf(q){
+  if(q && RUB_UNITS[q.u]) return 0;
   if(!q) return 0;
   if(q.u==='usd')  return q.v;
   if(q.u==='mega') return q.v*megaUsd();
@@ -149,7 +153,7 @@ function dayFlows(){
         const d=new Date(dates[k]); d.setHours(0,0,0,0);
         const key = d<t ? tkey : dkey(dates[k]);
         const o=flow.get(key)||{i:0,e:0,ui:0,ue:0};
-        if(q){                                   // валютная ячейка — рубли не трогает
+        if(q && !RUB_UNITS[q.u]){                // валютная ячейка — рубли не трогает
           const u=usdTot*v/tot;
           if(isInc) o.ui+=u; else o.ue+=u;
         } else {
