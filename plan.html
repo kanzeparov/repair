@@ -570,7 +570,8 @@ function calc(){
   document.getElementById('kNow').textContent=F(data.start||0)+' ₽';
   document.getElementById('kNow').parentNode.title=
     `Райф ${F(spN.raif||0)} + Яндекс ${F(spN.ya||0)} + наличные ${F(spN.cash||0)}`
-    +` + валюта $${usdNow} (${F(usdNow*fxRate(true))} ₽) = ${F(data.start||0)} ₽`;
+    +` + валюта на картах $${usdNow} (${F(usdNow*fxRate(true))} ₽)`
+    +` + наличные $${spN.cashusd||0} (${F((spN.cashusd||0)*fxRate(true))} ₽) = ${F(data.start||0)} ₽`;
   document.getElementById('kInc').textContent=F(sI)+' ₽';
   document.getElementById('kExp').textContent=F(sE)+' ₽';
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
@@ -578,11 +579,18 @@ function calc(){
   const uEnd=usdDif[COLS.length-1]||0;
   const sp0=data.startParts||{};
   const other=(sp0.ya||0)+(sp0.cash||0)+(sp0.tkf||0);      // Яндекс, наличные, ТКФ
-  const all=dif[COLS.length-1]+uEnd*fxRate(true)+other;
+  // Наличные доллары в пул карт не входят (ими не оплатить подписку с Freedom), но это
+  // деньги — в Σ старт они есть, значит и в итоге года должны быть, иначе итог занижен.
+  const cashUsd=sp0.cashusd||0, cashUsdRub=cashUsd*fxRate(true);
+  const all=dif[COLS.length-1]+uEnd*fxRate(true)+other+cashUsdRub;
   document.getElementById('kUsd').textContent=F$(uEnd)+' · '+F(uEnd*fxRate(true))+' ₽';
+  document.getElementById('kUsd').parentNode.title=
+    `на картах (Freedom/TBC/Bybit) — из него идут валютные траты.`
+    +` Наличные $${cashUsd} (${F(cashUsdRub)} ₽) сюда НЕ входят: ими не оплатить подписку с Freedom`;
   document.getElementById('kAll').textContent=F(all)+' ₽';
   document.getElementById('kAll').parentNode.title=
-    `Райф ${F(dif[COLS.length-1])} + валюта ${F(uEnd*fxRate(true))} + Яндекс/наличные ${F(other)} = ${F(all)} ₽`;
+    `Райф ${F(dif[COLS.length-1])} + валюта на картах ${F(uEnd*fxRate(true))} + Яндекс/наличные ₽ ${F(other)}`
+    +` + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽`;
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
