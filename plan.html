@@ -124,7 +124,7 @@
       <input id="st_freedom" type="text" value="0" style="width:80px"></span>
     <span class="start" title="в долларах">TBC $:
       <input id="st_tbc" type="text" value="0" style="width:70px"></span>
-    <span class="start" title="в долларах">Bybit $:
+    <span class="start" title="1,366 ETH — доллары считаются по цене CoinGecko автоматически">Bybit (ETH):
       <input id="st_bybit" type="text" value="0" style="width:70px"></span>
     <span class="start" title="наличные доллары">Нал $:
       <input id="st_cashusd" type="text" value="0" style="width:70px"></span>
@@ -174,6 +174,21 @@
 
 <script src="engine.js"></script>
 <script>
+// Движок вынесен в отдельный файл. Если он не загрузился (сервер перезапускался в этот
+// момент, отдал 404 или страница открыта как file://) — таблица молча оставалась пустой,
+// а KPI показывали прочерки. Лучше сказать прямо, чем показывать пустой экран.
+if(typeof runBalance!=='function'){
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.body.insertAdjacentHTML('afterbegin',
+      '<div style="margin:16px;padding:14px 16px;border:1px solid #96382C;background:#F6E8E4;'
+      +'border-radius:10px;color:#96382C;font:14px/1.5 system-ui">'
+      +'<b>⚠ Не загрузился engine.js — расчётный движок.</b><br>'
+      +'Таблица не построится. Обычно это значит, что сервер трекера перезапускался. '
+      +'Проверь, что <code>python3 server.py</code> запущен, и обнови страницу '
+      +'(Cmd+Shift+R). Данные в plan.json при этом целы.</div>');
+  });
+  throw new Error('engine.js не загружен');
+}
 // расчётный движок вынесен в engine.js — общий с dashboard.html
 function row(vals){const a=z();for(const[i,v]of Object.entries(vals))a[i]=v;return a;}
 const PLAN=[
@@ -336,11 +351,13 @@ function applyRate(){                          // пересчитать все 
     const rub=unitRub(q,TYPE(r)==='inc');
     if(data.rows[r][c]!==rub){ data.rows[r][c]=rub; n++; }
   }
+  if(syncBybit()) n++;                          // эфир на Bybit → доллары по свежей цене
   if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
   if(cbrUsd()) data.cbrUsd=cbrUsd();            // запомнить: пригодится без сети
   if(cbrKzt()) data.cbrKzt=cbrKzt();
   if(cbrGbp()) data.cbrGbp=cbrGbp();
   if(megaUsd()) data.megaUsd=megaUsd();
+  if(ethUsd()) data.ethUsd=ethUsd();
   if(plzlPx()) data.plzlPx=plzlPx();
   return n;
 }
@@ -570,6 +587,15 @@ function calc(){
 }
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
 const ST_USD={freedom:1,tbc:1,bybit:1,cashusd:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
+// На Bybit лежит эфир, а не доллары. Храним количество монет, а долларовый эквивалент
+// пересчитываем по цене CoinGecko — это бесплатный запрос, в отличие от DeBank.
+function syncBybit(){
+  const n=data.bybitEth, px=ethUsd();
+  if(n==null || !px || !data.startParts) return false;
+  const usd=Math.round(n*px);
+  if(data.startParts.bybit===usd) return false;
+  data.startParts.bybit=usd; return true;
+}
 function recalcStart(){
   const p=data.startParts||{}, r=fxRate(true);   // остатки — это то, что продаёшь
   let sum=0, usd=0;

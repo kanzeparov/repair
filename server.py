@@ -319,13 +319,15 @@ def crypto_price():
     try:
         import urllib.request
         url = ("https://api.coingecko.com/api/v3/simple/price"
-               "?ids=megaeth&vs_currencies=usd&include_last_updated_at=true")
+               "?ids=megaeth,ethereum&vs_currencies=usd&include_last_updated_at=true")
         with urllib.request.urlopen(url, timeout=12) as r:
             j = json.loads(r.read().decode())
         p = j.get("megaeth", {}).get("usd")
-        if p:
-            out = {"day": today, "mega": {"usd": p}, "src": "coingecko/megaeth",
-                   "updated": j["megaeth"].get("last_updated_at")}
+        eth = j.get("ethereum", {}).get("usd")
+        if p or eth:
+            out = {"day": today, "mega": {"usd": p}, "eth": {"usd": eth},
+                   "src": "coingecko/megaeth+ethereum",
+                   "updated": (j.get("megaeth") or j.get("ethereum") or {}).get("last_updated_at")}
             _write_json(CRYPTO_FILE, out)
             return out
     except Exception:
