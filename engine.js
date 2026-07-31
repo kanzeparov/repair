@@ -30,7 +30,7 @@ const LBL=ri=> (data.labels&&data.labels[ri]) || (typeof PLAN!=='undefined'&&ri<
 
 const RATE=0.12;   // годовая ставка для строки «% на остаток»
 
-let FX=null, CR=null;                          // курсы ЦБ и цена токена
+let FX=null, CR=null, ST=null;   // курсы ЦБ, цены монет, цены акций MOEX                          // курсы ЦБ и цена токена
 const uKey=(r,c)=>r+'_'+c;
 // Курс ЦБ — база. Продаёшь валюту (доход) — получаешь на 5% меньше,
 // покупаешь (расход) — платишь на 5% больше. SPREAD применяется ко всем валютам.
@@ -42,6 +42,7 @@ const side=isInc=> isInc ? (1-SPREAD) : (1+SPREAD);
 function fxRate(isInc){  return cbrUsd()*side(isInc); }
 function kztRate(isInc){ return cbrKzt()*side(isInc); }
 function gbpRate(isInc){ return cbrGbp()*side(isInc); }
+function ethUsd(){  return (CR&&CR.eth&&CR.eth.usd) || data.ethUsd || 0; }
 function megaUsd(){ return (CR&&CR.mega&&CR.mega.usd) || data.megaUsd || 0; }
 
 const PERIODS=[
