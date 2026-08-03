@@ -37,6 +37,12 @@
     border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
   .kpi{margin-left:auto;display:flex;gap:14px;font-family:var(--mono);font-size:12px}
   .kpi b{font-size:14px}
+  .kpi .history-link{cursor:pointer;border-radius:6px;padding:4px 6px;margin:-4px -6px;
+    transition:background .15s,color .15s}
+  .kpi .history-link:hover,.kpi .history-link:focus-visible{background:var(--accent-soft);
+    color:var(--accent);outline:none}
+  .kpi .history-link b{text-decoration:underline;text-decoration-style:dotted;
+    text-underline-offset:3px}
   .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
   table{border-collapse:collapse;font-size:12px;min-width:1560px}
   th{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--muted);
@@ -102,6 +108,24 @@
     font-variant-numeric:tabular-nums;appearance:textfield}
   #dayTable td input:focus{outline:1.5px solid var(--accent);border-radius:3px;background:var(--paper)}
   #dayTable td input.z{color:color-mix(in srgb, var(--muted) 40%, transparent)}
+  #historyWrap{display:none;position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.48);
+    padding:22px 14px;overflow:auto}
+  #historyBox{max-width:920px;margin:0 auto;background:var(--paper);border:1px solid var(--line);
+    border-radius:12px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.22)}
+  #historyBox h3{font-family:Georgia,serif;font-weight:400;font-size:20px;margin:0}
+  .history-head{display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .history-close{padding:6px 12px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--ink);cursor:pointer}
+  .history-summary{display:flex;gap:22px;flex-wrap:wrap;margin:12px 0;color:var(--muted)}
+  .history-summary b{display:block;color:var(--ink);font:600 18px var(--mono);margin-top:2px}
+  .history-chart{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:8px}
+  #historyChart{display:block;width:100%;height:280px;overflow:visible}
+  .history-list{margin-top:12px;max-height:260px;overflow:auto;border-top:1px solid var(--line)}
+  .history-item{display:grid;grid-template-columns:130px 1fr auto;gap:12px;padding:8px 4px;
+    border-bottom:1px solid var(--line);align-items:baseline}
+  .history-item time,.history-item small{color:var(--muted);font:11px var(--mono)}
+  .history-item strong{font:600 12px var(--mono);white-space:nowrap}
+  @media(max-width:620px){.history-item{grid-template-columns:1fr auto}.history-item time{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -152,7 +176,7 @@
       <span>Итог 31.12 ₽ <b id="kDec">—</b></span>
       <span>Итог янв.27 ₽ <b id="kEnd">—</b></span>
       <span>Валюта <b id="kUsd">—</b></span>
-      <span style="color:var(--accent);font-weight:600" title="рубли + валюта по курсу продажи">Всего <b id="kAll">—</b></span>
+      <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b></span>
     </span>
   </div>
 
@@ -165,6 +189,16 @@
         <button class="close" id="dayClose">✕ закрыть</button></span></h3>
       <div class="hint" id="dayHint"></div>
       <div id="dayScroll"><table id="dayTable"></table></div>
+    </div>
+  </div>
+
+  <div id="historyWrap" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+    <div id="historyBox">
+      <div class="history-head"><h3 id="historyTitle">Изменение суммы «Всего»</h3>
+        <button class="history-close" id="historyClose">✕ закрыть</button></div>
+      <div class="history-summary" id="historySummary"></div>
+      <div class="history-chart"><svg id="historyChart" viewBox="0 0 880 280" role="img" aria-label="График изменения итоговой суммы"></svg></div>
+      <div class="history-list" id="historyList"></div>
     </div>
   </div>
 
@@ -265,7 +299,6 @@ function logEv(k,ri,c,from,to,extra){
   if(!data.log) data.log=[];
   data.log.push({t:new Date().toISOString(),src:'table',k,ri,c,
     lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
-  if(data.log.length>1000) data.log.splice(0,data.log.length-1000);
 }
 
 // ---- ячейки в валюте и токенах -----------------------------------------
@@ -590,9 +623,92 @@ function calc(){
   document.getElementById('kAll').textContent=F(all)+' ₽';
   document.getElementById('kAll').parentNode.title=
     `Райф ${F(dif[COLS.length-1])} + валюта на картах ${F(uEnd*fxRate(true))} + Яндекс/наличные ₽ ${F(other)}`
-    +` + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽`;
+    +` + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽. Нажми — история и график.`;
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
+
+// История KPI «Всего». Журнал хранит дельты, поэтому идём от текущего плана назад,
+// откатывая каждую денежную правку, и на каждом шаге заново считаем итог движком.
+function projectedTotal(state){
+  const live=data;
+  data=state;
+  try{
+    const b=runBalance(), last=COLS.length-1;
+    const p=state.startParts||{};
+    const other=(p.ya||0)+(p.cash||0)+(p.tkf||0);
+    return Math.round((b.dif[last]||0)+(b.usdDif[last]||0)*fxRate(true)+other+(p.cashusd||0)*fxRate(true));
+  } finally { data=live; }
+}
+function recalcStateStart(state){
+  const p=state.startParts||{}, r=fxRate(true);
+  state.start=Math.round(ST_FIELDS.reduce((s,k)=>s+(p[k]||0)*(ST_USD[k]?r:1),0));
+}
+function reverseMoneyEvent(state,ev){
+  const r=Number(ev.ri), c=Number(ev.c), numeric=Number.isFinite(+ev.from);
+  if(['edit','cell','day'].includes(ev.k) && numeric && state.rows[r] && c>=0){
+    state.rows[r][c]=+ev.from; return true;
+  }
+  if(ev.k==='paid' && numeric && state.rows[r] && c>=0){
+    state.rows[r][c]=(state.rows[r][c]||0)+(+ev.from); return true;
+  }
+  if(ev.k==='unpaid' && Number.isFinite(+ev.to) && state.rows[r] && c>=0){
+    state.rows[r][c]=Math.max(0,(state.rows[r][c]||0)-(+ev.to)); return true;
+  }
+  if(ev.k==='start' && ev.field && numeric){
+    state.startParts=state.startParts||{};
+    state.startParts[String(ev.field).replace('st_','')]=+ev.from;
+    recalcStateStart(state); return true;
+  }
+  return false;
+}
+const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+function totalHistory(){
+  const state=JSON.parse(JSON.stringify(data)), log=(data.log||[]);
+  let after=projectedTotal(state), changes=[];
+  for(let i=log.length-1;i>=0;i--){
+    const ev=log[i], stamp=ev.t||ev.ts;
+    if(!stamp || !reverseMoneyEvent(state,ev)) continue;
+    const before=projectedTotal(state);
+    if(before!==after) changes.push({t:new Date(stamp),before,after,ev});
+    after=before;
+  }
+  return changes.reverse();
+}
+function drawTotalHistory(){
+  const changes=totalHistory(), now=projectedTotal(data);
+  const first=changes.length?changes[0].before:now, delta=now-first;
+  const fmtDate=d=>d.toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('historySummary').innerHTML=
+    `<span>Было<b>${F(first)} ₽</b></span><span>Сейчас<b>${F(now)} ₽</b></span>`+
+    `<span>Изменение<b style="color:${delta<0?'var(--crit)':'var(--accent)'}">${delta>0?'+':''}${F(delta)} ₽</b></span>`+
+    `<span>Зафиксировано правок<b>${changes.length}</b></span>`;
+  const raw=changes.length?[{t:new Date(changes[0].t.getTime()-1),v:first},...changes.map(x=>({t:x.t,v:x.after}))]:[{t:new Date(),v:now}];
+  const step=Math.max(1,Math.ceil(raw.length/220));
+  const pts=raw.filter((_,i)=>i%step===0||i===raw.length-1), vals=pts.map(p=>p.v);
+  let lo=Math.min(...vals), hi=Math.max(...vals); if(lo===hi){lo-=1;hi+=1;}
+  const W=880,H=280,L=74,R=18,T=18,B=34, x=i=>L+(W-L-R)*(pts.length===1?.5:i/(pts.length-1));
+  const y=v=>T+(H-T-B)*(hi-v)/(hi-lo), path=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
+  const ticks=[0,.25,.5,.75,1].map(q=>{const v=hi-(hi-lo)*q,yy=T+(H-T-B)*q;
+    return `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="var(--line)"/>`+
+      `<text x="${L-8}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="10">${esc(F(v))}</text>`;}).join('');
+  const area=`${path} L ${x(pts.length-1)} ${H-B} L ${x(0)} ${H-B} Z`;
+  document.getElementById('historyChart').innerHTML=ticks+
+    `<path d="${area}" fill="var(--accent-soft)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round"/>`+
+    `<circle cx="${x(pts.length-1)}" cy="${y(vals[vals.length-1])}" r="4" fill="var(--accent)"/>`+
+    (pts.length>1?`<text x="${L}" y="${H-9}" fill="var(--muted)" font-size="10">${esc(fmtDate(pts[0].t))}</text>`+
+      `<text x="${W-R}" y="${H-9}" text-anchor="end" fill="var(--muted)" font-size="10">${esc(fmtDate(pts[pts.length-1].t))}</text>`:'');
+  const shown=[...changes].reverse().slice(0,200);
+  document.getElementById('historyList').innerHTML=shown.length?shown.map(x=>{
+    const d=x.after-x.before, label=x.ev.lbl||x.ev.col||x.ev.field||'Изменение плана';
+    return `<div class="history-item"><time>${esc(fmtDate(x.t))}</time><span>${esc(label)}<br><small>${esc(x.ev.col||'')}</small></span>`+
+      `<strong style="color:${d<0?'var(--crit)':'var(--accent)'}">${d>0?'+':''}${esc(F(d))} ₽</strong></div>`;
+  }).join(''):'<p class="note">Денежных изменений в журнале пока нет.</p>';
+}
+function openTotalHistory(){ drawTotalHistory(); document.getElementById('historyWrap').style.display='block'; }
+document.getElementById('kAllOpen').addEventListener('click',openTotalHistory);
+document.getElementById('kAllOpen').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openTotalHistory();}});
+document.getElementById('historyClose').onclick=()=>{document.getElementById('historyWrap').style.display='none';};
+document.getElementById('historyWrap').addEventListener('click',e=>{if(e.target.id==='historyWrap')e.target.style.display='none';});
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
 const ST_USD={freedom:1,tbc:1,bybit:1,cashusd:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
 // На Bybit лежит эфир, а не доллары. Храним количество монет, а долларовый эквивалент
@@ -1049,7 +1165,10 @@ document.getElementById('dayWrap').addEventListener('click',e=>{
   if(e.target.id==='dayWrap') e.target.style.display='none';
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') document.getElementById('dayWrap').style.display='none';
+  if(e.key==='Escape'){
+    document.getElementById('dayWrap').style.display='none';
+    document.getElementById('historyWrap').style.display='none';
+  }
 });
 grid.addEventListener('click',e=>{
   const th=e.target.closest('th.colhead');
