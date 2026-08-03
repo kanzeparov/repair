@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ежемесячные траты — базовый месяц</title>
+<style>
+:root{--paper:#fafaf6;--card:#fff;--ink:#22261f;--muted:#6c7367;--line:#e1e4d9;--accent:#2a5c48;--soft:#edf3ee;--warn:#8a5a18;--warn-bg:#f7efdc;--crit:#96382c;--crit-bg:#f6e8e4;--mono:ui-monospace,"SF Mono",Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+@media(prefers-color-scheme:dark){:root{--paper:#191c17;--card:#20241e;--ink:#e6e8e0;--muted:#9ba394;--line:#343930;--accent:#7fbba0;--soft:#24322a;--warn:#d9a85c;--warn-bg:#322a18;--crit:#d98876;--crit-bg:#37231f}}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:13px var(--sans);padding:22px 14px 60px}.page{max-width:1180px;margin:auto}.nav{display:flex;gap:8px;margin-bottom:16px}.nav a{padding:7px 12px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--accent);text-decoration:none}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}h1{font:400 26px Georgia,serif;margin:0 0 6px}.lead{color:var(--muted);max-width:760px;line-height:1.5}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}.kpi{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}.kpi small{display:block;color:var(--muted);margin-bottom:5px}.kpi b{font:700 19px var(--mono)}.kpi.warn{background:var(--warn-bg)}.kpi.crit{background:var(--crit-bg)}.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(310px,1fr);gap:14px}.panel{border:1px solid var(--line);border-radius:11px;background:var(--card);overflow:hidden}.panel-title{padding:11px 13px;background:var(--soft);font-weight:700}.row{display:grid;grid-template-columns:minmax(170px,1.25fr) minmax(120px,1fr) 88px 82px;gap:10px;align-items:center;padding:11px 13px;border-bottom:1px solid var(--line)}.row:last-child,.charge:last-child{border:0}.name b{display:block}.name small{color:var(--muted);font-size:10px;line-height:1.35}.bar{height:8px;background:var(--paper);border-radius:20px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);border-radius:20px}.num{text-align:right;font:600 11.5px var(--mono)}.num small{display:block;color:var(--muted);font:9px var(--sans)}.charge{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line)}.charge time{color:var(--accent);font:600 10.5px var(--mono)}.charge span{font-size:11px}.charge b{font:600 11px var(--mono);white-space:nowrap}.note{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--muted);font-size:11px;line-height:1.55}.note b{color:var(--ink)}
+@media(max-width:850px){.kpis{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.row{grid-template-columns:minmax(145px,1fr) 90px 80px}.bar{display:none}}
+@media(max-width:520px){body{padding:14px 9px 40px}.kpis{grid-template-columns:1fr}.row{grid-template-columns:1fr auto}.row .num:last-child{display:none}.charge{grid-template-columns:46px 1fr}.charge b{grid-column:2}.head h1{font-size:22px}}
+</style>
+</head>
+<body><main class="page">
+  <nav class="nav"><a href="plan.html">← Финансовый план</a><a href="/">Главная</a></nav>
+  <header class="head"><div><h1>Ежемесячные траты — конкретный базовый месяц</h1><div class="lead">Факт — по доступным выпискам Райффайзен, Т-Банк и Яндекс; план — рабочий лимит без путешествий, крупных покупок, налогов и погашения долгов.</div></div></header>
+  <section class="kpis">
+    <div class="kpi"><small>Базовый расход</small><b>≈ 160 000 ₽</b></div>
+    <div class="kpi"><small>Обязательные списания</small><b>≈ 44 400 ₽</b></div>
+    <div class="kpi warn"><small>Повседневные лимиты</small><b>≈ 115 000 ₽</b></div>
+    <div class="kpi crit"><small>Мелкие операции ≤500 ₽</small><b>≈ 21 800 ₽</b></div>
+  </section>
+  <div class="grid">
+    <section class="panel"><div class="panel-title">Категории: факт и месячный лимит</div>
+      <div class="row"><div class="name"><b>Продукты · ВкусВилл</b><small>123 394 ₽ за 3 мес. · 145 покупок · средний чек 851 ₽</small></div><div class="bar"><i style="width:100%"></i></div><div class="num">41 100 ₽<small>факт/мес.</small></div><div class="num">42 000 ₽<small>лимит</small></div></div>
+      <div class="row"><div class="name"><b>Такси</b><small>Яндекс Pay 11 530 ₽/мес. + остальные карты</small></div><div class="bar"><i style="width:65%"></i></div><div class="num">≈26 500 ₽<small>факт/мес.</small></div><div class="num">27 000 ₽<small>лимит</small></div></div>
+      <div class="row"><div class="name"><b>Рестораны и доставка</b><small>Еда вне дома; не смешивать с продуктами</small></div><div class="bar"><i style="width:74%"></i></div><div class="num">30–32 тыс.<small>план/мес.</small></div><div class="num">31 000 ₽<small>лимит</small></div></div>
+      <div class="row"><div class="name"><b>Маркетплейсы</b><small>Без подписок; недельный лимит 3 500 ₽</small></div><div class="bar"><i style="width:34%"></i></div><div class="num">13,8–14,4 тыс.<small>план/мес.</small></div><div class="num">14 000 ₽<small>лимит</small></div></div>
+      <div class="row"><div class="name"><b>Подписки и связь</b><small>Claude, ChatGPT, YouTube, Adobe, FSCapture, SberPrime и связь</small></div><div class="bar"><i style="width:90%"></i></div><div class="num">≈37 200 ₽<small>резерв/мес.</small></div><div class="num">38 000 ₽<small>лимит</small></div></div>
+      <div class="row"><div class="name"><b>ЖКХ · Дмитровская</b><small>После августовской квитанции 14 300 ₽</small></div><div class="bar"><i style="width:15%"></i></div><div class="num">≈6 000 ₽<small>обычный мес.</small></div><div class="num">6 500 ₽<small>лимит</small></div></div>
+      <div class="row"><div class="name"><b>Кладовые</b><small>Павелецкая 655 ₽ + Алтуфьево 600 ₽</small></div><div class="bar"><i style="width:4%"></i></div><div class="num">1 255 ₽<small>фикс./мес.</small></div><div class="num">1 300 ₽<small>лимит</small></div></div>
+      <div class="row"><div class="name"><b>Бытовые расходники</b><small>Не включать одежду, здоровье и технику</small></div><div class="bar"><i style="width:5%"></i></div><div class="num">2 000 ₽<small>план/мес.</small></div><div class="num">2 000 ₽<small>лимит</small></div></div>
+    </section>
+    <section class="panel"><div class="panel-title">Календарь обязательных списаний</div>
+      <div class="charge"><time>1-е</time><span>Казахстанский номер</span><b>1 000 ₸</b></div>
+      <div class="charge"><time>2-е</time><span>Claude</span><b>$228 · окт. $120</b></div>
+      <div class="charge"><time>10-е</time><span>FSCapture</span><b>$32</b></div>
+      <div class="charge"><time>13-е</time><span>Adobe</span><b>$11</b></div>
+      <div class="charge"><time>16-е</time><span>SberPrime №1</span><b>399 ₽</b></div>
+      <div class="charge"><time>19-е</time><span>Premier</span><b>99 ₽</b></div>
+      <div class="charge"><time>20-е</time><span>Резерв на t2 РФ</span><b>605 ₽</b></div>
+      <div class="charge"><time>23-е</time><span>SberPrime №2</span><b>399 ₽</b></div>
+      <div class="charge"><time>26-е</time><span>ChatGPT Pro</span><b>54 990 ₸</b></div>
+      <div class="charge"><time>26-е</time><span>YouTube Premium</span><b>£20</b></div>
+      <div class="charge"><time>27-е</time><span>Райффайзен Подписка</span><b>299 ₽</b></div>
+      <div class="charge"><time>ежемес.</time><span>ЖКХ + две кладовые</span><b>≈7 255 ₽</b></div>
+      <div class="charge"><time>резерв</time><span>t2 Mixx + Google One</span><b>≈683 ₽/мес.</b></div>
+    </section>
+  </div>
+  <aside class="note"><b>Важно:</b> 21 800 ₽ мелких операций уже находятся внутри продуктов, такси, кафе и маркетплейсов — это контрольный показатель, а не дополнительная строка. В базовые 160 тыс. ₽ не входят Батуми/Китай, подарки, лечение, одежда, страховка, налоги и разовые покупки.</aside>
+</main></body></html>
