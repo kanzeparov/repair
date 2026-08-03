@@ -126,7 +126,7 @@
   .history-range button{cursor:pointer}.history-range button:hover{border-color:var(--accent);color:var(--accent)}
   .history-chart-note{display:flex;justify-content:space-between;gap:12px;color:var(--muted);
     font-size:11px;margin:0 4px 4px}
-  #historyChart{display:block;width:100%;height:280px;overflow:visible}
+  #historyChart{display:block;width:100%;height:280px;overflow:hidden}
   .history-list{margin-top:12px;max-height:260px;overflow:auto;border-top:1px solid var(--line)}
   .history-item{display:grid;grid-template-columns:130px 1fr auto;gap:12px;padding:8px 4px;
     border-bottom:1px solid var(--line);align-items:baseline}
@@ -660,7 +660,9 @@ function recalcStateStart(state){
 }
 function reverseMoneyEvent(state,ev){
   const r=Number(ev.ri), c=Number(ev.c), numeric=Number.isFinite(+ev.from);
-  if(['edit','cell','day'].includes(ev.k) && numeric && state.rows[r] && c>=0){
+  // day хранит «старое значение отдельного дня → новый итог периода», а не две
+  // версии итоговой ячейки. Откатывать строку по такой записи нельзя.
+  if(['edit','cell'].includes(ev.k) && numeric && state.rows[r] && c>=0){
     state.rows[r][c]=+ev.from; return true;
   }
   if(ev.k==='paid' && numeric && state.rows[r] && c>=0){
@@ -684,7 +686,9 @@ function totalHistory(){
     const ev=log[i], stamp=ev.t||ev.ts;
     if(!stamp || !reverseMoneyEvent(state,ev)) continue;
     const before=projectedTotal(state);
-    if(before!==after) changes.push({t:new Date(stamp),before,after,ev});
+    // Старые ручные/структурные записи журнала иногда не содержат достаточно
+    // данных для точного отката. Невозможные отрицательные реконструкции отбрасываем.
+    if(before>=0 && after>=0 && before!==after) changes.push({t:new Date(stamp),before,after,ev});
     after=before;
   }
   return changes.reverse();
@@ -708,9 +712,13 @@ function drawTotalHistory(){
     `<span>Зафиксировано правок<b>${changes.length}</b></span>`;
   const rangeStart=from||(changes.length?new Date(changes[0].t.getTime()-1):new Date());
   const raw=changes.length?[{t:rangeStart,v:first},...changes.map(x=>({t:x.t,v:x.after}))]:[{t:rangeStart,v:first}];
-  const step=Math.max(1,Math.ceil(raw.length/220));
-  const pts=raw.filter((_,i)=>i%step===0||i===raw.length-1), vals=pts.map(p=>p.v);
-  let lo=Math.min(...vals), hi=Math.max(...vals); if(lo===hi){lo-=1;hi+=1;}
+  // Отрицательные исторические расчёты не показываем: график отвечает на вопрос,
+  // сколько денег было, и всегда начинается с нулевой отметки.
+  const nonNegative=raw.filter(p=>p.v>=0);
+  const visible=nonNegative.length?nonNegative:[{t:rangeStart,v:0}];
+  const step=Math.max(1,Math.ceil(visible.length/220));
+  const pts=visible.filter((_,i)=>i%step===0||i===visible.length-1), vals=pts.map(p=>p.v);
+  let lo=0, hi=Math.max(...vals); if(hi<=0) hi=1;
   const W=880,H=280,L=74,R=18,T=18,B=34, x=i=>L+(W-L-R)*(pts.length===1?.5:i/(pts.length-1));
   const y=v=>T+(H-T-B)*(hi-v)/(hi-lo), path=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
   const axisMoney=v=>{
@@ -720,8 +728,7 @@ function drawTotalHistory(){
   const ticks=[0,.25,.5,.75,1].map(q=>{const v=hi-(hi-lo)*q,yy=T+(H-T-B)*q;
     return `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="var(--line)"/>`+
       `<text x="${L-8}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="11">${esc(axisMoney(v))}</text>`;}).join('');
-  const zero=(lo<0&&hi>0)?`<line x1="${L}" y1="${y(0)}" x2="${W-R}" y2="${y(0)}" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="5 4"/>`+
-    `<text x="${L-8}" y="${y(0)+4}" text-anchor="end" fill="var(--crit)" font-size="11">0 ₽</text>`:'';
+  const zero=`<line x1="${L}" y1="${y(0)}" x2="${W-R}" y2="${y(0)}" stroke="var(--line)" stroke-width="1.5"/>`;
   const area=`${path} L ${x(pts.length-1)} ${H-B} L ${x(0)} ${H-B} Z`;
   const hitPoints=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="8" fill="transparent"><title>${esc(fmtDate(p.t))}: ${esc(F(p.v))} ₽</title></circle>`).join('');
   document.getElementById('historyChart').innerHTML=ticks+zero+
