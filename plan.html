@@ -1332,9 +1332,9 @@ async function loadRate(){
 
 // ---- крипта: напоминание о пересчёте -------------------------------------
 // Портфель меняется каждый день, а строка в плане замирает на дате пересчёта.
-// Если данным больше 3 дней — спрашиваем, обновить ли. Сам не обновляю: запрос
+// Если данным больше 14 дней — спрашиваем, обновить ли. Сам не обновляю: запрос
 // к DeBank Pro платный, списываются units.
-const CRYPTO_STALE_DAYS=3;
+const CRYPTO_STALE_DAYS=14;
 const cryptoRow=()=> (data.labels||[]).findIndex(l=>/Продажа крипты/i.test(l||''));
 function setCrypto(usd, tokens, nft){
   const ri=cryptoRow(); if(ri<0) return false;
