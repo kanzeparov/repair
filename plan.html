@@ -54,6 +54,9 @@
   .burn-t b{font:700 18px var(--mono);display:block}
   .burn-t i{font-style:normal;color:var(--muted);font-size:11px;display:block;margin-top:2px}
   .burn-t.warn{background:var(--warn-bg)} .burn-t.crit{background:var(--crit-bg)}
+  .burn-t .kdelta{display:inline-block;margin-top:2px;font-size:11px}
+  .burn-today{color:var(--fg);font-weight:600}
+  .burn-click{cursor:pointer} .burn-click:hover{outline:1px solid var(--accent)}
   .kpi .history-link b{text-decoration:underline;text-decoration-style:dotted;
     text-underline-offset:3px}
   .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
@@ -225,8 +228,12 @@
        + наличные доллары; наличные показаны отдельной строкой, потому что ими нельзя
        оплатить подписку с карты, но потратить в поездке можно. -->
   <div class="burn" id="burnBox">
-    <div class="burn-t"><small>Расход ₽ до 31.12</small><b id="bRub">—</b><i id="bRubSub"></i></div>
-    <div class="burn-t"><small>Расход $ до 31.12</small><b id="bUsd">—</b><i id="bUsdSub"></i></div>
+    <div class="burn-t burn-click" id="bRubBox" role="button" tabindex="0" title="Нажми — история изменений и график">
+      <small>Расход ₽ до 31.12</small><b id="bRub">—</b><i id="bRubDelta" class="kdelta"></i>
+      <i id="bRubToday" class="burn-today"></i><i id="bRubSub"></i></div>
+    <div class="burn-t burn-click" id="bUsdBox" role="button" tabindex="0" title="Нажми — история изменений и график">
+      <small>Расход $ до 31.12</small><b id="bUsd">—</b><i id="bUsdDelta" class="kdelta"></i>
+      <i id="bUsdToday" class="burn-today"></i><i id="bUsdSub"></i></div>
     <div class="burn-t"><small>Валютный ресурс</small><b id="bRes">—</b><i id="bResSub"></i></div>
     <div class="burn-t" id="bEndBox"><small>Валюты хватит до</small><b id="bEnd">—</b><i id="bEndSub"></i></div>
   </div>
@@ -764,21 +771,38 @@ function calc(){
 // Храним две величины: base — итог на конец предыдущего дня, last — последний увиденный.
 // В новый день last становится base. localStorage — чтобы пережить перезагрузку страницы.
 const DAILY_KEY='kAllDaily';
-function readDaily(){
-  try{ const s=JSON.parse(localStorage.getItem(DAILY_KEY)||'null');
+function readDaily(key){
+  try{ const s=JSON.parse(localStorage.getItem(key||DAILY_KEY)||'null');
        return (s && s.day && Number.isFinite(s.base) && Number.isFinite(s.last)) ? s : null; }
   catch(e){ return null; }
 }
-function writeDaily(s){ try{ localStorage.setItem(DAILY_KEY,JSON.stringify(s)); }catch(e){} }
-function dayBaseline(all){
+function writeDaily(s,key){ try{ localStorage.setItem(key||DAILY_KEY,JSON.stringify(s)); }catch(e){} }
+// Универсальная база «на конец предыдущего дня». Один и тот же механизм для «Всего» и
+// для метрик расхода: снапшот в localStorage, в новый день last становится base.
+function dayBaseline(all,key){
   const today=new Date().toISOString().slice(0,10);
-  const s=readDaily();
-  if(!s){ writeDaily({day:today,base:all,last:all}); return all; }   // первый запуск
-  if(s.day!==today){                                                 // наступил новый день
-    writeDaily({day:today,base:s.last,last:all}); return s.last;
+  const s=readDaily(key);
+  if(!s){ writeDaily({day:today,base:all,last:all},key); return all; }   // первый запуск
+  if(s.day!==today){                                                     // наступил новый день
+    writeDaily({day:today,base:s.last,last:all},key); return s.last;
   }
-  if(s.last!==all) writeDaily({day:today,base:s.base,last:all});
+  if(s.last!==all) writeDaily({day:today,base:s.base,last:all},key);
   return s.base;
+}
+// Дельта к концу предыдущего дня для произвольной метрики. Для расходов рост — это плохо,
+// поэтому цвет инвертируется: +100 000 ₽ трат красным, экономия зелёным.
+function renderMetricDelta(elId,value,key,fmt,invert){
+  const el=document.getElementById(elId);
+  if(!el || !Number.isFinite(value)) return;
+  const base=dayBaseline(value,key), d=value-base;
+  if(!d){ el.textContent=''; el.className='kdelta'; el.removeAttribute('title'); return; }
+  const up=d>0, bad=invert?up:!up;
+  el.textContent=(up?'▲ +':'▼ −')+fmt(Math.abs(d));
+  el.className='kdelta '+(bad?'down':'up');
+  el.title=`С конца предыдущего дня: было ${fmt(base)}, стало ${fmt(value)}.`
+    +` Двойной клик — сбросить точку отсчёта.`;
+  el.ondblclick=e=>{ e.stopPropagation();
+    writeDaily({day:new Date().toISOString().slice(0,10),base:value,last:value},key); render(); };
 }
 function resetDayBaseline(){                    // двойной клик по дельте — начать отсчёт заново
   const all=projectedTotal(data);
@@ -801,10 +825,20 @@ function renderTotalDelta(all){
 
 // История KPI «Всего». Журнал хранит дельты, поэтому идём от текущего плана назад,
 // откатывая каждую денежную правку, и на каждом шаге заново считаем итог движком.
-function projectedTotal(state){
+// История умеет считать три метрики: итог «Всего», рублёвый расход до 31.12 и валютный.
+// Какую именно — держит HKIND; переключается кликом по нужной плитке.
+let HKIND='all';
+const HMETA={
+  all:{title:'Изменение суммы «Всего»', unit:'₽', fmt:v=>F(v)+' ₽', invert:false},
+  rub:{title:'Изменение расхода ₽ до 31.12', unit:'₽', fmt:v=>F(v)+' ₽', invert:true},
+  usd:{title:'Изменение расхода $ до 31.12', unit:'$', fmt:v=>'$'+F(v), invert:true},
+};
+function projectedTotal(state,kind){
   const live=data;
   data=state;
   try{
+    kind=kind||HKIND;
+    if(kind!=='all'){ const b=burnStats(); return Math.round(kind==='rub'?b.rub:b.usd); }
     const b=runBalance(), last=COLS.length-1;
     const p=state.startParts||{};
     const other=(p.ya||0)+(p.cash||0)+(p.tkf||0);
@@ -851,6 +885,8 @@ function totalHistory(){
   return changes.reverse();
 }
 function drawTotalHistory(){
+  const M=HMETA[HKIND]||HMETA.all;
+  const ht=document.getElementById('historyTitle'); if(ht) ht.textContent=M.title;
   const allChanges=totalHistory(), current=projectedTotal(data);
   const fromRaw=document.getElementById('historyFrom').value, toRaw=document.getElementById('historyTo').value;
   const from=fromRaw?new Date(fromRaw+'T00:00:00'):null;
@@ -864,8 +900,8 @@ function drawTotalHistory(){
   const delta=last-first;
   const fmtDate=d=>d.toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('historySummary').innerHTML=
-    `<span>В начале периода<b>${F(first)} ₽</b></span><span>В конце периода<b>${F(last)} ₽</b></span>`+
-    `<span>Изменение<b style="color:${delta<0?'var(--crit)':'var(--accent)'}">${delta>0?'+':''}${F(delta)} ₽</b></span>`+
+    `<span>В начале периода<b>${M.fmt(first)}</b></span><span>В конце периода<b>${M.fmt(last)}</b></span>`+
+    `<span>Изменение<b style="color:${(M.invert?delta>0:delta<0)?'var(--crit)':'var(--accent)'}">${delta>0?'+':''}${M.fmt(delta)}</b></span>`+
     `<span>Зафиксировано правок<b>${changes.length}</b></span>`;
   const rangeStart=from||(changes.length?new Date(changes[0].t.getTime()-1):new Date());
   const raw=changes.length?[{t:rangeStart,v:first},...changes.map(x=>({t:x.t,v:x.after}))]:[{t:rangeStart,v:first}];
@@ -879,6 +915,7 @@ function drawTotalHistory(){
   const W=880,H=280,L=74,R=18,T=18,B=34, x=i=>L+(W-L-R)*(pts.length===1?.5:i/(pts.length-1));
   const y=v=>T+(H-T-B)*(hi-v)/(hi-lo), path=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
   const axisMoney=v=>{
+    if(Math.abs(hi)<100000) return M.fmt(Math.round(v));        // доллары и мелкие суммы — как есть
     const m=v/1000000, digits=Math.abs(m)>=10?0:1;
     return new Intl.NumberFormat('ru-RU',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(m)+' млн';
   };
@@ -887,7 +924,7 @@ function drawTotalHistory(){
       `<text x="${L-8}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="11">${esc(axisMoney(v))}</text>`;}).join('');
   const zero=`<line x1="${L}" y1="${y(0)}" x2="${W-R}" y2="${y(0)}" stroke="var(--line)" stroke-width="1.5"/>`;
   const area=`${path} L ${x(pts.length-1)} ${H-B} L ${x(0)} ${H-B} Z`;
-  const hitPoints=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="8" fill="transparent"><title>${esc(fmtDate(p.t))}: ${esc(F(p.v))} ₽</title></circle>`).join('');
+  const hitPoints=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="8" fill="transparent"><title>${esc(fmtDate(p.t))}: ${esc(M.fmt(p.v))}</title></circle>`).join('');
   document.getElementById('historyChart').innerHTML=ticks+zero+
     `<path d="${area}" fill="var(--accent-soft)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round"/>`+
     `<circle cx="${x(pts.length-1)}" cy="${y(vals[vals.length-1])}" r="4" fill="var(--accent)"/>`+
@@ -898,7 +935,7 @@ function drawTotalHistory(){
   document.getElementById('historyList').innerHTML=shown.length?shown.map(x=>{
     const d=x.after-x.before, label=x.ev.lbl||x.ev.col||x.ev.field||'Изменение плана';
     return `<div class="history-item"><time>${esc(fmtDate(x.t))}</time><span>${esc(label)}<br><small>${esc(x.ev.col||'')}</small></span>`+
-      `<strong style="color:${d<0?'var(--crit)':'var(--accent)'}">${d>0?'+':''}${esc(F(d))} ₽</strong></div>`;
+      `<strong style="color:${(M.invert?d>0:d<0)?'var(--crit)':'var(--accent)'}">${d>0?'+':''}${esc(M.fmt(d))}</strong></div>`;
   }).join(''):'<p class="note">Денежных изменений в журнале пока нет.</p>';
 }
 function setHistoryRange(days){
@@ -908,7 +945,10 @@ function setHistoryRange(days){
   else { document.getElementById('historyFrom').value=''; document.getElementById('historyTo').value=''; }
   drawTotalHistory();
 }
-function openTotalHistory(){ drawTotalHistory(); document.getElementById('historyWrap').style.display='block'; }
+function openTotalHistory(kind){
+  HKIND=(typeof kind==='string' && HMETA[kind])?kind:'all';
+  drawTotalHistory(); document.getElementById('historyWrap').style.display='block';
+}
 // Дельта живёт внутри кликабельного «Всего», поэтому гасим всплытие: одиночный клик по ней
 // не должен открывать историю, двойной — сбрасывает точку отсчёта.
 document.getElementById('kAllDelta').addEventListener('click',e=>e.stopPropagation());
@@ -920,6 +960,12 @@ document.getElementById('historyWrap').addEventListener('click',e=>{if(e.target.
 document.getElementById('historyFrom').addEventListener('change',drawTotalHistory);
 document.getElementById('historyTo').addEventListener('change',drawTotalHistory);
 document.querySelectorAll('[data-history-days]').forEach(b=>b.addEventListener('click',()=>setHistoryRange(+b.dataset.historyDays)));
+// Плитки расхода открывают ту же панель истории, но по своей метрике.
+[['bRubBox','rub'],['bUsdBox','usd']].forEach(([id,kind])=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('click',()=>openTotalHistory(kind));
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openTotalHistory(kind);}});
+});
 // ─── Расход до конца года: рубли и валюта раздельно ────────────────────────────────
 // Считаем по колонкам до 31.12 включительно, январь не берём — год закрывается декабрём.
 // Валютные ячейки (usd/kzt/gbp/mega) в рублёвый расход не попадают и наоборот: движок
@@ -954,6 +1000,12 @@ function renderBurn(series,bought){
   set('bUsdSub',`≈ ${F(b.usd*fx)} ₽ · подписки, поездки, всё в валюте`);
   set('bRes','$'+F(b.res));
   set('bResSub',`карты $${F(b.card)} (Freedom+TBC) + наличные $${F(b.cash)}`);
+  // Сколько приходится на сегодня — берём из того же потока по дням, что и движок.
+  const tk=dkey(new Date()), f=(dayFlows().get(tk))||{e:0,ue:0};
+  set('bRubToday', f.e ? 'сегодня −'+F(f.e)+' ₽' : 'сегодня трат нет');
+  set('bUsdToday', f.ue ? 'сегодня −$'+F(f.ue) : 'сегодня трат нет');
+  renderMetricDelta('bRubDelta', Math.round(b.rub), 'burnRubDaily', v=>F(v)+' ₽', true);
+  renderMetricDelta('bUsdDelta', Math.round(b.usd), 'burnUsdDaily', v=>'$'+F(v), true);
   const box=document.getElementById('bEndBox');
   if(b.dry){
     const [y,m,d]=b.dry.split('-');
