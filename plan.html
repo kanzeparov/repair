@@ -698,16 +698,22 @@ function calc(){
   // Наличные доллары в пул карт не входят (ими не оплатить подписку с Freedom), но это
   // деньги — в Σ старт они есть, значит и в итоге года должны быть, иначе итог занижен.
   const cashUsd=sp0.cashusd||0, cashUsdRub=cashUsd*fxRate(true);
-  const all=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;
+  const cash31=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;   // деньги: остатки плана на 31.12
+  const V=volatileAssets();                                       // активы: крипта, акции, MEGA, Bybit
+  const all=cash31+V.sum;
   document.getElementById('kUsd').textContent=F$(uEnd)+' · '+F(uEnd*fxRate(true))+' ₽';
   document.getElementById('kUsd').parentNode.title=
     `на картах (Freedom/TBC/Bybit) — из него идут валютные траты.`
     +` Наличные $${cashUsd} (${F(cashUsdRub)} ₽) сюда НЕ входят: ими не оплатить подписку с Freedom`;
   document.getElementById('kAll').textContent=F(all)+' ₽';
   document.getElementById('kAll').parentNode.title=
-    `На 31.12: Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))} + Яндекс/наличные ₽ ${F(other)}`
-    +` + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽.`
-    +` Январь 2027 сюда не входит — он в KPI «Итог янв.27». Нажми — история и график.`;
+    `ДЕНЬГИ на 31.12 ${F(cash31)} ₽ = Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))}`
+    +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽).`
+    +`\nАКТИВЫ ${F(V.sum)} ₽ = крипта ${F(V.crypto)} + акции Полюс ${F(V.plzl)}`
+    +` + MegaETH ${F(V.mega)} + Bybit ${F(V.bybit)}.`
+    +`\nИТОГО ${F(all)} ₽. Январь 2027 не входит — он в KPI «Итог янв.27». Нажми — история и график.`;
+  const kv=document.getElementById('kVol');
+  if(kv){ kv.textContent=F(V.sum)+' ₽'; kv.parentNode.title=V.note; }
   renderTotalDelta(all);
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
