@@ -177,7 +177,10 @@
       <input id="st_freedom" type="text" value="0" style="width:80px"></span>
     <span class="start" title="в долларах">TBC $:
       <input id="st_tbc" type="text" value="0" style="width:70px"></span>
-    <span class="start" title="Bybit в долларах. Сейчас 0 — крипта вынесена из плана как волатильная (правило 09.08.2026). Фактически там ETH 0,71666673 + ZK 154 888,53788800 ≈ $2 630; автопересчёт по цене ETH отключён (bybitEth=0)">Bybit $:
+    <!-- Bybit убран из стартовых остатков: это не деньги на карте, а волатильный актив.
+         Живёт строкой-подписью в таблице и слагаемым в KPI «Активы» (volatileAssets()).
+         Поле оставлено скрытым, чтобы не ломать ST_FIELDS/readStart — значение всегда 0. -->
+    <span class="start" style="display:none" title="вынесено в KPI «Активы»">Bybit $:
       <input id="st_bybit" type="text" value="0" style="width:70px"></span>
     <span class="start" title="наличные доллары">Нал $:
       <input id="st_cashusd" type="text" value="0" style="width:70px"></span>
@@ -206,6 +209,7 @@
       <span>Итог 31.12 ₽ <b id="kDec">—</b></span>
       <span>Итог янв.27 ₽ <b id="kEnd">—</b></span>
       <span>Валюта на 31.12 <b id="kUsd">—</b></span>
+      <span>Активы <b id="kVol">—</b></span>
       <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i></span>
     </span>
   </div>
@@ -886,6 +890,33 @@ document.getElementById('historyWrap').addEventListener('click',e=>{if(e.target.
 document.getElementById('historyFrom').addEventListener('change',drawTotalHistory);
 document.getElementById('historyTo').addEventListener('change',drawTotalHistory);
 document.querySelectorAll('[data-history-days]').forEach(b=>b.addEventListener('click',()=>setHistoryRange(+b.dataset.historyDays)));
+// ─── Волатильные активы ────────────────────────────────────────────────────────────
+// В строках плана они нулевые (правило 09.08.2026: волатильное не участвует в движении
+// денег, иначе итог скачет от рынка и минимум года врёт). Но это деньги, поэтому в KPI
+// «Всего» они входят отдельным блоком поверх остатков на 31.12.
+// Живые цены берутся оттуда же, откуда их берёт план: CoinGecko/ЦБ через engine.js.
+// Заморожены две величины — их источник вне плана, обновлять при пересчёте портфеля:
+//   VOL_CRYPTO_RUB — 56 EVM-кошельков по DeBank + NFT по floor (POST /api/portfolio/recount)
+//   VOL_ZK_USD     — ZK на Bybit, цены нет ни в одном из подключённых источников
+const VOL_CRYPTO_RUB=1898375;      // $24 320, DeBank + CoinGecko, 09.08.2026
+const VOL_ZK_USD=1253.62;          // 154 888,53788800 ZK × $0,0080937, 09.08.2026
+const VOL_ETH_QTY=0.71666673;      // эфир на Bybit — количество, цена живая
+const VOL_PLZL_QTY=198;            // акции Полюс, цена живая из plzlPx()
+const VOL_MEGA_QTY=3*4167;         // MegaETH: три оставшихся разлока по 4 167 токенов
+function volatileAssets(){
+  const fx=fxRate(true);                                    // активы продаём → ЦБ−5%
+  const crypto=VOL_CRYPTO_RUB;
+  const plzl=VOL_PLZL_QTY*(plzlPx()||0);                    // цена уже в рублях
+  const mega=VOL_MEGA_QTY*(megaUsd()||0)*fx;
+  const bybit=(VOL_ETH_QTY*(ethUsd()||0)+VOL_ZK_USD)*fx;
+  const sum=Math.round(crypto+plzl+mega+bybit);
+  return {crypto,plzl:Math.round(plzl),mega:Math.round(mega),bybit:Math.round(bybit),sum,
+    note:`Крипта ${F(crypto)} ₽ (56 кошельков, DeBank 09.08 — обновляется пересчётом портфеля) `
+        +`+ Полюс ${VOL_PLZL_QTY} шт × ${F(plzlPx()||0)} ₽ `
+        +`+ MegaETH ${F(VOL_MEGA_QTY)} × $${F2(megaUsd()||0)} `
+        +`+ Bybit (ETH ${VOL_ETH_QTY} × $${F(ethUsd()||0)} + ZK $${F(VOL_ZK_USD)}). `
+        +`Курс продажи ${F2(fx)} ₽/$. В строках плана эти суммы нулевые — здесь они как активы.`};
+}
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
 const ST_USD={freedom:1,tbc:1,bybit:1,cashusd:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
 // На Bybit лежит эфир, а не доллары. Храним количество монет, а долларовый эквивалент
