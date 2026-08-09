@@ -693,29 +693,32 @@ function calc(){
   document.getElementById('kExp').textContent=F(sE)+' ₽';
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
   document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
-  // «Всего» считается на 31.12, а не на янв.27: год закрывается декабрём, январь — хвост
-  // следующего года и в итог года не входит. Итоги обеих дат видны отдельными KPI выше.
-  const IDX_ALL=COLS.indexOf('31.12');
+  // «Всего» — итоговая цифра всего горизонта, то есть последняя колонка (янв.27). Именно
+  // там припаркованы активы: крипта, Bybit, акции Полюс, MegaETH и обе кладовые. Отдельные
+  // KPI «Итог 31.12» и «Итог янв.27» показывают рублёвые остатки на каждую из дат.
+  const IDX_ALL=COLS.length-1;
   const uEnd=usdDif[IDX_ALL]||0;
   const sp0=data.startParts||{};
   const other=(sp0.ya||0)+(sp0.cash||0)+(sp0.tkf||0);      // Яндекс, наличные, ТКФ
   // Наличные доллары в пул карт не входят (ими не оплатить подписку с Freedom), но это
   // деньги — в Σ старт они есть, значит и в итоге года должны быть, иначе итог занижен.
   const cashUsd=sp0.cashusd||0, cashUsdRub=cashUsd*fxRate(true);
-  const cash31=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;   // деньги: остатки плана на 31.12
-  const V=volatileAssets();                                       // активы: крипта, акции, MEGA, Bybit
-  const all=cash31+V.sum;
+  // Активы больше НЕ прибавляются к итогу отдельно: они стоят строками в колонке янв.27,
+  // то есть уже сидят внутри dif[IDX_ALL]. Прибавить их ещё раз — двойной счёт на 2,4 млн.
+  const cash31=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;
+  const V=volatileAssets();                                       // только для расшифровки в KPI
+  const all=cash31;
   document.getElementById('kUsd').textContent=F$(uEnd)+' · '+F(uEnd*fxRate(true))+' ₽';
   document.getElementById('kUsd').parentNode.title=
     `на картах (Freedom/TBC/Bybit) — из него идут валютные траты.`
     +` Наличные $${cashUsd} (${F(cashUsdRub)} ₽) сюда НЕ входят: ими не оплатить подписку с Freedom`;
   document.getElementById('kAll').textContent=F(all)+' ₽';
   document.getElementById('kAll').parentNode.title=
-    `ДЕНЬГИ на 31.12 ${F(cash31)} ₽ = Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))}`
-    +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽).`
-    +`\nАКТИВЫ ${F(V.sum)} ₽ = крипта ${F(V.crypto)} + акции Полюс ${F(V.plzl)}`
-    +` + MegaETH ${F(V.mega)} + Bybit ${F(V.bybit)}.`
-    +`\nИТОГО ${F(all)} ₽. Январь 2027 не входит — он в KPI «Итог янв.27». Нажми — история и график.`;
+    `Всё вместе на конец горизонта: Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))}`
+    +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽.`
+    +`\nВнутри уже сидят активы ${F(V.sum)} ₽ — крипта ${F(V.crypto)}, акции Полюс ${F(V.plzl)},`
+    +` MegaETH ${F(V.mega)}, Bybit ${F(V.bybit)} — и обе кладовые. Отдельно они не прибавляются.`
+    +`\nНажми — история и график.`;
   const kv=document.getElementById('kVol');
   if(kv){ kv.textContent=F(V.sum)+' ₽'; kv.parentNode.title=V.note; }
   renderTotalDelta(all);
