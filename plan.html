@@ -41,6 +41,12 @@
     transition:background .15s,color .15s}
   .kpi .history-link:hover,.kpi .history-link:focus-visible{background:var(--accent-soft);
     color:var(--accent);outline:none}
+  /* Дельта «Всего» относительно конца предыдущего дня. Знак и стрелка дублируют цвет,
+     чтобы значение читалось и без различения цветов. */
+  .kdelta{font-style:normal;font-weight:600;font-size:11.5px;margin-left:6px;white-space:nowrap}
+  .kdelta:empty{display:none}
+  .kdelta.up{color:var(--accent)}
+  .kdelta.down{color:var(--crit)}
   .kpi .history-link b{text-decoration:underline;text-decoration-style:dotted;
     text-underline-offset:3px}
   .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
@@ -200,7 +206,7 @@
       <span>Итог 31.12 ₽ <b id="kDec">—</b></span>
       <span>Итог янв.27 ₽ <b id="kEnd">—</b></span>
       <span>Валюта <b id="kUsd">—</b></span>
-      <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b></span>
+      <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i></span>
     </span>
   </div>
 
@@ -698,7 +704,42 @@ function calc(){
   document.getElementById('kAll').parentNode.title=
     `Райф ${F(dif[COLS.length-1])} + валюта на картах ${F(uEnd*fxRate(true))} + Яндекс/наличные ₽ ${F(other)}`
     +` + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽. Нажми — история и график.`;
+  renderTotalDelta(all);
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
+}
+
+// ─── Дельта «Всего» к концу предыдущего дня ────────────────────────────────────────
+// База берётся из журнала, а не из localStorage: значение «на конец вчера» — это то,
+// что было ДО первой сегодняшней денежной правки. Так цифра переживает перезагрузку
+// страницы и смену браузера. Пока правок за сегодня нет, базы нет и дельта не рисуется.
+// totalHistory() тяжёлая (откатывает весь журнал), поэтому результат кэшируем и
+// пересчитываем только когда сменился день или в журнале появились новые записи.
+var _baseCache=null;   // var + ленивая инициализация: renderTotalDelta может вызваться
+                       // из первого рендера раньше, чем выполнится эта строка
+function prevDayTotal(){
+  if(!_baseCache) _baseCache={day:null,logLen:-1,val:null};
+  const now=new Date(), dayKey=now.toDateString(), logLen=(data.log||[]).length;
+  if(_baseCache.day===dayKey && _baseCache.logLen===logLen) return _baseCache.val;
+  const dayStart=new Date(now); dayStart.setHours(0,0,0,0);
+  let val=null;
+  try{
+    const todays=totalHistory().filter(x=>x.t>=dayStart);
+    if(todays.length) val=todays[0].before;      // состояние до первой правки за сегодня
+  }catch(e){ val=null; }
+  _baseCache={day:dayKey,logLen,val};
+  return val;
+}
+function renderTotalDelta(all){
+  const el=document.getElementById('kAllDelta');
+  if(!el) return;
+  const base=prevDayTotal();
+  if(base===null || base===all){                 // сегодня ещё ничего не сдвинулось
+    el.textContent=''; el.className='kdelta'; el.removeAttribute('title'); return;
+  }
+  const d=all-base, up=d>0;
+  el.textContent=(up?'▲ +':'▼ −')+F(Math.abs(d))+' ₽';
+  el.className='kdelta '+(up?'up':'down');
+  el.title=`С конца вчерашнего дня: было ${F(base)} ₽, стало ${F(all)} ₽ (${up?'+':'−'}${F(Math.abs(d))} ₽)`;
 }
 
 // История KPI «Всего». Журнал хранит дельты, поэтому идём от текущего плана назад,
