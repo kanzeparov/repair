@@ -177,7 +177,7 @@
       <input id="st_freedom" type="text" value="0" style="width:80px"></span>
     <span class="start" title="в долларах">TBC $:
       <input id="st_tbc" type="text" value="0" style="width:70px"></span>
-    <span class="start" title="1,366 ETH — доллары считаются по цене CoinGecko автоматически">Bybit (ETH):
+    <span class="start" title="Bybit в долларах. Сейчас 0 — крипта вынесена из плана как волатильная (правило 09.08.2026). Фактически там ETH 0,71666673 + ZK 154 888,53788800 ≈ $2 630; автопересчёт по цене ETH отключён (bybitEth=0)">Bybit $:
       <input id="st_bybit" type="text" value="0" style="width:70px"></span>
     <span class="start" title="наличные доллары">Нал $:
       <input id="st_cashusd" type="text" value="0" style="width:70px"></span>
@@ -689,21 +689,25 @@ function calc(){
   document.getElementById('kExp').textContent=F(sE)+' ₽';
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
   document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
-  const uEnd=usdDif[COLS.length-1]||0;
+  // «Всего» считается на 31.12, а не на янв.27: год закрывается декабрём, январь — хвост
+  // следующего года и в итог года не входит. Итоги обеих дат видны отдельными KPI выше.
+  const IDX_ALL=COLS.indexOf('31.12');
+  const uEnd=usdDif[IDX_ALL]||0;
   const sp0=data.startParts||{};
   const other=(sp0.ya||0)+(sp0.cash||0)+(sp0.tkf||0);      // Яндекс, наличные, ТКФ
   // Наличные доллары в пул карт не входят (ими не оплатить подписку с Freedom), но это
   // деньги — в Σ старт они есть, значит и в итоге года должны быть, иначе итог занижен.
   const cashUsd=sp0.cashusd||0, cashUsdRub=cashUsd*fxRate(true);
-  const all=dif[COLS.length-1]+uEnd*fxRate(true)+other+cashUsdRub;
+  const all=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;
   document.getElementById('kUsd').textContent=F$(uEnd)+' · '+F(uEnd*fxRate(true))+' ₽';
   document.getElementById('kUsd').parentNode.title=
     `на картах (Freedom/TBC/Bybit) — из него идут валютные траты.`
     +` Наличные $${cashUsd} (${F(cashUsdRub)} ₽) сюда НЕ входят: ими не оплатить подписку с Freedom`;
   document.getElementById('kAll').textContent=F(all)+' ₽';
   document.getElementById('kAll').parentNode.title=
-    `Райф ${F(dif[COLS.length-1])} + валюта на картах ${F(uEnd*fxRate(true))} + Яндекс/наличные ₽ ${F(other)}`
-    +` + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽. Нажми — история и график.`;
+    `На 31.12: Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))} + Яндекс/наличные ₽ ${F(other)}`
+    +` + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽.`
+    +` Январь 2027 сюда не входит — он в KPI «Итог янв.27». Нажми — история и график.`;
   renderTotalDelta(all);
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
