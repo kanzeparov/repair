@@ -714,32 +714,45 @@ function calc(){
 // страницы и смену браузера. Пока правок за сегодня нет, базы нет и дельта не рисуется.
 // totalHistory() тяжёлая (откатывает весь журнал), поэтому результат кэшируем и
 // пересчитываем только когда сменился день или в журнале появились новые записи.
-var _baseCache=null;   // var + ленивая инициализация: renderTotalDelta может вызваться
-                       // из первого рендера раньше, чем выполнится эта строка
-function prevDayTotal(){
-  if(!_baseCache) _baseCache={day:null,logLen:-1,val:null};
-  const now=new Date(), dayKey=now.toDateString(), logLen=(data.log||[]).length;
-  if(_baseCache.day===dayKey && _baseCache.logLen===logLen) return _baseCache.val;
-  const dayStart=new Date(now); dayStart.setHours(0,0,0,0);
-  let val=null;
-  try{
-    const todays=totalHistory().filter(x=>x.t>=dayStart);
-    if(todays.length) val=todays[0].before;      // состояние до первой правки за сегодня
-  }catch(e){ val=null; }
-  _baseCache={day:dayKey,logLen,val};
-  return val;
+// База — СНАПШОТ фактического итога, а не реконструкция из журнала. Через журнал считать
+// нельзя: reverseMoneyEvent не откатывает записи k='day' (дневная разбивка) и молча их
+// пропускает, из-за чего «значение на вчера» уезжает — на этом первая версия и врала.
+// Храним две величины: base — итог на конец предыдущего дня, last — последний увиденный.
+// В новый день last становится base. localStorage — чтобы пережить перезагрузку страницы.
+const DAILY_KEY='kAllDaily';
+function readDaily(){
+  try{ const s=JSON.parse(localStorage.getItem(DAILY_KEY)||'null');
+       return (s && s.day && Number.isFinite(s.base) && Number.isFinite(s.last)) ? s : null; }
+  catch(e){ return null; }
+}
+function writeDaily(s){ try{ localStorage.setItem(DAILY_KEY,JSON.stringify(s)); }catch(e){} }
+function dayBaseline(all){
+  const today=new Date().toISOString().slice(0,10);
+  const s=readDaily();
+  if(!s){ writeDaily({day:today,base:all,last:all}); return all; }   // первый запуск
+  if(s.day!==today){                                                 // наступил новый день
+    writeDaily({day:today,base:s.last,last:all}); return s.last;
+  }
+  if(s.last!==all) writeDaily({day:today,base:s.base,last:all});
+  return s.base;
+}
+function resetDayBaseline(){                    // двойной клик по дельте — начать отсчёт заново
+  const all=projectedTotal(data);
+  writeDaily({day:new Date().toISOString().slice(0,10),base:all,last:all});
+  renderTotalDelta(all);
 }
 function renderTotalDelta(all){
   const el=document.getElementById('kAllDelta');
-  if(!el) return;
-  const base=prevDayTotal();
-  if(base===null || base===all){                 // сегодня ещё ничего не сдвинулось
+  if(!el || !Number.isFinite(all)) return;
+  const base=dayBaseline(all), d=all-base;
+  if(!d){                                       // с начала дня итог не сдвинулся
     el.textContent=''; el.className='kdelta'; el.removeAttribute('title'); return;
   }
-  const d=all-base, up=d>0;
+  const up=d>0;
   el.textContent=(up?'▲ +':'▼ −')+F(Math.abs(d))+' ₽';
   el.className='kdelta '+(up?'up':'down');
-  el.title=`С конца вчерашнего дня: было ${F(base)} ₽, стало ${F(all)} ₽ (${up?'+':'−'}${F(Math.abs(d))} ₽)`;
+  el.title=`С конца предыдущего дня: было ${F(base)} ₽, стало ${F(all)} ₽ (${up?'+':'−'}${F(Math.abs(d))} ₽).`
+    +` Двойной клик — сбросить точку отсчёта на текущее значение.`;
 }
 
 // История KPI «Всего». Журнал хранит дельты, поэтому идём от текущего плана назад,
@@ -852,6 +865,10 @@ function setHistoryRange(days){
   drawTotalHistory();
 }
 function openTotalHistory(){ drawTotalHistory(); document.getElementById('historyWrap').style.display='block'; }
+// Дельта живёт внутри кликабельного «Всего», поэтому гасим всплытие: одиночный клик по ней
+// не должен открывать историю, двойной — сбрасывает точку отсчёта.
+document.getElementById('kAllDelta').addEventListener('click',e=>e.stopPropagation());
+document.getElementById('kAllDelta').addEventListener('dblclick',e=>{e.stopPropagation();resetDayBaseline();});
 document.getElementById('kAllOpen').addEventListener('click',openTotalHistory);
 document.getElementById('kAllOpen').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openTotalHistory();}});
 document.getElementById('historyClose').onclick=()=>{document.getElementById('historyWrap').style.display='none';};
