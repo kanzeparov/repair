@@ -599,6 +599,7 @@ function build(){
     +'<tr class="tot t-exp" id="rExp"></tr><tr class="tot t-exp t-mon" id="rExpM"></tr>'
     +'<tr class="tot t-dif" id="rDif"></tr>'
     +'<tr class="tot t-inc" id="rUsd"></tr>'
+    +'<tr class="tot t-inc" id="rUsdCash"></tr>'
     +'<tr class="tot t-inc t-mon" id="rPct"></tr>';
   grid.innerHTML=h;
   grid.querySelectorAll('td.lbl[contenteditable]').forEach(td=>{
@@ -695,6 +696,22 @@ function calc(){
   document.getElementById('rUsd').innerHTML=
     `<td class="lbl" title="докуплено валюты за план: ${F(bought)} ₽">Валюта (нарастающим, $)</td>`
     +usdDif.map((v,i)=>HID.has(i)?'':`<td title="${F((v||0)*fxRate(true))} ₽ по курсу продажи">${F$(v||0)}</td>`).join('');
+  // Вторая валютная строка — ВСЕ доллары, которыми реально можно платить: карты плюс
+  // наличные. Считается без автодокупки: если ушло в минус, значит валюты не хватило
+  // физически, и минус показывается честно, а не затирается покупкой по ЦБ+5%.
+  // Первая строка (только карты) нужна отдельно: подписки списываются лишь с Freedom.
+  (()=>{
+    const p=data.startParts||{}, cash=p.cashusd||0;
+    const flow=dayFlows();
+    let cum=(p.freedom||0)+(p.tbc||0)+cash, out=[];
+    for(let ci=0;ci<COLS.length;ci++){
+      periodDates(ci).forEach(x=>{ const f=flow.get(dkey(x))||{}; cum+=(f.ui||0)-(f.ue||0); });
+      out.push(cum);
+    }
+    document.getElementById('rUsdCash').innerHTML=
+      `<td class="lbl" title="Freedom + TBC + наличные $${F(cash)}. Без автодокупки: минус означает, что валюты физически не хватает и её нужно купить или пополнить Freedom">Валюта с наличными (нарастающим, $)</td>`
+      +out.map((v,i)=>HID.has(i)?'':`<td class="${v<0?'neg':''}" title="${F(v*fxRate(true))} ₽ по курсу продажи">${F$(v)}</td>`).join('');
+  })();
   const mspan=m=>m.cols.filter(i=>!HID.has(i)).length;
   const monCells=(arr,neg)=>MONTHS.map(m=>{
     const sp=mspan(m); if(!sp) return '';
