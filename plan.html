@@ -47,6 +47,13 @@
   .kdelta:empty{display:none}
   .kdelta.up{color:var(--accent)}
   .kdelta.down{color:var(--crit)}
+  .kpi .k31{font-style:normal;color:var(--muted);font-weight:400;margin-left:4px}
+  .burn{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px}
+  .burn-t{flex:1 1 190px;padding:9px 11px;border-radius:8px;background:var(--accent-soft)}
+  .burn-t small{display:block;color:var(--muted);font-size:10px;margin-bottom:3px}
+  .burn-t b{font:700 18px var(--mono);display:block}
+  .burn-t i{font-style:normal;color:var(--muted);font-size:11px;display:block;margin-top:2px}
+  .burn-t.warn{background:var(--warn-bg)} .burn-t.crit{background:var(--crit-bg)}
   .kpi .history-link b{text-decoration:underline;text-decoration-style:dotted;
     text-underline-offset:3px}
   .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
@@ -210,8 +217,18 @@
       <span>Итог янв.27 ₽ <b id="kEnd">—</b></span>
       <span>Валюта на 31.12 <b id="kUsd">—</b></span>
       <span>Активы <b id="kVol">—</b></span>
-      <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i></span>
+      <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i><i id="kAll31" class="k31"></i></span>
     </span>
+  </div>
+
+  <!-- Расход до конца года: рубли и валюта раздельно. Валютный ресурс — Freedom + TBC
+       + наличные доллары; наличные показаны отдельной строкой, потому что ими нельзя
+       оплатить подписку с карты, но потратить в поездке можно. -->
+  <div class="burn" id="burnBox">
+    <div class="burn-t"><small>Расход ₽ до 31.12</small><b id="bRub">—</b><i id="bRubSub"></i></div>
+    <div class="burn-t"><small>Расход $ до 31.12</small><b id="bUsd">—</b><i id="bUsdSub"></i></div>
+    <div class="burn-t"><small>Валютный ресурс</small><b id="bRes">—</b><i id="bResSub"></i></div>
+    <div class="burn-t" id="bEndBox"><small>Валюты хватит до</small><b id="bEnd">—</b><i id="bEndSub"></i></div>
   </div>
 
   <section class="monthly" aria-labelledby="monthlyTitle" hidden>
@@ -650,7 +667,7 @@ function calc(){
   // идём месяц за месяцем, каждый остаток взвешиваем по числу дней, что он держится,
   // начисляем Σ(остаток×дни)×ставка/365 в конце месяца и добавляем к остатку —
   // следующий месяц считается уже от увеличенного остатка.
-  const {dif,pct,avgs,usdDif,bought,dip}=runBalance();
+  const {dif,pct,avgs,usdDif,bought,dip,series}=runBalance();
   const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
   document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map((v,i)=>HID.has(i)?'':cell(v)).join('');
   document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map((v,i)=>HID.has(i)?'':cell(v)).join('');
@@ -721,6 +738,16 @@ function calc(){
     +`\nНажми — история и график.`;
   const kv=document.getElementById('kVol');
   if(kv){ kv.textContent=F(V.sum)+' ₽'; kv.parentNode.title=V.note; }
+  // Рядом с итогом всего горизонта — сколько будет на 31.12: год закрывается декабрём,
+  // а январские кладовые и активы это уже следующий год.
+  const k31=document.getElementById('kAll31'), IDX_DEC=COLS.indexOf('31.12');
+  if(k31){
+    const dec=dif[IDX_DEC]+(usdDif[IDX_DEC]||0)*fxRate(true)+other+cashUsdRub;
+    k31.textContent=' · на 31.12: '+F(dec)+' ₽';
+    k31.title=`Райф ${F(dif[IDX_DEC])} + валюта ${F((usdDif[IDX_DEC]||0)*fxRate(true))}`
+      +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(dec)} ₽`;
+  }
+  renderBurn(series,bought);
   renderTotalDelta(all);
   grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
 }
@@ -893,6 +920,53 @@ document.getElementById('historyWrap').addEventListener('click',e=>{if(e.target.
 document.getElementById('historyFrom').addEventListener('change',drawTotalHistory);
 document.getElementById('historyTo').addEventListener('change',drawTotalHistory);
 document.querySelectorAll('[data-history-days]').forEach(b=>b.addEventListener('click',()=>setHistoryRange(+b.dataset.historyDays)));
+// ─── Расход до конца года: рубли и валюта раздельно ────────────────────────────────
+// Считаем по колонкам до 31.12 включительно, январь не берём — год закрывается декабрём.
+// Валютные ячейки (usd/kzt/gbp/mega) в рублёвый расход не попадают и наоборот: движок
+// разводит их по разным кошелькам, и метрика обязана делать так же.
+function burnStats(series){
+  const DEC=COLS.indexOf('31.12');
+  let rub=0, usd=0, usdInc=0;
+  for(let ci=0;ci<=DEC;ci++){
+    data.rows.forEach((row,ri)=>{
+      const v=row[ci]; if(!v) return;
+      const q=data.units && data.units[ri+'_'+ci];
+      const isInc=TYPE(ri)==='inc';
+      if(q && !RUB_UNITS[q.u]){ const u=usdOf(q); if(isInc) usdInc+=u; else usd+=u; }
+      else if(!isInc) rub+=v;
+    });
+  }
+  const p=data.startParts||{};
+  const card=(p.freedom||0)+(p.tbc||0);          // чем реально платятся подписки
+  const cash=p.cashusd||0;                       // нал: в поездке годится, на карту — нет
+  // День, когда карточной валюты перестаёт хватать: движок с этого момента докупает
+  // доллары за рубли по ЦБ+5%. Берём первый день, где пул упёрся в ноль.
+  let dry=null;
+  (series||[]).forEach(s=>{ if(dry===null && s.usd<=0) dry=s.k; });
+  return {rub,usd,usdInc,card,cash,res:card+cash,dry};
+}
+function renderBurn(series,bought){
+  const b=burnStats(series), set=(id,t)=>{const e=document.getElementById(id); if(e)e.textContent=t;};
+  const fx=fxRate(true);
+  set('bRub',F(b.rub)+' ₽');
+  set('bRubSub','с Райфа и наличных рублей, без валютных ячеек');
+  set('bUsd','$'+F(b.usd));
+  set('bUsdSub',`≈ ${F(b.usd*fx)} ₽ · подписки, поездки, всё в валюте`);
+  set('bRes','$'+F(b.res));
+  set('bResSub',`карты $${F(b.card)} (Freedom+TBC) + наличные $${F(b.cash)}`);
+  const box=document.getElementById('bEndBox');
+  if(b.dry){
+    const [y,m,d]=b.dry.split('-');
+    set('bEnd',`${d}.${m}`);
+    set('bEndSub',`дальше движок докупает доллары по ЦБ+5% — ${F(bought)} ₽ за план`);
+    if(box) box.className='burn-t crit';
+  } else {
+    set('bEnd','до 31.12 хватает');
+    set('bEndSub',`остаток на конец года — валюта не кончается`);
+    if(box) box.className='burn-t';
+  }
+}
+
 // ─── Волатильные активы ────────────────────────────────────────────────────────────
 // В строках плана они нулевые (правило 09.08.2026: волатильное не участвует в движении
 // денег, иначе итог скачет от рынка и минимум года врёт). Но это деньги, поэтому в KPI
