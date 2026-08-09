@@ -985,11 +985,19 @@ function burnStats(series){
   const p=data.startParts||{};
   const card=(p.freedom||0)+(p.tbc||0);          // чем реально платятся подписки
   const cash=p.cashusd||0;                       // нал: в поездке годится, на карту — нет
-  // День, когда карточной валюты перестаёт хватать: движок с этого момента докупает
-  // доллары за рубли по ЦБ+5%. Берём первый день, где пул упёрся в ноль.
-  let dry=null;
-  (series||[]).forEach(s=>{ if(dry===null && s.usd<=0) dry=s.k; });
-  return {rub,usd,usdInc,card,cash,res:card+cash,dry};
+  // Две даты, а не одна. Карта (Freedom+TBC) — единственный источник для подписок:
+  // Claude, ChatGPT, Adobe списываются только с неё, наличными их не оплатить. Но в
+  // поездках доллары тратятся из кармана, поэтому вторая дата считает пул вместе с налом.
+  // Идём по дневным потокам нарастающим итогом: первый день, где ресурс ушёл в минус.
+  const flow=dayFlows(), days=[...flow.keys()].sort();
+  let cum=0, dry=null, dryCash=null;
+  days.forEach(k=>{
+    const f=flow.get(k)||{};
+    cum+=(f.ui||0)-(f.ue||0);
+    if(dry===null && card+cum<0) dry=k;
+    if(dryCash===null && card+cash+cum<0) dryCash=k;
+  });
+  return {rub,usd,usdInc,card,cash,res:card+cash,dry,dryCash};
 }
 function renderBurn(series,bought){
   const b=burnStats(series), set=(id,t)=>{const e=document.getElementById(id); if(e)e.textContent=t;};
@@ -1006,15 +1014,17 @@ function renderBurn(series,bought){
   set('bUsdToday', f.ue ? 'сегодня −$'+F(f.ue) : 'сегодня трат нет');
   renderMetricDelta('bRubDelta', Math.round(b.rub), 'burnRubDaily', v=>F(v)+' ₽', true);
   renderMetricDelta('bUsdDelta', Math.round(b.usd), 'burnUsdDaily', v=>'$'+F(v), true);
-  const box=document.getElementById('bEndBox');
-  if(b.dry){
-    const [y,m,d]=b.dry.split('-');
-    set('bEnd',`${d}.${m}`);
-    set('bEndSub',`дальше движок докупает доллары по ЦБ+5% — ${F(bought)} ₽ за план`);
-    if(box) box.className='burn-t crit';
+  const box=document.getElementById('bEndBox'), dm=k=>k?k.split('-').reverse().slice(0,2).join('.'):null;
+  if(b.dry || b.dryCash){
+    set('bEnd', b.dryCash ? dm(b.dryCash) : 'с налом хватает');
+    set('bEndSub',
+      (b.dry?`карта Freedom+TBC ($${F(b.card)}) кончается ${dm(b.dry)}`:`карты хватает до конца года`)
+      +(b.dryCash?`; вместе с наличными $${F(b.cash)} — ${dm(b.dryCash)}`:`; с наличными $${F(b.cash)} хватает до 31.12`)
+      +`. Докупка по ЦБ+5% — ${F(bought)} ₽ за план`);
+    if(box) box.className='burn-t '+(b.dryCash?'crit':'warn');
   } else {
     set('bEnd','до 31.12 хватает');
-    set('bEndSub',`остаток на конец года — валюта не кончается`);
+    set('bEndSub',`ресурс $${F(b.res)} перекрывает валютный расход`);
     if(box) box.className='burn-t';
   }
 }
