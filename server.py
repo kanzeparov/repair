@@ -29,9 +29,22 @@ def enc_all():
                    "-in",fn,"-out",fn+".enc","-pass","file:.secret"])
 
 def dec_all():
+    """Расшифровать *.enc поверх локальных файлов — но НИКОГДА молча не терять
+    локальные правки. git checkout ставит подтянутому блобу mtime=now, поэтому
+    одного сравнения времени мало: после жёсткого убийства сервера в окне QUIET
+    свежий plan.json затирался старым блобом ещё до старта HTTP (баг найден 10.08.2026).
+    Теперь перед перезаписью локальный файл кладётся рядом как *.local-<штамп>.bak."""
     for fn in ENC_FILES:
         p, e = os.path.join(BASE, fn), os.path.join(BASE, fn+".enc")
         if os.path.exists(e) and (not os.path.exists(p) or os.path.getmtime(e) > os.path.getmtime(p)+1):
+            if os.path.exists(p):
+                try:
+                    import shutil
+                    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                    shutil.copy2(p, p + ".local-" + stamp + ".bak")
+                    print(f"⚠️  {fn}: перезаписан из репозитория, локальная копия — {fn}.local-{stamp}.bak")
+                except Exception:
+                    pass
             _ossl(["enc","-d","-aes-256-cbc","-pbkdf2","-iter","100000",
                    "-in",fn+".enc","-out",fn,"-pass","file:.secret"])
 
@@ -393,10 +406,30 @@ def read_plan():
 def write_plan(body):
     log = body.pop("log", None)
     # пустым журналом не затираем: вкладка, не успевшая подтянуть его с сервера,
-    # иначе снесла бы всю историю правок первым же сохранением
+    # иначе снесла бы всю историю правок первым же сохранением.
+    # Коротким — тоже: восстановление из недельного бэкапа приносит усечённый log
+    # и раньше сносило все более новые записи безвозвратно (файл в .gitignore).
     if isinstance(log, list) and log:
+        try:
+            with open(PLAN_LOG, encoding="utf-8") as f:
+                have = len(json.load(f))
+        except Exception:
+            have = 0
+        if len(log) < have:
+            _backup_plan_log()
+            print(f"⚠️  журнал пришёл короче ({len(log)} против {have}) — "
+                  f"старая копия сохранена рядом, запись выполнена")
         _write_json(PLAN_LOG, log)
     _write_json(PLAN, body)
+
+def _backup_plan_log():
+    """Копия журнала перед усечением: он в .gitignore, восстановить неоткуда."""
+    try:
+        import shutil
+        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        shutil.copy2(PLAN_LOG, PLAN_LOG + "." + stamp + ".bak")
+    except Exception:
+        pass
 
 def load():
     if os.path.exists(DATA):
@@ -492,7 +525,10 @@ class H(http.server.SimpleHTTPRequestHandler):
                     cur = json.load(f).get("rev", 0)
         except Exception:
             cur = 0
-        return body.get("rev", -1) >= cur
+        # строго больше: при `>=` два клиента, стартовавшие с одной ревизии,
+        # оба проходили проверку и второй молча затирал первого (09.08.2026 так
+        # потерялась правка остатка Bybit). Теперь опоздавший получает 409 и перечитывает план.
+        return body.get("rev", -1) > cur
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))

@@ -490,7 +490,23 @@ function applyRate(){                          // пересчитать все 
     if(!data.rows[r]) continue;
     const rate=UNITS[q.u].rub(TYPE(r)==='inc'); if(!rate) continue;
     const rub=unitRub(q,TYPE(r)==='inc');
-    if(data.rows[r][c]!==rub){ data.rows[r][c]=rub; n++; }
+    if(data.rows[r][c]!==rub){
+      // ручную разбивку по дням тоже тянем за курсом, пропорционально.
+      // Без этого сумма дней оставалась в старых рублях, и первая же правка дня
+      // записывала её обратно в колонку, съедая разницу (баг 10.08.2026)
+      const day=data.days && data.days[k];
+      if(Array.isArray(day)){
+        const was=day.reduce((a,b)=>a+(b||0),0);
+        if(was>0){
+          const kf=rub/was;
+          const next=day.map(x=>Math.round((x||0)*kf));
+          const diff=rub-next.reduce((a,b)=>a+b,0);   // копейки округления — в последний непустой день
+          if(diff){ for(let i=next.length-1;i>=0;i--){ if(next[i]){ next[i]+=diff; break; } } }
+          data.days[k]=next;
+        }
+      }
+      data.rows[r][c]=rub; n++;
+    }
   }
   if(syncBybit()) n++;                          // эфир на Bybit → доллары по свежей цене
   if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
@@ -1133,8 +1149,13 @@ async function saveState(){
     const r=await fetch('/api/plan',{cache:'no-store'});
     if(r.ok){ const srv=await r.json();
       if(srv && (srv.rev||0)>baseRev){
-        document.getElementById('saveInfo').textContent='⚠ план изменён в другом месте — перезагружаю…';
-        setTimeout(()=>location.reload(),600);
+        // ВАЖНО: сначала сохранить набранное, потом перезагружаться. Раньше выход был
+        // до localStorage.setItem, и всё, что напечатано с последнего автосейва,
+        // исчезало без следа (баг найден 10.08.2026).
+        try{ localStorage.setItem(LS+':conflict',JSON.stringify({ts:Date.now(),data:data})); }catch(e){}
+        document.getElementById('saveInfo').textContent=
+          '⚠ план изменён в другом месте — перезагружаю. Ваши правки сохранены в резервную копию';
+        setTimeout(()=>location.reload(),1200);
         return;
       } }
   }catch(e){}
@@ -1213,7 +1234,10 @@ document.getElementById('undo').onclick=()=>{
     return;
   }
   try{
-    if(ev.k==='edit'){ data.rows[ev.ri][ev.c]=ev.from; }
+    if(ev.k==='edit'){ data.rows[ev.ri][ev.c]=ev.from;
+      // снять валютную привязку: иначе applyRate при следующем обновлении курса
+      // пересчитает ячейку по units и воскресит отменённую сумму (баг 10.08.2026)
+      if(data.units) delete data.units[ev.ri+'_'+ev.c]; }
     else if(ev.k==='rename'){ data.labels[ev.ri]=ev.from; }
     else if(ev.k==='start'){ data.startParts[ev.field.replace('st_','')]=ev.from; setStartInputs(); }
     else if(ev.k==='paid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
@@ -1225,7 +1249,25 @@ document.getElementById('undo').onclick=()=>{
     else if(ev.k==='move'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
       if(ev.from) data.moves[key]=ev.from; else if(data.moves) delete data.moves[key]; }
     else if(ev.k==='addrow'){ if(ev.ri===data.rows.length-1){
-      data.rows.pop(); data.labels.pop(); data.extraTypes.pop(); } }
+      data.rows.pop(); data.labels.pop(); data.extraTypes.pop();
+      // types тоже: без этого следующая добавленная строка наследовала чужой тип
+      // и доход считался расходом (баг 10.08.2026)
+      if(Array.isArray(data.types) && data.types.length>data.rows.length) data.types.pop(); } }
+    else if(ev.k==='day'){                     // ручная разбивка по дням
+      const key=ev.ri+'_'+ev.c;
+      if(!data.days) data.days={};
+      if(Array.isArray(ev.days)) data.days[key]=ev.days.slice();
+      else if(ev.day!=null && data.days[key]) data.days[key][ev.day]=ev.from;
+      if(data.days[key]) data.rows[ev.ri][ev.c]=data.days[key].reduce((a,b)=>a+(b||0),0);
+    }
+    else if(ev.k==='rollover'){                // перенос суммы из прошедшего периода
+      if(ev.from!=null) data.rows[ev.ri][ev.c]=ev.from;
+      if(ev.srcC!=null && ev.srcFrom!=null) data.rows[ev.ri][ev.srcC]=ev.srcFrom;
+    }
+    else { log.push(ev);                       // неизвестный вид — не делать вид, что откатили
+      build();
+      document.getElementById('saveInfo').textContent='«'+ev.k+'» отменить нельзя — событие оставлено в журнале';
+      return; }
   }catch(e){}
   build(); autoSave();
   document.getElementById('saveInfo').textContent='отменено: '+ev.k+' ('+(ev.lbl||'')+')';
@@ -1307,7 +1349,10 @@ function rollPast(){
         data.units[ri+'_'+to]={v:su.v,u:su.u};
         row[to]=v;
       } else {                                    // иначе всё в рубли
-        if(data.units) delete data.units[ri+'_'+to];
+        // привязку цели снимаем ТОЛЬКО если переносим валюту поверх другой валюты.
+        // Раньше рублёвый перенос срывал units у валютной цели, и строка навсегда
+        // переставала переоцениваться по курсу (баг 10.08.2026)
+        if(su && data.units) delete data.units[ri+'_'+to];
         row[to]=(row[to]||0)+v;
       }
       if(data.units) delete data.units[ri+'_'+c];
@@ -1397,17 +1442,29 @@ function renderDays(){
     + dates.map((x,i)=>{ const t=dayTip(x,i); return `<td class="tip">${t||''}</td>`; }).join('')
     + '<td></td></tr>';
   const inc=Array(len).fill(0), exp=Array(len).fill(0);
+  const fxInc=Array(len).fill(0), fxExp=Array(len).fill(0);   // валютные — отдельно
   ord.forEach(ri=>{
     const parts=foldPast(splitOverDays(ri,ci,dayDates));
     const man=!!(data.days && data.days[ri+'_'+ci]);
-    parts.forEach((v,i)=>{ if(TYPE(ri)==='inc') inc[i]+=v; else exp[i]+=v; });
+    // Валютные строки списываются с долларового пула, а не с рублей Райфа — так считает
+    // dayFlows() в движке. Дневная таблица раньше вычитала их из рублёвого остатка,
+    // из-за чего показывала провалы, которых в плане нет (баг 10.08.2026).
+    const isFx=!!(data.units && data.units[ri+'_'+ci]);
+    parts.forEach((v,i)=>{
+      if(isFx){ if(TYPE(ri)==='inc') fxInc[i]+=v; else fxExp[i]+=v; }
+      else if(TYPE(ri)==='inc') inc[i]+=v; else exp[i]+=v;
+    });
     h+=`<tr class="${TYPE(ri)}"><td title="${LBL(ri)}">${man?'✎ ':''}${LBL(ri)}</td>`
       + parts.map((v,i)=>`<td><input data-r="${ri}" data-d="${i}" class="${v?'':'z'}" value="${v||0}"></td>`).join('')
       + `<td>${F(data.rows[ri][ci])}</td></tr>`;
   });
   const cell=(a)=>a.map(v=>`<td>${F(v)}</td>`).join('');
-  h+=`<tr class="tot t-inc"><td>Доход за день</td>${cell(inc)}<td>${F(inc.reduce((a,b)=>a+b,0))}</td></tr>`;
-  h+=`<tr class="tot t-exp"><td>Расход за день</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
+  h+=`<tr class="tot t-inc"><td>Доход за день (₽)</td>${cell(inc)}<td>${F(inc.reduce((a,b)=>a+b,0))}</td></tr>`;
+  h+=`<tr class="tot t-exp"><td>Расход за день (₽)</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
+  const fxSum=fxInc.reduce((a,b)=>a+b,0)+fxExp.reduce((a,b)=>a+b,0);
+  if(fxSum) h+=`<tr class="tot t-exp"><td title="Списывается с валюты на картах (Freedom/TBC), рублёвый остаток не трогает — так же считает движок">Валютные траты за день (не из рублей)</td>`
+    + fxExp.map((v,i)=>`<td>${(v||fxInc[i])?F(v-(fxInc[i]||0)):'—'}</td>`).join('')
+    + `<td>${F(fxExp.reduce((a,b)=>a+b,0)-fxInc.reduce((a,b)=>a+b,0))}</td></tr>`;
   // % капают каждый день, но приходят на счёт 5-го числа следующего месяца — до этого
   // дня их нет в остатке. Поэтому «начислено» и «зачислено» — две разные строки.
   const CRD=runBalance().credits;
