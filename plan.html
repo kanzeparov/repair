@@ -314,7 +314,7 @@
   «Разница» — нарастающий остаток: старт + доходы − расходы. ПВ за объект 2 млн — строка 01.09; доплата за объект — ячейка 31.12 (правь под цену лота). KPI «Ипотека-2» показывает, какой второй ипотекой закрывается минус года, и её платёж. «Не продаю»: продажа/гашения/покупка убраны, возвращены платежи по кредитам (~75к/мес), минималки ТКФ и ипотека 38к — долги при этом никуда не деваются. Выбор сценария сбрасывает ручные правки ячеек. Финальные −3 млн в плане = остаток второй ипотеки после декабрьского ЧДП, поэтому отрицательная «Разница» на 31.12 — это по замыслу.
   Данные живут в localStorage этого браузера; «Сброс» возвращает план 05.07. Крупные сценарные развилки (стратегии А/Б/В/Г, Монте-Карло) — в «Финкалькуляторе», а это — рабочая помесячная таблица.</p>
 
-<script src="engine.js"></script>
+<script src="engine.js?v=20260828"></script>
 <script>
 // Движок вынесен в отдельный файл. Если он не загрузился (сервер перезапускался в этот
 // момент, отдал 404 или страница открыта как file://) — таблица молча оставалась пустой,
@@ -515,7 +515,8 @@ function applyRate(){                          // пересчитать все 
   // (разбор 28.08.2026). Теперь смена курса пишется в журнал одной записью k='rate'.
   const RATE_FIELDS=[['cbr',cbrUsd,'cbrUsd','ЦБ $'],['kzt',cbrKzt,'cbrKzt','ЦБ ₸'],
                      ['gbp',cbrGbp,'cbrGbp','ЦБ £'],['mega',megaUsd,'megaUsd','MEGA $'],
-                     ['eth',ethUsd,'ethUsd','ETH $'],['plzl',plzlPx,'plzlPx','Полюс ₽']];
+                     ['eth',ethUsd,'ethUsd','ETH $'],['zk',zkPx,'zkUsd','ZK $'],
+                     ['strk',strkPx,'strkUsd','STRK $'],['plzl',plzlPx,'plzlPx','Полюс ₽']];
   const wasR={}, nowR={}, movedR=[], fmtR=v=>Math.abs(v)<1?String(v):F2(v);
   RATE_FIELDS.forEach(([k,fn,field,name])=>{
     const v=fn(); if(!v) return;
@@ -903,6 +904,7 @@ function reverseMoneyEvent(state,ev){
     const f=ev.from, put=(k,field)=>{ if(f[k]!=null) state[field]=f[k]; };
     put('cbr','cbrUsd'); put('kzt','cbrKzt'); put('gbp','cbrGbp');
     put('mega','megaUsd'); put('eth','ethUsd'); put('plzl','plzlPx');
+    put('zk','zkUsd'); put('strk','strkUsd');
     return true;
   }
   // day хранит «старое значение отдельного дня → новый итог периода», а не две
@@ -1088,27 +1090,35 @@ function renderBurn(series,bought){
 // денег, иначе итог скачет от рынка и минимум года врёт). Но это деньги, поэтому в KPI
 // «Всего» они входят отдельным блоком поверх остатков на 31.12.
 // Живые цены берутся оттуда же, откуда их берёт план: CoinGecko/ЦБ через engine.js.
-// Заморожены две величины — их источник вне плана, обновлять при пересчёте портфеля:
-//   VOL_CRYPTO_RUB — 56 EVM-кошельков по DeBank + NFT по floor (POST /api/portfolio/recount)
-//   VOL_ZK_USD     — ZK на Bybit, цены нет ни в одном из подключённых источников
-const VOL_CRYPTO_RUB=2251110;      // $28 576, DeBank + CoinGecko, 24.08.2026
-const VOL_ZK_USD=1253.62;          // 154 888,53788800 ZK × $0,0080937, 09.08.2026
-const VOL_ETH_QTY=0.71666673;      // эфир на Bybit — количество, цена живая
+// ⚠️ Правило от 28.08.2026: здесь замораживаются ТОЛЬКО КОЛИЧЕСТВА, никогда не рубли.
+// Раньше крипта стояла рублёвой константой VOL_CRYPTO_RUB (2 251 110 ₽ по курсу 78,8 от
+// 24.08), и «Активы» врали на десятки тысяч при каждом движении курса. Цены ZK и STRK
+// тоже были константами от 09.08 — теперь их тянет сервер с CoinGecko.
+// Обновлять при пересчёте портфеля (POST /api/portfolio/recount) и при сверке бирж:
+const VOL_CRYPTO_USD=28630.88;     // 56 EVM-кошельков: токены $24 693,61 + NFT по floor $3 937,27 (DeBank/CoinGecko 27.08.2026)
+const VOL_ETH_QTY=0.6847616;       // эфир — по замеру 18.08 лежит на BingX, ПОДЛЕЖИТ ВЫВОДУ
+const VOL_ZK_QTY=154888.537888;    // ZK, цена живая (CoinGecko zksync)
+const VOL_STRK_QTY=21832.760166;   // STRK, цена живая (CoinGecko starknet)
+const VOL_USDT=6.3689;             // мелочь на бирже, курс к доллару 1:1
 const VOL_PLZL_QTY=198;            // акции Полюс, цена живая из plzlPx()
 const VOL_MEGA_QTY=3*4167;         // MegaETH: три оставшихся разлока по 4 167 токенов
 function volatileAssets(){
   const fx=fxRate(true);                                    // активы продаём → ЦБ−5%
-  const crypto=VOL_CRYPTO_RUB;
+  const crypto=VOL_CRYPTO_USD*fx;
   const plzl=VOL_PLZL_QTY*(plzlPx()||0);                    // цена уже в рублях
   const mega=VOL_MEGA_QTY*(megaUsd()||0)*fx;
-  const bybit=(VOL_ETH_QTY*(ethUsd()||0)+VOL_ZK_USD)*fx;
+  const exchUsd=VOL_ETH_QTY*(ethUsd()||0)+VOL_ZK_QTY*(zkUsd()||0)
+               +VOL_STRK_QTY*(strkUsd()||0)+VOL_USDT;       // остатки на Bybit и BingX
+  const bybit=exchUsd*fx;
   const sum=Math.round(crypto+plzl+mega+bybit);
-  return {crypto,plzl:Math.round(plzl),mega:Math.round(mega),bybit:Math.round(bybit),sum,
-    note:`Крипта ${F(crypto)} ₽ (56 кошельков, DeBank 09.08 — обновляется пересчётом портфеля) `
+  return {crypto:Math.round(crypto),plzl:Math.round(plzl),mega:Math.round(mega),
+    bybit:Math.round(bybit),sum,
+    note:`Крипта $${F(VOL_CRYPTO_USD)} = ${F(crypto)} ₽ (56 кошельков, DeBank 27.08 — обновляется пересчётом портфеля) `
         +`+ Полюс ${VOL_PLZL_QTY} шт × ${F(plzlPx()||0)} ₽ `
         +`+ MegaETH ${F(VOL_MEGA_QTY)} × $${F2(megaUsd()||0)} `
-        +`+ Bybit (ETH ${VOL_ETH_QTY} × $${F(ethUsd()||0)} + ZK $${F(VOL_ZK_USD)}). `
-        +`Курс продажи ${F2(fx)} ₽/$. В строках плана эти суммы нулевые — здесь они как активы.`};
+        +`+ биржи $${F(exchUsd)} (ETH ${VOL_ETH_QTY} × $${F(ethUsd()||0)} + ZK ${F(VOL_ZK_QTY)} × $${zkUsd()||0} `
+        +`+ STRK ${F(VOL_STRK_QTY)} × $${strkUsd()||0} + USDT ${VOL_USDT}). `
+        +`Курс продажи ${F2(fx)} ₽/$. Заморожены только количества — цены и курс живые.`};
 }
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
 const ST_USD={freedom:1,tbc:1,bybit:1,cashusd:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях

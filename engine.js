@@ -44,6 +44,10 @@ function kztRate(isInc){ return cbrKzt()*side(isInc); }
 function gbpRate(isInc){ return cbrGbp()*side(isInc); }
 function ethUsd(){  return (CR&&CR.eth&&CR.eth.usd) || data.ethUsd || 0; }
 function megaUsd(){ return (CR&&CR.mega&&CR.mega.usd) || data.megaUsd || 0; }
+// ZK и STRK — остатки на биржах. Раньше их цены были константами в plan.html и протухали;
+// с 28.08.2026 сервер тянет их с CoinGecko вместе с MEGA и ETH.
+function zkUsd(){   return (CR&&CR.zk&&CR.zk.usd)     || data.zkUsd   || 0; }
+function strkUsd(){ return (CR&&CR.strk&&CR.strk.usd) || data.strkUsd || 0; }
 
 const PERIODS=[
  ['2026-07-01',15],['2026-07-16',16],['2026-08-01',15],['2026-08-16',16],

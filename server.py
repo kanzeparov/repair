@@ -319,7 +319,9 @@ def cbr_usd():
     return {"error": "курс ЦБ недоступен"}
 
 def crypto_price():
-    """Цена токена MEGA (MegaETH) в долларах, кэш на сутки."""
+    """Цены токенов в долларах, кэш на сутки: MEGA (вестинг), ETH, ZK и STRK (остатки
+    на биржах). ZK и STRK добавлены 28.08.2026 — до этого их цены стояли константами
+    в plan.html от 09.08 и молча протухали."""
     today = datetime.date.today().isoformat()
     cached = None
     try:
@@ -332,14 +334,17 @@ def crypto_price():
     try:
         import urllib.request
         url = ("https://api.coingecko.com/api/v3/simple/price"
-               "?ids=megaeth,ethereum&vs_currencies=usd&include_last_updated_at=true")
+               "?ids=megaeth,ethereum,zksync,starknet&vs_currencies=usd&include_last_updated_at=true")
         with urllib.request.urlopen(url, timeout=12) as r:
             j = json.loads(r.read().decode())
         p = j.get("megaeth", {}).get("usd")
         eth = j.get("ethereum", {}).get("usd")
+        zk = j.get("zksync", {}).get("usd")
+        strk = j.get("starknet", {}).get("usd")
         if p or eth:
             out = {"day": today, "mega": {"usd": p}, "eth": {"usd": eth},
-                   "src": "coingecko/megaeth+ethereum",
+                   "zk": {"usd": zk}, "strk": {"usd": strk},
+                   "src": "coingecko/megaeth+ethereum+zksync+starknet",
                    "updated": (j.get("megaeth") or j.get("ethereum") or {}).get("last_updated_at")}
             _write_json(CRYPTO_FILE, out)
             return out
