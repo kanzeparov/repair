@@ -510,12 +510,21 @@ function applyRate(){                          // пересчитать все 
   }
   if(syncBybit()) n++;                          // эфир на Bybit → доллары по свежей цене
   if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
-  if(cbrUsd()) data.cbrUsd=cbrUsd();            // запомнить: пригодится без сети
-  if(cbrKzt()) data.cbrKzt=cbrKzt();
-  if(cbrGbp()) data.cbrGbp=cbrGbp();
-  if(megaUsd()) data.megaUsd=megaUsd();
-  if(ethUsd()) data.ethUsd=ethUsd();
-  if(plzlPx()) data.plzlPx=plzlPx();
+  // Курсы раньше запоминались молча: ячейки пересчитывались, «Всего» уезжало на десятки
+  // тысяч, а в журнале не оставалось НИЧЕГО — и история KPI такой скачок объяснить не могла
+  // (разбор 28.08.2026). Теперь смена курса пишется в журнал одной записью k='rate'.
+  const RATE_FIELDS=[['cbr',cbrUsd,'cbrUsd','ЦБ $'],['kzt',cbrKzt,'cbrKzt','ЦБ ₸'],
+                     ['gbp',cbrGbp,'cbrGbp','ЦБ £'],['mega',megaUsd,'megaUsd','MEGA $'],
+                     ['eth',ethUsd,'ethUsd','ETH $'],['plzl',plzlPx,'plzlPx','Полюс ₽']];
+  const wasR={}, nowR={}, movedR=[], fmtR=v=>Math.abs(v)<1?String(v):F2(v);
+  RATE_FIELDS.forEach(([k,fn,field,name])=>{
+    const v=fn(); if(!v) return;
+    const old=data[field];
+    wasR[k]=old; nowR[k]=v;
+    if(old!=null && old!==v) movedR.push(name+' '+fmtR(old)+' → '+fmtR(v));
+    data[field]=v;                              // запомнить: пригодится без сети
+  });
+  if(movedR.length){ logEv('rate',-1,-1,wasR,nowR,{lbl:'Курсы: '+movedR.join(' · ')}); n++; }
   return n;
 }
 function showRate(){
@@ -867,8 +876,12 @@ const HMETA={
   usd:{title:'Изменение расхода $ до 31.12', unit:'$', fmt:v=>'$'+F(v), invert:true},
 };
 function projectedTotal(state,kind){
-  const live=data;
+  const live=data, liveFX=FX, liveCR=CR, liveST=ST;
   data=state;
+  // Курсы для исторического состояния берём ИЗ НЕГО САМОГО (data.cbrUsd и соседи), а не
+  // из живых FX/CR/ST — иначе откат записи k='rate' ничего не менял бы и скачки от курса
+  // в истории по-прежнему выглядели бы беспричинными.
+  if(Number.isFinite(state.cbrUsd) && state.cbrUsd>0){ FX=null; CR=null; ST=null; }
   try{
     kind=kind||HKIND;
     if(kind!=='all'){ const b=burnStats(); return Math.round(kind==='rub'?b.rub:b.usd); }
@@ -876,7 +889,7 @@ function projectedTotal(state,kind){
     const p=state.startParts||{};
     const other=(p.ya||0)+(p.cash||0)+(p.tkf||0);
     return Math.round((b.dif[last]||0)+(b.usdDif[last]||0)*fxRate(true)+other+(p.cashusd||0)*fxRate(true));
-  } finally { data=live; }
+  } finally { data=live; FX=liveFX; CR=liveCR; ST=liveST; }
 }
 function recalcStateStart(state){
   const p=state.startParts||{}, r=fxRate(true);
@@ -884,6 +897,14 @@ function recalcStateStart(state){
 }
 function reverseMoneyEvent(state,ev){
   const r=Number(ev.ri), c=Number(ev.c), numeric=Number.isFinite(+ev.from);
+  // Смена курса ЦБ и цен MEGA/ETH/Полюса. Рубли в rows[][] для валютных ячеек — только
+  // витрина, движок считает по единицам и курсу, поэтому откатывать надо именно курс.
+  if(ev.k==='rate' && ev.from && typeof ev.from==='object'){
+    const f=ev.from, put=(k,field)=>{ if(f[k]!=null) state[field]=f[k]; };
+    put('cbr','cbrUsd'); put('kzt','cbrKzt'); put('gbp','cbrGbp');
+    put('mega','megaUsd'); put('eth','ethUsd'); put('plzl','plzlPx');
+    return true;
+  }
   // day хранит «старое значение отдельного дня → новый итог периода», а не две
   // версии итоговой ячейки. Откатывать строку по такой записи нельзя.
   if(['edit','cell'].includes(ev.k) && numeric && state.rows[r] && c>=0){
