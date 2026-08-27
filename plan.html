@@ -429,6 +429,11 @@ const UNITS={
          rub:()=>plzlPx()},
 };
 function plzlPx(){ return (ST&&ST.px&&ST.px.PLZL) || data.plzlPx || 0; }
+// Цены ZK и STRK живут в engine.js. Обёртки на случай, если браузер подтянул СТАРУЮ
+// закэшированную копию движка: без них ReferenceError убивал весь рендер и все KPI
+// показывали «—» (поймано 28.08.2026).
+function zkPx(){   return typeof zkUsd  ==='function' ? (zkUsd()  ||data.zkUsd  ||0) : (data.zkUsd  ||0); }
+function strkPx(){ return typeof strkUsd==='function' ? (strkUsd()||data.strkUsd||0) : (data.strkUsd||0); }
 // Ячейка может нести ещё и рублёвый довесок (деньги на брокерском счёте помимо бумаг).
 function unitRub(q,isInc){
   if(!q||!UNITS[q.u]) return 0;
@@ -1107,8 +1112,8 @@ function volatileAssets(){
   const crypto=VOL_CRYPTO_USD*fx;
   const plzl=VOL_PLZL_QTY*(plzlPx()||0);                    // цена уже в рублях
   const mega=VOL_MEGA_QTY*(megaUsd()||0)*fx;
-  const exchUsd=VOL_ETH_QTY*(ethUsd()||0)+VOL_ZK_QTY*(zkUsd()||0)
-               +VOL_STRK_QTY*(strkUsd()||0)+VOL_USDT;       // остатки на Bybit и BingX
+  const exchUsd=VOL_ETH_QTY*(ethUsd()||0)+VOL_ZK_QTY*zkPx()
+               +VOL_STRK_QTY*strkPx()+VOL_USDT;       // остатки на Bybit и BingX
   const bybit=exchUsd*fx;
   const sum=Math.round(crypto+plzl+mega+bybit);
   return {crypto:Math.round(crypto),plzl:Math.round(plzl),mega:Math.round(mega),
@@ -1116,8 +1121,8 @@ function volatileAssets(){
     note:`Крипта $${F(VOL_CRYPTO_USD)} = ${F(crypto)} ₽ (56 кошельков, DeBank 27.08 — обновляется пересчётом портфеля) `
         +`+ Полюс ${VOL_PLZL_QTY} шт × ${F(plzlPx()||0)} ₽ `
         +`+ MegaETH ${F(VOL_MEGA_QTY)} × $${F2(megaUsd()||0)} `
-        +`+ биржи $${F(exchUsd)} (ETH ${VOL_ETH_QTY} × $${F(ethUsd()||0)} + ZK ${F(VOL_ZK_QTY)} × $${zkUsd()||0} `
-        +`+ STRK ${F(VOL_STRK_QTY)} × $${strkUsd()||0} + USDT ${VOL_USDT}). `
+        +`+ биржи $${F(exchUsd)} (ETH ${VOL_ETH_QTY} × $${F(ethUsd()||0)} + ZK ${F(VOL_ZK_QTY)} × $${zkPx()} `
+        +`+ STRK ${F(VOL_STRK_QTY)} × $${strkPx()} + USDT ${VOL_USDT}). `
         +`Курс продажи ${F2(fx)} ₽/$. Заморожены только количества — цены и курс живые.`};
 }
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
