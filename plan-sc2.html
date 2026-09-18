@@ -1,0 +1,1773 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📅 Основной план: покупка студии за 7,2 млн</title>
+<style>
+  :root {
+    --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE;
+    --warn:#8A5A18; --warn-bg:#F7EFDC; --crit:#96382C; --crit-bg:#F6E8E4;
+    --inc:#EDF3EE; --exp:#F6E8E4; --dif:#F7EFDC;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A;
+      --warn:#D9A85C; --warn-bg:#322A18; --crit:#D98876; --crit-bg:#37231F;
+      --inc:#24322A; --exp:#37231F; --dif:#322A18; }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;
+    padding:24px 12px 70px;font-size:13px}
+  h1{font-family:Georgia,serif;font-weight:400;font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .bar button{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--ink);cursor:pointer}
+  #save.dirty{background:var(--accent);border-color:var(--accent);color:#fff}
+  tr.tips td.tip{font-size:10.5px;line-height:1.3;color:var(--accent);
+    background:var(--accent-soft);vertical-align:top;padding:4px 5px;white-space:normal;min-width:96px}
+  tr.tips td.lbl{font-size:11px;color:var(--muted)}
+  #hidecols.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .bar .start{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .bar input{width:110px;font-family:var(--mono);font-size:12.5px;padding:6px 8px;
+    border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+  .kpi{margin-left:auto;display:flex;gap:14px;font-family:var(--mono);font-size:12px}
+  .kpi b{font-size:14px}
+  .kpi .history-link{cursor:pointer;border-radius:6px;padding:4px 6px;margin:-4px -6px;
+    transition:background .15s,color .15s}
+  .kpi .history-link:hover,.kpi .history-link:focus-visible{background:var(--accent-soft);
+    color:var(--accent);outline:none}
+  /* Дельта «Всего» относительно конца предыдущего дня. Знак и стрелка дублируют цвет,
+     чтобы значение читалось и без различения цветов. */
+  .kdelta{font-style:normal;font-weight:600;font-size:11.5px;margin-left:6px;white-space:nowrap}
+  .kdelta:empty{display:none}
+  .kdelta.up{color:var(--accent)}
+  .kdelta.down{color:var(--crit)}
+  .kpi .k31{font-style:normal;color:var(--muted);font-weight:400;margin-left:4px}
+  .burn{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px}
+  .burn-t{flex:1 1 190px;padding:9px 11px;border-radius:8px;background:var(--accent-soft)}
+  .burn-t small{display:block;color:var(--muted);font-size:10px;margin-bottom:3px}
+  .burn-t b{font:700 18px var(--mono);display:block}
+  .burn-t i{font-style:normal;color:var(--muted);font-size:11px;display:block;margin-top:2px}
+  .burn-t.warn{background:var(--warn-bg)} .burn-t.crit{background:var(--crit-bg)}
+  .burn-t .kdelta{display:inline-block;margin-top:2px;font-size:11px}
+  .burn-today{color:var(--fg);font-weight:600}
+  .burn-click{cursor:pointer} .burn-click:hover{outline:1px solid var(--accent)}
+  .kpi .history-link b{text-decoration:underline;text-decoration-style:dotted;
+    text-underline-offset:3px}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+  .monthly{margin:14px 0 16px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:16px}
+  .monthly-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+  .monthly h2{font:400 20px Georgia,serif;margin:0 0 4px}.monthly-lead{color:var(--muted);font-size:11.5px}
+  .monthly-kpis{display:flex;gap:10px;flex-wrap:wrap}.monthly-kpi{min-width:145px;padding:9px 11px;border-radius:8px;background:var(--accent-soft)}
+  .monthly-kpi small{display:block;color:var(--muted);font-size:10px;margin-bottom:3px}.monthly-kpi b{font:700 18px var(--mono)}
+  .monthly-kpi.warn{background:var(--warn-bg)}.monthly-kpi.crit{background:var(--crit-bg)}
+  .monthly-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:14px;margin-top:14px}
+  .expense-list,.charge-list{border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .expense-row{display:grid;grid-template-columns:minmax(145px,1.2fr) minmax(130px,1fr) 82px 82px;gap:10px;align-items:center;padding:9px 11px;border-bottom:1px solid var(--line)}
+  .expense-row:last-child,.charge-row:last-child{border-bottom:0}.expense-name b{display:block;font-size:12px}.expense-name small{color:var(--muted);font-size:10px}
+  .expense-bar{height:7px;background:var(--paper);border-radius:20px;overflow:hidden}.expense-bar i{display:block;height:100%;background:var(--accent);border-radius:20px}
+  .expense-row.over .expense-bar i{background:var(--crit)}.expense-num{font:600 11.5px var(--mono);text-align:right}.expense-num small{display:block;color:var(--muted);font:9px var(--sans)}
+  .charge-title{padding:9px 11px;background:var(--accent-soft);font-weight:700}.charge-row{display:grid;grid-template-columns:48px 1fr auto;gap:8px;padding:7px 11px;border-bottom:1px solid var(--line);align-items:baseline}
+  .charge-row time{font:600 10.5px var(--mono);color:var(--accent)}.charge-row span{font-size:11px}.charge-row b{font:600 11px var(--mono);white-space:nowrap}
+  .monthly-foot{margin-top:10px;color:var(--muted);font-size:10.5px;line-height:1.45}
+  @media(max-width:850px){.monthly-grid{grid-template-columns:1fr}.expense-row{grid-template-columns:minmax(130px,1fr) 90px 75px}.expense-bar{display:none}}
+  table{border-collapse:collapse;font-size:12px;min-width:1560px}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--muted);
+    padding:7px 6px;border-bottom:1.5px solid var(--line);white-space:nowrap;text-align:right;
+    position:sticky;top:0;background:var(--card);z-index:2}
+  th:first-child{text-align:left;position:sticky;left:0;z-index:3}
+  td{border-bottom:1px solid var(--line);padding:0;text-align:right}
+  td.lbl[contenteditable]:focus{outline:1.5px solid var(--accent);border-radius:3px}
+  td.lbl{padding:5px 10px;text-align:left;white-space:nowrap;font-size:12px;
+    position:sticky;left:0;background:var(--card);z-index:1;max-width:250px;
+    overflow:hidden;text-overflow:ellipsis}
+  tr.inc td.lbl{box-shadow:inset 3px 0 0 var(--accent)}
+  tr.exp td.lbl{box-shadow:inset 3px 0 0 var(--crit)}
+  td input{width:88px;border:none;background:transparent;color:var(--ink);
+    font-family:var(--mono);font-size:11.5px;text-align:right;padding:5px 6px}
+  td input:focus{outline:1.5px solid var(--accent);border-radius:3px;background:var(--card)}
+  td input::-webkit-inner-spin-button,td input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  td input{-moz-appearance:textfield;appearance:textfield}
+  td input.zero{color:color-mix(in srgb, var(--muted) 45%, transparent)}
+  td input.usd{color:var(--accent);font-weight:600}
+  tr.tot td{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:6px;white-space:nowrap}
+  tr.t-inc td{background:var(--inc)} tr.t-exp td{background:var(--exp)} tr.t-dif td{background:var(--dif)}
+  tr.t-dif td.neg{color:var(--crit)}
+  tr.t-dif small.dip{display:block;font-size:9.5px;font-weight:400;color:var(--muted);margin-top:1px}
+  tr.t-dif small.dip.bad{color:var(--crit);font-weight:700}
+  tr.t-mon td.m{text-align:center;font-weight:700}
+  tr.t-mon td.m+td.m{border-left:1px solid var(--line)}
+  tr.t-mon td.lbl{font-weight:400;color:var(--muted)}
+  tr.t-mon td.neg{color:var(--crit)}
+  .note{margin-top:12px;color:var(--muted);font-size:11.5px;max-width:90ch}
+  th.colhead{cursor:pointer}
+  th.colhead:hover{color:var(--accent);text-decoration:underline}
+  #dayWrap{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);
+    padding:22px 14px;overflow:auto}
+  #dayBox{max-width:1700px;margin:0 auto;background:var(--paper);border:1px solid var(--line);
+    border-radius:12px;padding:16px 18px 20px}
+  #dayBox h3{font-family:Georgia,serif;font-weight:400;font-size:19px;margin:0 0 2px;
+    display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+  #dayBox .hint{color:var(--muted);font-size:11.5px;margin-bottom:12px}
+  #dayBox .close{padding:6px 12px;font-size:12.5px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
+  #dayScroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+  #dayTable{border-collapse:collapse;font-size:11.5px;min-width:100%}
+  #dayTable th{font-family:var(--mono);font-size:10px;color:var(--muted);padding:6px 5px;
+    border-bottom:1.5px solid var(--line);white-space:nowrap;text-align:right;
+    position:sticky;top:0;background:var(--card);z-index:2}
+  #dayTable th:first-child{text-align:left;position:sticky;left:0;z-index:3;min-width:230px}
+  #dayTable th.we{color:var(--crit)}
+  #dayTable td{border-bottom:1px solid var(--line);padding:4px 5px;text-align:right;
+    font-family:var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+  #dayTable td:first-child{text-align:left;font-family:var(--sans);position:sticky;left:0;
+    background:var(--card);max-width:230px;overflow:hidden;text-overflow:ellipsis}
+  #dayTable tr.inc td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  #dayTable tr.exp td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
+  #dayTable td.z{color:color-mix(in srgb, var(--muted) 40%, transparent)}
+  #dayTable tr.tot td{font-weight:700;padding:6px 5px}
+  #dayTable tr.t-inc td{background:var(--inc)}
+  #dayTable tr.t-exp td{background:var(--exp)}
+  #dayTable tr.t-dif td{background:var(--dif)}
+  #dayTable tr.t-dif td.neg{color:var(--crit)}
+  #dayTable td input{width:74px;border:none;background:transparent;color:var(--ink);
+    font-family:var(--mono);font-size:11.5px;text-align:right;padding:3px 4px;
+    font-variant-numeric:tabular-nums;appearance:textfield}
+  #dayTable td input:focus{outline:1.5px solid var(--accent);border-radius:3px;background:var(--paper)}
+  #dayTable td input.z{color:color-mix(in srgb, var(--muted) 40%, transparent)}
+  #historyWrap{display:none;position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.48);
+    padding:22px 14px;overflow:auto}
+  #historyBox{max-width:920px;margin:0 auto;background:var(--paper);border:1px solid var(--line);
+    border-radius:12px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.22)}
+  #historyBox h3{font-family:Georgia,serif;font-weight:400;font-size:20px;margin:0}
+  .history-head{display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .history-close{padding:6px 12px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--ink);cursor:pointer}
+  .history-summary{display:flex;gap:22px;flex-wrap:wrap;margin:12px 0;color:var(--muted)}
+  .history-summary b{display:block;color:var(--ink);font:600 18px var(--mono);margin-top:2px}
+  .history-chart{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:8px}
+  .history-range{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
+  .history-range label{color:var(--muted);font-size:11px}
+  .history-range input,.history-range button{border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--ink);padding:6px 8px;font:12px var(--sans)}
+  .history-range button{cursor:pointer}.history-range button:hover{border-color:var(--accent);color:var(--accent)}
+  .history-chart-note{display:flex;justify-content:space-between;gap:12px;color:var(--muted);
+    font-size:11px;margin:0 4px 4px}
+  #historyChart{display:block;width:100%;height:280px;overflow:hidden}
+  .history-list{margin-top:12px;max-height:260px;overflow:auto;border-top:1px solid var(--line)}
+  .history-item{display:grid;grid-template-columns:130px 1fr auto;gap:12px;padding:8px 4px;
+    border-bottom:1px solid var(--line);align-items:baseline}
+  .history-item time,.history-item small{color:var(--muted);font:11px var(--mono)}
+  .history-item strong{font:600 12px var(--mono);white-space:nowrap}
+  @media(max-width:620px){.history-item{grid-template-columns:1fr auto}.history-item time{grid-column:1/-1}}
+</style>
+</head>
+<body>
+  <div style="background:#edf3ee;color:#2a5c48;border:1px solid #7fbba0;border-radius:8px;padding:10px 14px;margin:0 0 12px;font-size:13px;line-height:1.5">
+    ✅ <b>Актуальный сценарий (21.07.2026):</b> продажа студии Алтуфьевское 55к4 по ДКП за <b>12 050 000</b> (сделка 23.07, деньги через Домклик ~30.07) → гашение <b>всех</b> долгов (ипотека ДОМ.РФ 6,71 млн + потребы Райф 3,22 млн + кредитки Райф 207 тыс. + ТКФ 400 тыс.) → ничего взамен не покупаем, копим. НДФЛ с продажи 642 705 ₽ — строка-резерв в янв.27, платить до 15.07.2027. Отпуск: Китай сент – 14.10 (оплачен $2250, траты — $ с Freedom Finance). Траты и ЗП выверены по выпискам Райф/Яндекс от 21.07.
+  </div>
+  <h1>📅 Основной план · продажа студии 12,05 млн, гашение долгов · июль 2026 — январь 2027</h1>
+  <div class="sub">Доходы — сверху, расходы — ниже. Ячейки = остаток к оплате: оплата карточки на странице карточек списывает сумму отсюда автоматически. Клик по ячейке показывает её адрес [строка:колонка] в панели сверху — клик по метке копирует адрес для чата. Всё сохраняется автоматически; при конфликте с другой вкладкой страница перезагрузится сама.</div>
+
+  <div class="bar">
+    <span class="start">Райффайзен:
+      <input id="st_raif" type="number" value="142000" style="width:90px"></span>
+    <span class="start">Кредитка Тинькофф:
+      <input id="st_tkf" type="number" value="0" style="width:90px"></span>
+    <span class="start">Наличные:
+      <input id="st_cash" type="number" value="0" style="width:90px"></span>
+    <span class="start">Яндекс:
+      <input id="st_ya" type="number" value="0" style="width:90px"></span>
+    <span class="start" title="в долларах">Freedom $:
+      <input id="st_freedom" type="text" value="0" style="width:80px"></span>
+    <span class="start" title="в долларах">TBC $:
+      <input id="st_tbc" type="text" value="0" style="width:70px"></span>
+    <!-- Bybit убран из стартовых остатков: это не деньги на карте, а волатильный актив.
+         Живёт строкой-подписью в таблице и слагаемым в KPI «Активы» (volatileAssets()).
+         Поле оставлено скрытым, чтобы не ломать ST_FIELDS/readStart — значение всегда 0. -->
+    <span class="start" style="display:none" title="вынесено в KPI «Активы»">Bybit $:
+      <input id="st_bybit" type="text" value="0" style="width:70px"></span>
+    <span class="start" title="наличные доллары">Нал $:
+      <input id="st_cashusd" type="text" value="0" style="width:70px"></span>
+    <span class="start" id="fxStartBox">≈ <b id="st_fxrub" style="font-family:var(--mono)">—</b></span>
+    <span class="start">Σ старт: <b id="st_sum" style="font-family:var(--mono)">—</b></span>
+    <span class="start" id="fxBox" title="курс ЦБ минус 5%; ячейку можно писать в долларах: 10д">💵 <b id="fxRate" style="font-family:var(--mono)">—</b></span>
+    <a id="navHome" href="🗂 ГЛАВНАЯ.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🏠 Главная</a>
+    <a id="navCards" href="Финплан — карточки.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">🗂 Карточки</a>
+    <a id="navTasks" href="✅ ЗАДАЧИ — неделя.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none">✅ Задачи</a>
+    <a href="monthly-expenses.html" style="padding:7px 12px;font-size:12.5px;border:1px solid var(--accent);border-radius:6px;background:var(--accent-soft);color:var(--accent);text-decoration:none;font-weight:600">📊 Ежемесячные траты</a>
+    <span style="background:#3a2f20;border:1px solid #d9a441;color:#d9a441;border-radius:8px;padding:4px 10px;margin-right:8px">СЦЕНАРИЙ, в основной план не пишется</span><button id="save" disabled title="в сценарной копии сохранение отключено">💾 Сохранить</button>
+    <button id="csv">⬇ CSV</button>
+    <button id="addrow">＋ Статья</button>
+    <button id="hidecols">👁 Все столбцы</button>
+    <button id="undo">↶ Отменить</button>
+    <button id="logbtn">📜 Журнал</button>
+    <button id="backup">⛃ Бэкап</button>
+    <button id="restore">⤒ Восстановить</button>
+    <input id="restoreFile" type="file" accept=".json,application/json" style="display:none">
+    <span class="start" id="saveInfo"></span>
+    <span id="cellInfo" style="font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:5px 10px;display:none"></span>
+    <span class="kpi">
+      <span title="ликвидные деньги на сегодня">Сейчас <b id="kNow">—</b></span>
+      <span>Σ Доход <b id="kInc">—</b></span>
+      <span>Σ Расход <b id="kExp">—</b></span>
+      <span>Итог 31.12 ₽ <b id="kDec">—</b></span>
+      <span>Итог 31.12.27 ₽ <b id="kEnd">—</b></span>
+      <span>Валюта на 31.12 <b id="kUsd">—</b></span>
+      <span>Активы <b id="kVol">—</b></span>
+      <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i><i id="kAll31" class="k31"></i></span>
+    </span>
+  </div>
+
+  <!-- Расход до конца года: рубли и валюта раздельно. Валютный ресурс — Freedom + TBC
+       + наличные доллары; наличные показаны отдельной строкой, потому что ими нельзя
+       оплатить подписку с карты, но потратить в поездке можно. -->
+  <div class="burn" id="burnBox">
+    <div class="burn-t burn-click" id="bRubBox" role="button" tabindex="0" title="Нажми — история изменений и график">
+      <small>Расход ₽ до 31.12</small><b id="bRub">—</b><i id="bRubDelta" class="kdelta"></i>
+      <i id="bRubToday" class="burn-today"></i><i id="bRubSub"></i></div>
+    <div class="burn-t burn-click" id="bUsdBox" role="button" tabindex="0" title="Нажми — история изменений и график">
+      <small>Расход $ до 31.12</small><b id="bUsd">—</b><i id="bUsdDelta" class="kdelta"></i>
+      <i id="bUsdToday" class="burn-today"></i><i id="bUsdSub"></i></div>
+    <div class="burn-t"><small>Валютный ресурс</small><b id="bRes">—</b><i id="bResSub"></i></div>
+    <div class="burn-t" id="bEndBox"><small>Валюты хватит до</small><b id="bEnd">—</b><i id="bEndSub"></i></div>
+  </div>
+
+  <section class="monthly" aria-labelledby="monthlyTitle" hidden>
+    <div class="monthly-head">
+      <div><h2 id="monthlyTitle">Ежемесячные траты — конкретный базовый месяц</h2>
+        <div class="monthly-lead">Факт — по доступным выпискам Райффайзен, Т-Банк и Яндекс; план — рабочий лимит без путешествий, крупных покупок, налогов и погашения долгов.</div></div>
+      <div class="monthly-kpis">
+        <div class="monthly-kpi"><small>Базовый расход</small><b>≈ 160 000 ₽</b></div>
+        <div class="monthly-kpi"><small>Обязательные списания</small><b>≈ 44 400 ₽</b></div>
+        <div class="monthly-kpi warn"><small>Повседневные лимиты</small><b>≈ 115 000 ₽</b></div>
+        <div class="monthly-kpi crit"><small>Мелкие операции ≤500 ₽</small><b>≈ 21 800 ₽</b></div>
+      </div>
+    </div>
+    <div class="monthly-grid">
+      <div class="expense-list">
+        <div class="expense-row over"><div class="expense-name"><b>Продукты · ВкусВилл</b><small>123 394 ₽ за 3 мес. · 145 покупок · чек 851 ₽</small></div><div class="expense-bar"><i style="width:100%"></i></div><div class="expense-num">41 100 ₽<small>факт/мес.</small></div><div class="expense-num">42 000 ₽<small>лимит</small></div></div>
+        <div class="expense-row"><div class="expense-name"><b>Такси</b><small>Яндекс Pay 11 530 ₽/мес. + остальные карты</small></div><div class="expense-bar"><i style="width:65%"></i></div><div class="expense-num">≈26 500 ₽<small>факт/мес.</small></div><div class="expense-num">27 000 ₽<small>лимит</small></div></div>
+        <div class="expense-row"><div class="expense-name"><b>Рестораны и доставка</b><small>еда вне дома; не смешивать с продуктами</small></div><div class="expense-bar"><i style="width:74%"></i></div><div class="expense-num">30–32 тыс.<small>план/мес.</small></div><div class="expense-num">31 000 ₽<small>лимит</small></div></div>
+        <div class="expense-row"><div class="expense-name"><b>Маркетплейсы</b><small>без подписок; недельный лимит 3 500 ₽</small></div><div class="expense-bar"><i style="width:34%"></i></div><div class="expense-num">13,8–14,4 тыс.<small>план/мес.</small></div><div class="expense-num">14 000 ₽<small>лимит</small></div></div>
+        <div class="expense-row"><div class="expense-name"><b>Подписки и связь</b><small>Claude, ChatGPT, YouTube, Adobe, FSCapture, SberPrime и связь</small></div><div class="expense-bar"><i style="width:90%"></i></div><div class="expense-num">≈37 200 ₽<small>резерв/мес.</small></div><div class="expense-num">38 000 ₽<small>лимит</small></div></div>
+        <div class="expense-row"><div class="expense-name"><b>ЖКХ · Дмитровская</b><small>после августовской квитанции 14 300 ₽</small></div><div class="expense-bar"><i style="width:15%"></i></div><div class="expense-num">≈6 000 ₽<small>обычный мес.</small></div><div class="expense-num">6 500 ₽<small>лимит</small></div></div>
+        <div class="expense-row"><div class="expense-name"><b>Кладовые</b><small>Павелецкая 655 ₽ + Алтуфьево 600 ₽</small></div><div class="expense-bar"><i style="width:4%"></i></div><div class="expense-num">1 255 ₽<small>фикс./мес.</small></div><div class="expense-num">1 300 ₽<small>лимит</small></div></div>
+        <div class="expense-row"><div class="expense-name"><b>Бытовые расходники</b><small>не включать одежду, здоровье и технику</small></div><div class="expense-bar"><i style="width:5%"></i></div><div class="expense-num">2 000 ₽<small>план/мес.</small></div><div class="expense-num">2 000 ₽<small>лимит</small></div></div>
+      </div>
+      <div class="charge-list">
+        <div class="charge-title">Календарь обязательных списаний</div>
+        <div class="charge-row"><time>2-е</time><span>Claude</span><b>$228 · окт. $120</b></div>
+        <div class="charge-row"><time>10-е</time><span>FSCapture</span><b>$32</b></div>
+        <div class="charge-row"><time>13-е</time><span>Adobe</span><b>$11</b></div>
+        <div class="charge-row"><time>16-е</time><span>SberPrime №1</span><b>399 ₽</b></div>
+        <div class="charge-row"><time>19-е</time><span>Premier</span><b>99 ₽</b></div>
+        <div class="charge-row"><time>20-е</time><span>Резерв на t2 РФ</span><b>605 ₽</b></div>
+        <div class="charge-row"><time>23-е</time><span>SberPrime №2</span><b>399 ₽</b></div>
+        <div class="charge-row"><time>26-е</time><span>ChatGPT Pro</span><b>54 990 ₸</b></div>
+        <div class="charge-row"><time>26-е</time><span>YouTube Premium</span><b>£20</b></div>
+        <div class="charge-row"><time>27-е</time><span>Райффайзен Подписка</span><b>299 ₽</b></div>
+        <div class="charge-row"><time>1-е</time><span>Казахстанский номер</span><b>1 000 ₸</b></div>
+        <div class="charge-row"><time>ежемес.</time><span>ЖКХ + две кладовые</span><b>≈7 255 ₽</b></div>
+        <div class="charge-row"><time>резерв</time><span>t2 Mixx + Google One</span><b>≈683 ₽/мес.</b></div>
+      </div>
+    </div>
+    <div class="monthly-foot"><b>Важно:</b> 21 800 ₽ мелких операций уже находятся внутри продуктов, такси, кафе и маркетплейсов — это контрольный показатель, а не дополнительная строка расхода. В базовые 160 тыс. ₽ также не входят Батуми/Китай, подарки, лечение, одежда, страховка, налоги и разовые покупки.</div>
+  </section>
+
+  <div class="scroll"><table id="grid"></table></div>
+
+  <div id="dayWrap">
+    <div id="dayBox">
+      <h3><span id="dayTitle"></span><span style="display:flex;gap:8px">
+        <button class="close" id="dayReset" title="вернуть автоматическое распределение по дням">↺ сбросить дни</button>
+        <button class="close" id="dayClose">✕ закрыть</button></span></h3>
+      <div class="hint" id="dayHint"></div>
+      <div id="dayScroll"><table id="dayTable"></table></div>
+    </div>
+  </div>
+
+  <div id="historyWrap" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+    <div id="historyBox">
+      <div class="history-head"><h3 id="historyTitle">Изменение суммы «Всего»</h3>
+        <button class="history-close" id="historyClose">✕ закрыть</button></div>
+      <div class="history-range">
+        <label>С <input id="historyFrom" type="date"></label>
+        <label>по <input id="historyTo" type="date"></label>
+        <button type="button" data-history-days="7">7 дней</button>
+        <button type="button" data-history-days="30">30 дней</button>
+        <button type="button" data-history-days="0">Всё время</button>
+      </div>
+      <div class="history-summary" id="historySummary"></div>
+      <div class="history-chart"><div class="history-chart-note"><span>Итоговая сумма, млн ₽</span><span>Наведи на точку — точная сумма</span></div>
+        <svg id="historyChart" viewBox="0 0 880 280" role="img" aria-label="График изменения итоговой суммы"></svg></div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <p class="note">Зелёная полоса слева — доход, красная — расход. Серые нули — пустые ячейки (можно заполнять). Название статьи редактируется кликом по нему. Всё сохраняется автоматически при каждом изменении.
+  «Разница» — нарастающий остаток: старт + доходы − расходы. ПВ за объект 2 млн — строка 01.09; доплата за объект — ячейка 31.12 (правь под цену лота). KPI «Ипотека-2» показывает, какой второй ипотекой закрывается минус года, и её платёж. «Не продаю»: продажа/гашения/покупка убраны, возвращены платежи по кредитам (~75к/мес), минималки ТКФ и ипотека 38к — долги при этом никуда не деваются. Выбор сценария сбрасывает ручные правки ячеек. Финальные −3 млн в плане = остаток второй ипотеки после декабрьского ЧДП, поэтому отрицательная «Разница» на 31.12 — это по замыслу.
+  Данные живут в localStorage этого браузера; «Сброс» возвращает план 05.07. Крупные сценарные развилки (стратегии А/Б/В/Г, Монте-Карло) — в «Финкалькуляторе», а это — рабочая помесячная таблица.</p>
+
+<script src="engine.js?v=20260918"></script>
+<script>
+// Движок вынесен в отдельный файл. Если он не загрузился (сервер перезапускался в этот
+// момент, отдал 404 или страница открыта как file://) — таблица молча оставалась пустой,
+// а KPI показывали прочерки. Лучше сказать прямо, чем показывать пустой экран.
+if(typeof runBalance!=='function'){
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.body.insertAdjacentHTML('afterbegin',
+      '<div style="margin:16px;padding:14px 16px;border:1px solid #96382C;background:#F6E8E4;'
+      +'border-radius:10px;color:#96382C;font:14px/1.5 system-ui">'
+      +'<b>⚠ Не загрузился engine.js — расчётный движок.</b><br>'
+      +'Таблица не построится. Обычно это значит, что сервер трекера перезапускался. '
+      +'Проверь, что <code>python3 server.py</code> запущен, и обнови страницу '
+      +'(Cmd+Shift+R). Данные в plan.json при этом целы.</div>');
+  });
+  throw new Error('engine.js не загружен');
+}
+// расчётный движок вынесен в engine.js — общий с dashboard.html
+function row(vals){const a=z();for(const[i,v]of Object.entries(vals))a[i]=v;return a;}
+const PLAN=[
+ ['inc','ЗП', row({1:200000,2:200000,3:200000,4:200000,5:200000,6:200000,7:200000,8:200000,9:200000,10:200000,11:200000,12:200000})],
+ ['inc','Аренда однушки (Дмитровская), окт–дек', row({7:39000,9:45000,11:45000})],
+ ['inc','Продажа студии Алтуфьевское 51', row({4:12000000})],
+ ['inc','Продажа кладовой Алтуфьево', row({6:1100000})],
+ ['inc','Продажа кладовой Павелецкая', row({12:1300000})],
+ ['inc','Продажа крипты (ликвидное ядро)', row({12:1535000})],
+ ['inc','Продажа акций ТБанк', row({12:385000})],
+ ['inc','Аренда кладовой Алтуфьево', row({1:7000,3:7000,5:7000})],
+ ['inc','Аренда кладовой Павелецкая', row({2:5000,4:5000,6:5000,8:5000,10:5000})],
+ ['inc','С хаты + krpt sell', row({2:6000})],
+ ['inc','Подписки за клод (друзья)', row({2:3000,4:3000,6:3000,8:3000,10:3000,12:3000})],
+ ['inc','С кредитки Райф (в длр)', row({3:100000})],
+ ['inc','Налоговый вычет за учёбу (Синергия, 13%)', row({13:13000})],
+ ['inc','Налоговый вычет основной (январь 2027)', row({13:70000})],
+ ['exp','НДФЛ с продажи студии (в плане 05.07 не выделен)', z()],
+ ['exp','Ресты + еда вне', [5000,5000,5000,5000,0,0,0,6000,4824,3987,3994,4000,3542,0]],
+ ['exp','Еда', [30000,30000,30000,30000,0,0,0,30000,30047,30000,30000,30000,30000,0]],
+ ['exp','Качалка', row({7:12000})],
+ ['exp','Бады + одежда', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
+ ['exp','Здоровье', [1000,1000,1000,1000,0,0,0,1000,1000,1000,1000,1000,1000,0]],
+ ['exp','Квартплата (ма/па) + уборка', row({0:14300,2:14300,4:16800,6:16800,8:16800,10:16800,12:16800})],
+ ['exp','Ипотека (платёж)', row({1:38000,3:38000,5:66000,7:66000,9:66000,11:66000})],
+ ['exp','Такси', [6000,6000,6000,5700,0,0,0,5000,5000,5000,5000,5000,5000,0]],
+ ['exp','Путешествие + зубной (капа)', row({2:12000,7:12000,10:12000})],
+ ['exp','Расходники', [2000,2000,2000,2000,0,0,0,2000,2000,2000,2000,2000,2000,0]],
+ ['exp','Оплата за кладовую', row({1:6000,3:6000,5:6000,7:6000,9:6000,11:6000})],
+ ['exp','Кредитка ТКФ (гашение 01.09)', row({4:380000})],
+ ['exp','Платежи по кредитам Райф', row({1:75000,3:75000})],
+ ['exp','Анискин (лечение отца)', row({2:50000})],
+ ['exp','Прочее 16.08 (уточнить статью)', row({3:42000})],
+ ['exp','Гашение кредитов Райф (остатки)', row({4:3041387})],
+ ['exp','ПВ за объект (первоначальный взнос)', row({4:2000000})],
+ ['exp','Гашение ипотеки ДОМ.РФ 4,6%', row({})],   // ⚠ индекс 32 — держать одинаковым с cards.html
+ ['exp','Доплата за объект (покупка)', row({12:8032000})],
+ ['exp','Гашение кредиток Райф (конец грейса)', row({3:355000})],
+ ['exp','Кредитка Райф — гашение №2', row({6:100000})],
+ ['exp','Учёба: Синергия (аспирантура)', row({8:100000})],
+ ['exp','Страхование жизни (обязательно для ставки 4,6%)', row({8:27000})],
+ ['exp','Страхование квартиры (ипотечное)', row({8:27000})],
+ ['exp','Отпуск: Китай', row({4:194000})],
+ ['exp','Транш (длр/прочее)', row({10:150000})],
+ ['exp','Линзы (покупка)', row({10:30000})],
+ ['exp','ДР, подарки, билеты, отложить', row({0:10000,1:10000,2:10000,3:10000,5:10000,7:10000,9:10000,11:10000})],
+];
+const LS='finplan-sc2';
+let data;
+try{ data=JSON.parse(localStorage.getItem(LS)); }catch(e){}
+function migrate(){
+  if(!data || !data.rows) data={start:142000, rows:PLAN.map(r=>[...r[2]])};
+  if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+  while(data.rows.length<PLAN.length){ data.rows.push([...PLAN[data.rows.length][2]]); }
+  while(data.labels.length<PLAN.length){ data.labels.push(PLAN[data.labels.length][1]); }
+  if(!data.extraTypes) data.extraTypes=[];
+  if(!data.types || data.types.length!==data.rows.length){   // достроить типы строк
+    const t=data.types||[];
+    data.types=data.rows.map((_,i)=> t[i] ||
+      (i<PLAN.length ? PLAN[i][0] : ((data.extraTypes||[])[i-PLAN.length]||'exp')));
+  }
+  if(!data.units) data.units={};    // ячейки в валюте/токенах: {v, u}
+  if(!data.days)  data.days={};     // ручная разбивка периода по дням: "строка_колонка" → [суммы]
+  // Горизонт плана может вырасти (18.09.2026 добавлен весь 2027). Старая копия из
+  // localStorage тогда короче COLS — дотягиваем нулями, иначе checkPlan ругается
+  // «строки не по N колонок» и таблица показывает копию из браузера вместо файла.
+  data.rows=data.rows.map(r=>{
+    const a=Array.isArray(r)?r.slice(0,COLS.length):[];
+    while(a.length<COLS.length) a.push(0);
+    return a;
+  });
+  if(data.usd){                     // миграция старого формата (только доллары)
+    for(const k in data.usd) if(data.units[k]===undefined) data.units[k]={v:data.usd[k],u:'usd'};
+    delete data.usd;
+  }
+}
+migrate();
+// тип строки хранится явно в data.types — иначе удаление строк сдвигает индексы
+// и доходы начинают считаться расходами
+
+function logEv(k,ri,c,from,to,extra){
+  if(!data.log) data.log=[];
+  data.log.push({t:new Date().toISOString(),src:'table',k,ri,c,
+    lbl:(ri>=0&&data.labels&&data.labels[ri])||'',from,to,...(extra||{})});
+}
+
+// ---- ячейки в валюте и токенах -----------------------------------------
+// В ячейку можно написать «10д» (доллары), «54990тг» (тенге) или «4167mega»
+// (токены MegaETH). Сама единица хранится в data.units["строка_колонка"] = {v,u},
+// а в rows[][] всегда лежат рубли — поэтому итоги, месячные суммы и проценты
+// считаются как раньше. Курсы тянет сервер раз в сутки: доллар и тенге с ЦБ
+// (минус 5%), цену MEGA с CoinGecko. При смене курса рубли пересчитываются сами.
+const UNITS={
+  usd : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(д|d|\$|у\.?е\.?)\s*$/i, sfx:'д',      name:'$',
+         rub:i=>fxRate(i)},
+  kzt : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(₸|тг|тенге|kzt)\s*$/i,  sfx:'тг',     name:'₸',
+         rub:i=>kztRate(i)},
+  gbp : {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(£|ф|фунт[а-я]*|gbp)\s*$/i, sfx:'ф',  name:'£',
+         rub:i=>gbpRate(i)},
+  mega: {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(mega|мега|меga)\s*$/i,  sfx:' mega',  name:'MEGA',
+         rub:i=>megaUsd()*fxRate(i)},
+  // Акции торгуются в рублях: валютный спред к ним не применяется, курс ЦБ ни при чём.
+  plzl: {re:/^\s*(-?[\d\s]*[.,]?\d+)\s*(plzl|полюс|плзл)\s*$/i, sfx:' plzl', name:'Полюс',
+         rub:()=>plzlPx()},
+};
+function plzlPx(){ return (ST&&ST.px&&ST.px.PLZL) || data.plzlPx || 0; }
+// Цены ZK и STRK живут в engine.js. Обёртки на случай, если браузер подтянул СТАРУЮ
+// закэшированную копию движка: без них ReferenceError убивал весь рендер и все KPI
+// показывали «—» (поймано 28.08.2026).
+function zkPx(){   return typeof zkUsd  ==='function' ? (zkUsd()  ||data.zkUsd  ||0) : (data.zkUsd  ||0); }
+function strkPx(){ return typeof strkUsd==='function' ? (strkUsd()||data.strkUsd||0) : (data.strkUsd||0); }
+// Ячейка может нести ещё и рублёвый довесок (деньги на брокерском счёте помимо бумаг).
+function unitRub(q,isInc){
+  if(!q||!UNITS[q.u]) return 0;
+  return Math.round(q.v*UNITS[q.u].rub(isInc) + (q.add||0));
+}
+function parseUnit(s){
+  for(const u in UNITS){
+    const m=UNITS[u].re.exec(String(s));
+    if(m){
+      const v=parseFloat(m[1].replace(/\s/g,'').replace(',','.'));
+      if(isFinite(v)) return {v,u};
+    }
+  }
+  return null;
+}
+function unitAt(r,c){ return data.units && data.units[uKey(r,c)] || null; }
+function cellRaw(r,c){                         // как ячейка вводится
+  const q=unitAt(r,c);
+  return q ? q.v+UNITS[q.u].sfx : (data.rows[r][c]||0);
+}
+function cellText(r,c){                        // что видно в поле
+  const q=unitAt(r,c);
+  if(q && q.u==='mega'){                       // токены показываем в долларах
+    const usd=q.v*megaUsd();
+    return '$'+new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(usd));
+  }
+  return cellRaw(r,c);
+}
+function cellTitle(r,c){
+  const q=unitAt(r,c); if(!q) return '';
+  const inc=TYPE(r)==='inc', rate=UNITS[q.u].rub(inc);
+  const head = q.u==='mega'
+    ? `${q.v} MEGA × $${megaUsd()} = $${(q.v*megaUsd()).toFixed(2)}`
+    : `${q.v} ${UNITS[q.u].name}`;
+  const plus = q.add ? ` + ${F(q.add)} ₽ на счёте` : '';
+  if(RUB_UNITS[q.u])
+    return `${q.v} шт × ${F2(rate)} ₽${plus} = ${F(data.rows[r][c]||0)} ₽ (цена MOEX, обновляется сама)`;
+  return `${head} × ${F2(rate)} ₽${plus} = ${F(data.rows[r][c]||0)} ₽`
+    + `  (ЦБ ${inc?'−':'+'}${SPREAD*100}%: ${inc?'продажа':'покупка'})`;
+}
+function setCell(r,c,raw){                     // запись ячейки: рубли, валюта или токены
+  if(!data.units) data.units={};
+  if(data.days) delete data.days[r+'_'+c];     // сумма периода задана вручную → дни пересобрать заново
+  const k=uKey(r,c), q=parseUnit(raw);
+  if(q){
+    data.units[k]=q;
+    data.rows[r][c]=unitRub(q,TYPE(r)==='inc');
+  } else {
+    delete data.units[k];
+    data.rows[r][c]=parseFloat(String(raw).replace(/\s/g,'').replace(',','.'))||0;
+  }
+}
+function applyRate(){                          // пересчитать все нерублёвые ячейки
+  if(!data.units) return 0;
+  let n=0;
+  for(const k in data.units){
+    const q=data.units[k]; if(!q||!UNITS[q.u]) continue;
+    const [r,c]=k.split('_').map(Number);
+    if(!data.rows[r]) continue;
+    const rate=UNITS[q.u].rub(TYPE(r)==='inc'); if(!rate) continue;
+    const rub=unitRub(q,TYPE(r)==='inc');
+    if(data.rows[r][c]!==rub){
+      // ручную разбивку по дням тоже тянем за курсом, пропорционально.
+      // Без этого сумма дней оставалась в старых рублях, и первая же правка дня
+      // записывала её обратно в колонку, съедая разницу (баг 10.08.2026)
+      const day=data.days && data.days[k];
+      if(Array.isArray(day)){
+        const was=day.reduce((a,b)=>a+(b||0),0);
+        if(was>0){
+          const kf=rub/was;
+          const next=day.map(x=>Math.round((x||0)*kf));
+          const diff=rub-next.reduce((a,b)=>a+b,0);   // копейки округления — в последний непустой день
+          if(diff){ for(let i=next.length-1;i>=0;i--){ if(next[i]){ next[i]+=diff; break; } } }
+          data.days[k]=next;
+        }
+      }
+      data.rows[r][c]=rub; n++;
+    }
+  }
+  if(syncBybit()) n++;                          // эфир на Bybit → доллары по свежей цене
+  if(fxRate() && data.startParts) recalcStart();   // валютный старт — по свежему курсу
+  // Курсы раньше запоминались молча: ячейки пересчитывались, «Всего» уезжало на десятки
+  // тысяч, а в журнале не оставалось НИЧЕГО — и история KPI такой скачок объяснить не могла
+  // (разбор 28.08.2026). Теперь смена курса пишется в журнал одной записью k='rate'.
+  const RATE_FIELDS=[['cbr',cbrUsd,'cbrUsd','ЦБ $'],['kzt',cbrKzt,'cbrKzt','ЦБ ₸'],
+                     ['gbp',cbrGbp,'cbrGbp','ЦБ £'],['mega',megaUsd,'megaUsd','MEGA $'],
+                     ['eth',ethUsd,'ethUsd','ETH $'],['zk',zkPx,'zkUsd','ZK $'],
+                     ['strk',strkPx,'strkUsd','STRK $'],['plzl',plzlPx,'plzlPx','Полюс ₽']];
+  const wasR={}, nowR={}, movedR=[], fmtR=v=>Math.abs(v)<1?String(v):F2(v);
+  RATE_FIELDS.forEach(([k,fn,field,name])=>{
+    const v=fn(); if(!v) return;
+    const old=data[field];
+    wasR[k]=old; nowR[k]=v;
+    if(old!=null && old!==v) movedR.push(name+' '+fmtR(old)+' → '+fmtR(v));
+    data[field]=v;                              // запомнить: пригодится без сети
+  });
+  if(movedR.length){ logEv('rate',-1,-1,wasR,nowR,{lbl:'Курсы: '+movedR.join(' · ')}); n++; }
+  return n;
+}
+function showRate(){
+  const el=document.getElementById('fxRate');
+  const bits=[];
+  if(cbrUsd()) bits.push('$ '+F2(cbrUsd()));
+  if(cbrGbp()) bits.push('£ '+F2(cbrGbp()));
+  if(cbrKzt()) bits.push('₸ '+cbrKzt().toFixed(4));
+  if(megaUsd()) bits.push('MEGA '+F2(megaUsd()*cbrUsd()));
+  el.textContent = bits.length ? bits.join(' · ') : 'курсы не получены';
+  const stale=(FX&&FX.stale?' · курс ЦБ старый':'')+(CR&&CR.stale?' · цена MEGA старая':'');
+  document.getElementById('fxBox').title=
+    (FX&&FX.cbr ? `ЦБ на ${FX.cbrDate||'—'}: $ ${F2(FX.cbr)}, ₸ ${(FX.kzt?FX.kzt.cbr:0).toFixed(4)} — минус ${Math.round((FX.discount||0.05)*100)}%. ` : '')
+    + (megaUsd() ? `MEGA $${megaUsd()} (CoinGecko). ` : '')
+    + `Курс ЦБ. Расход считается по ЦБ+${SPREAD*100}% (покупаешь), доход по ЦБ−${SPREAD*100}% (продаёшь). `
+    + 'В ячейку можно писать «10д», «20ф», «54990тг», «4167mega».' + stale;
+}
+const F2=n=>new Intl.NumberFormat('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const F=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
+const annuity=(S,r,m)=>S*r/(1-Math.pow(1+r,-m));
+const RI=t=>PLAN.findIndex(r=>r[1].startsWith(t));
+
+const grid=document.getElementById('grid');
+
+// индикатор координат ячейки: клик/фокус → [строка:колонка] название × период = значение
+// клик по самой метке копирует её текст в буфер (для пересылки в чат)
+const cellInfo=document.getElementById('cellInfo');
+cellInfo.title='клик — скопировать';
+cellInfo.style.cursor='pointer';
+function showCell(ri,ci){
+  cellInfo.style.display='inline';
+  cellInfo.textContent = ci>=0
+    ? `[${ri}:${ci}] ${LBL(ri)} × ${COLS[ci]} = ${F(data.rows[ri][ci]||0)}`
+    : `[${ri}] ${LBL(ri)}`;
+}
+cellInfo.addEventListener('click',()=>{
+  navigator.clipboard.writeText(cellInfo.textContent).then(()=>{
+    const t=cellInfo.textContent;
+    cellInfo.textContent='✓ скопировано';
+    setTimeout(()=>{ cellInfo.textContent=t; },700);
+  }).catch(()=>{});
+});
+grid.addEventListener('focusin',e=>{
+  const t=e.target;
+  if(t.tagName==='INPUT'&&t.dataset.r!==undefined) showCell(+t.dataset.r,+t.dataset.c);
+  else if(t.classList&&t.classList.contains('lbl')&&t.dataset.ri!==undefined) showCell(+t.dataset.ri,-1);
+});
+grid.addEventListener('click',e=>{
+  const td=e.target.closest('td');
+  if(!td) return;
+  const inp=td.querySelector('input[data-r]');
+  if(inp) showCell(+inp.dataset.r,+inp.dataset.c);
+});
+
+// Пустые столбцы прячем по умолчанию — половина колонок к концу года пустая и только
+// растягивает таблицу. Выбор запоминается, кнопка «👁 Все столбцы» его переключает.
+let hideEmpty=(localStorage.getItem('hideEmptyCols')??'1')==='1', HID=new Set();
+// Снимок пустых колонок берётся при загрузке и по кнопке, а не на каждой перерисовке:
+// иначе колонка исчезала прямо в момент, когда обнуляешь в ней последнюю ячейку.
+let emptySnap=null;
+function refreshEmptyCols(){ emptySnap=emptyCols(); }
+function emptyCols(){
+  const s=new Set();
+  for(let c=0;c<COLS.length;c++){
+    if(data.rows.every(r=>!(r[c]||0))) s.add(c);
+  }
+  return s;
+}
+function build(){
+  if(hideEmpty && !emptySnap) refreshEmptyCols();
+  HID = hideEmpty ? new Set(emptySnap) : new Set();
+  for(let c=0;c<COLS.length;c++) if(isPast(c)) HID.add(c);   // прошедшее не показываем
+  let h='<tr><th>Статья</th>'+COLS.map((c,i)=>HID.has(i)?''
+    :`<th class="colhead" data-c="${i}" title="${c} · клик — разложить период по дням">${colRange(i)}</th>`).join('')+'</tr>';
+  // data.hidden — строки, убранные вручную (закрытые сделки и т.п.). Они остаются в
+  // файле и в суммах, но не мозолят глаза; вернуть можно кнопкой ниже таблицы.
+  const HR=new Set(data.hidden||[]);
+  const _idx=data.rows.map((_,i)=>i).filter(i=>!HR.has(i));
+  const _ord=[..._idx.filter(i=>TYPE(i)==='inc'), ..._idx.filter(i=>TYPE(i)!=='inc')];
+  _ord.forEach(ri=>{
+    const lb=LBL(ri);
+    h+=`<tr class="${TYPE(ri)}"><td class="lbl" contenteditable="true" spellcheck="false" data-ri="${ri}" title="${lb}">${lb}</td>`;
+    for(let ci=0;ci<COLS.length;ci++){
+      if(HID.has(ci)) continue;
+      const uq=unitAt(ri,ci);
+      // подпись показывает и токены, и доллары
+      h+=`<td><input type="text" inputmode="decimal" data-r="${ri}" data-c="${ci}"`
+        +(uq?` class="usd" title="${cellTitle(ri,ci)}"`:'')
+        +` value="${cellText(ri,ci)}"></td>`;
+    }
+    h+='</tr>';
+  });
+  if(HR.size) h+=`<tr class="exp"><td class="lbl" style="opacity:.6">— скрыто строк: ${HR.size} `
+    +`<a href="#" id="unhide" style="color:var(--accent)">показать</a></td>`
+    +COLS.map((c,i)=>HID.has(i)?'':'<td></td>').join('')+'</tr>';
+  h+='<tr class="tot t-inc" id="rInc"></tr><tr class="tot t-inc t-mon" id="rIncM"></tr>'
+    +'<tr class="tot t-exp" id="rExp"></tr><tr class="tot t-exp t-mon" id="rExpM"></tr>'
+    +'<tr class="tot t-dif" id="rDif"></tr>'
+    +'<tr class="tot t-inc" id="rUsd"></tr>'
+    +'<tr class="tot t-inc" id="rUsdCash"></tr>'
+    +'<tr class="tot t-inc t-mon" id="rPct"></tr>';
+  grid.innerHTML=h;
+  grid.querySelectorAll('td.lbl[contenteditable]').forEach(td=>{
+    td.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.textContent.trim(); });
+    td.addEventListener('blur',e=>{
+      const o=e.target.dataset.orig, nv=e.target.textContent.trim();
+      if(o!==nv){ logEv('rename',+e.target.dataset.ri,-1,o,nv); autoSave(); }
+    });
+    td.addEventListener('input',e=>{
+      if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+      data.labels[+e.target.dataset.ri]=e.target.textContent.trim();
+      autoSave();
+    });
+  });
+  grid.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('keydown',e=>{
+      const go=(r,c)=>{ const nxt=grid.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+        if(nxt){ nxt.focus(); nxt.select(); return true; } return false; };
+      if(e.key==='ArrowUp'||e.key==='ArrowDown'||e.key==='Enter'){
+        e.preventDefault();
+        const dr=(e.key==='ArrowUp')?-1:1;
+        let r=+e.target.dataset.r+dr;
+        while(r>=0 && r<data.rows.length){ if(go(r,+e.target.dataset.c)) break; r+=dr; }
+      } else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+        const t=e.target, len=t.value.length;
+        const atEnd=(t.selectionEnd===len), atStart=(t.selectionStart===0);
+        const allSel=(t.selectionStart===0 && t.selectionEnd===len && len>0);
+        if(e.key==='ArrowRight' && (atEnd||allSel)){
+          e.preventDefault(); go(+t.dataset.r, +t.dataset.c+1);
+        } else if(e.key==='ArrowLeft' && (atStart||allSel)){
+          e.preventDefault(); go(+t.dataset.r, +t.dataset.c-1);
+        }
+      }
+    });
+    inp.addEventListener('focus',e=>{
+      const r=+e.target.dataset.r, c=+e.target.dataset.c;
+      e.target.value=cellRaw(r,c);            // на редактирование — исходный вид «4167mega»
+      e.target.dataset.orig=e.target.value;
+      e.target.dataset.origRub=data.rows[r][c]||0;
+      e.target.select();
+    });
+    inp.addEventListener('blur',e=>{
+      const r=+e.target.dataset.r, c=+e.target.dataset.c;
+      e.target.value=cellText(r,c);           // обратно в долларовый вид
+    });
+    inp.addEventListener('change',e=>{
+      const r=+e.target.dataset.r,c=+e.target.dataset.c;
+      const o=parseFloat(e.target.dataset.origRub)||0;      // в журнал всегда рубли
+      const nv=data.rows[r][c]||0;
+      const q=unitAt(r,c);
+      if(o!==nv) logEv('edit',r,c,o,nv,{col:COLS[c],unit:q||undefined});
+      const el=e.target;
+      el.classList.toggle('usd',!!q);
+      el.title = q ? cellTitle(r,c) : '';
+      if(o!==nv) autoSave();
+    });
+    inp.addEventListener('input',e=>{
+      const r=+e.target.dataset.r,c=+e.target.dataset.c;
+      setCell(r,c,e.target.value);
+      calc(); autoSave();
+    });
+  });
+  calc();
+}
+function calc(){
+  const inc=z(),exp=z();
+  data.rows.forEach((row,ri)=>{
+    for(let c=0;c<COLS.length;c++){
+      if(TYPE(ri)==='inc') inc[c]+=row[c]||0; else exp[c]+=row[c]||0;
+    }
+  });
+  // Остаток с процентами на ЕЖЕДНЕВНЫЙ остаток и ежемесячной капитализацией:
+  // идём месяц за месяцем, каждый остаток взвешиваем по числу дней, что он держится,
+  // начисляем Σ(остаток×дни)×ставка/365 в конце месяца и добавляем к остатку —
+  // следующий месяц считается уже от увеличенного остатка.
+  const {dif,pct,avgs,usdDif,bought,dip,series}=runBalance();
+  const cell=(v,neg)=>`<td class="${neg&&v<0?'neg':''}">${F(v)}</td>`;
+  document.getElementById('rInc').innerHTML='<td class="lbl">Доход</td>'+inc.map((v,i)=>HID.has(i)?'':cell(v)).join('');
+  document.getElementById('rExp').innerHTML='<td class="lbl">Расход</td>'+exp.map((v,i)=>HID.has(i)?'':cell(v)).join('');
+  // в ячейке две цифры: остаток на конец периода и минимум внутри него —
+  // иначе провал между платежами и зарплатой не виден вообще
+  document.getElementById('rDif').innerHTML=
+    '<td class="lbl">Разница (нарастающим, только Райф ₽)</td>'
+    + dif.map((v,i)=>{
+        if(HID.has(i)) return '';
+        const lo=dip[i];
+        const showLo = lo<0 || (v-lo)>Math.max(50000, Math.abs(v)*0.15);
+        return `<td class="${v<0?'neg':''}">${F(v)}`
+          + (showLo?`<small class="dip ${lo<0?'bad':''}">мин ${F(lo)}</small>`:'')
+          + '</td>';
+      }).join('');
+  const F$=n=>'$'+new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Math.round(n));
+  window.F$=F$;
+  document.getElementById('rUsd').innerHTML=
+    `<td class="lbl" title="докуплено валюты за план: ${F(bought)} ₽">Валюта (нарастающим, $)</td>`
+    +usdDif.map((v,i)=>HID.has(i)?'':`<td title="${F((v||0)*fxRate(true))} ₽ по курсу продажи">${F$(v||0)}</td>`).join('');
+  // Вторая валютная строка — ВСЕ доллары, которыми реально можно платить: карты плюс
+  // наличные. Считается без автодокупки: если ушло в минус, значит валюты не хватило
+  // физически, и минус показывается честно, а не затирается покупкой по ЦБ+5%.
+  // Первая строка (только карты) нужна отдельно: подписки списываются лишь с Freedom.
+  (()=>{
+    const p=data.startParts||{}, cash=p.cashusd||0;
+    const flow=dayFlows();
+    let cum=(p.freedom||0)+(p.tbc||0)+cash, out=[];
+    for(let ci=0;ci<COLS.length;ci++){
+      periodDates(ci).forEach(x=>{ const f=flow.get(dkey(x))||{}; cum+=(f.ui||0)-(f.ue||0); });
+      out.push(cum);
+    }
+    document.getElementById('rUsdCash').innerHTML=
+      `<td class="lbl" title="Freedom + TBC + наличные $${F(cash)}. Без автодокупки: минус означает, что валюты физически не хватает и её нужно купить или пополнить Freedom">Валюта с наличными (нарастающим, $)</td>`
+      +out.map((v,i)=>HID.has(i)?'':`<td class="${v<0?'neg':''}" title="${F(v*fxRate(true))} ₽ по курсу продажи">${F$(v)}</td>`).join('');
+  })();
+  const mspan=m=>m.cols.filter(i=>!HID.has(i)).length;
+  const monCells=(arr,neg)=>MONTHS.map(m=>{
+    const sp=mspan(m); if(!sp) return '';
+    const s=m.cols.reduce((a,i)=>a+(arr[i]||0),0);
+    return `<td class="m ${neg&&s<0?'neg':''}" colspan="${sp}" title="${m.name}">${F(s)}</td>`;
+  }).join('');
+  document.getElementById('rIncM').innerHTML='<td class="lbl">Доход за месяц</td>'+monCells(inc);
+  document.getElementById('rExpM').innerHTML='<td class="lbl">Расход за месяц</td>'+monCells(exp);
+  document.getElementById('rPct').innerHTML='<td class="lbl">% на остаток ('+(RATE*100)+'% годовых, Райф, выплата в конце месяца)</td>'
+    +MONTHS.map((m,mi)=>{ const sp=mspan(m); if(!sp) return '';
+      return `<td class="m" colspan="${sp}" title="${m.name}: средний дневной остаток ${F(avgs[mi])} ₽ × ${RATE*100}%/365 × ${m.len} дн. — начислено за месяц, банк зачислит в последний день месяца">${F(pct[mi])}</td>`; }).join('');
+  const sI=inc.reduce((a,b)=>a+b,0)+pct.reduce((a,b)=>a+b,0), sE=exp.reduce((a,b)=>a+b,0);
+  const spN=data.startParts||{}, usdNow=(spN.freedom||0)+(spN.tbc||0)+(spN.bybit||0);
+  document.getElementById('kNow').textContent=F(data.start||0)+' ₽';
+  document.getElementById('kNow').parentNode.title=
+    `Райф ${F(spN.raif||0)} + Яндекс ${F(spN.ya||0)} + наличные ${F(spN.cash||0)}`
+    +` + валюта на картах $${usdNow} (${F(usdNow*fxRate(true))} ₽)`
+    +` + наличные $${spN.cashusd||0} (${F((spN.cashusd||0)*fxRate(true))} ₽) = ${F(data.start||0)} ₽`;
+  document.getElementById('kInc').textContent=F(sI)+' ₽';
+  document.getElementById('kExp').textContent=F(sE)+' ₽';
+  document.getElementById('kDec').textContent=F(dif[12])+' ₽';
+  document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
+  // «Всего» — итоговая цифра всего горизонта, то есть последняя колонка (16.12.27). Именно
+  // там припаркованы активы: крипта, Bybit, акции Полюс, MegaETH и обе кладовые. Отдельные
+  // KPI «Итог 31.12» и «Итог 31.12.27» показывают рублёвые остатки на каждую из дат.
+  const IDX_ALL=COLS.length-1;
+  const uEnd=usdDif[IDX_ALL]||0;
+  const sp0=data.startParts||{};
+  const other=(sp0.ya||0)+(sp0.cash||0)+(sp0.tkf||0);      // Яндекс, наличные, ТКФ
+  // Наличные доллары в пул карт не входят (ими не оплатить подписку с Freedom), но это
+  // деньги — в Σ старт они есть, значит и в итоге года должны быть, иначе итог занижен.
+  const cashUsd=sp0.cashusd||0, cashUsdRub=cashUsd*fxRate(true);
+  // Активы больше НЕ прибавляются к итогу отдельно: они стоят строками в последней колонке,
+  // то есть уже сидят внутри dif[IDX_ALL]. Прибавить их ещё раз — двойной счёт на 2,4 млн.
+  const cash31=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;
+  const V=volatileAssets();                                       // только для расшифровки в KPI
+  const all=cash31;
+  document.getElementById('kUsd').textContent=F$(uEnd)+' · '+F(uEnd*fxRate(true))+' ₽';
+  document.getElementById('kUsd').parentNode.title=
+    `на картах (Freedom/TBC/Bybit) — из него идут валютные траты.`
+    +` Наличные $${cashUsd} (${F(cashUsdRub)} ₽) сюда НЕ входят: ими не оплатить подписку с Freedom`;
+  document.getElementById('kAll').textContent=F(all)+' ₽';
+  document.getElementById('kAll').parentNode.title=
+    `Всё вместе на конец горизонта: Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))}`
+    +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽.`
+    +`\nВнутри уже сидят активы ${F(V.sum)} ₽ — крипта ${F(V.crypto)}, акции Полюс ${F(V.plzl)},`
+    +` MegaETH ${F(V.mega)}, Bybit ${F(V.bybit)} — и обе кладовые. Отдельно они не прибавляются.`
+    +`\nНажми — история и график.`;
+  const kv=document.getElementById('kVol');
+  if(kv){ kv.textContent=F(V.sum)+' ₽'; kv.parentNode.title=V.note; }
+  // Рядом с итогом всего горизонта — сколько будет на 31.12: год закрывается декабрём,
+  // а январские кладовые и активы это уже следующий год.
+  const k31=document.getElementById('kAll31'), IDX_DEC=COLS.indexOf('31.12');
+  if(k31){
+    const dec=dif[IDX_DEC]+(usdDif[IDX_DEC]||0)*fxRate(true)+other+cashUsdRub;
+    k31.textContent=' · на 31.12: '+F(dec)+' ₽';
+    k31.title=`Райф ${F(dif[IDX_DEC])} + валюта ${F((usdDif[IDX_DEC]||0)*fxRate(true))}`
+      +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(dec)} ₽`;
+  }
+  renderBurn(series,bought);
+  renderTotalDelta(all);
+  grid.querySelectorAll('input').forEach(i=>i.classList.toggle('zero',!(parseFloat(i.value)||0)));
+}
+
+// ─── Дельта «Всего» к концу предыдущего дня ────────────────────────────────────────
+// База берётся из журнала, а не из localStorage: значение «на конец вчера» — это то,
+// что было ДО первой сегодняшней денежной правки. Так цифра переживает перезагрузку
+// страницы и смену браузера. Пока правок за сегодня нет, базы нет и дельта не рисуется.
+// totalHistory() тяжёлая (откатывает весь журнал), поэтому результат кэшируем и
+// пересчитываем только когда сменился день или в журнале появились новые записи.
+// База — СНАПШОТ фактического итога, а не реконструкция из журнала. Через журнал считать
+// нельзя: reverseMoneyEvent не откатывает записи k='day' (дневная разбивка) и молча их
+// пропускает, из-за чего «значение на вчера» уезжает — на этом первая версия и врала.
+// Храним две величины: base — итог на конец предыдущего дня, last — последний увиденный.
+// В новый день last становится base. localStorage — чтобы пережить перезагрузку страницы.
+const DAILY_KEY='kAllDaily';
+function readDaily(key){
+  try{ const s=JSON.parse(localStorage.getItem(key||DAILY_KEY)||'null');
+       return (s && s.day && Number.isFinite(s.base) && Number.isFinite(s.last)) ? s : null; }
+  catch(e){ return null; }
+}
+function writeDaily(s,key){ try{ localStorage.setItem(key||DAILY_KEY,JSON.stringify(s)); }catch(e){} }
+// Универсальная база «на конец предыдущего дня». Один и тот же механизм для «Всего» и
+// для метрик расхода: снапшот в localStorage, в новый день last становится base.
+function dayBaseline(all,key){
+  const today=new Date().toISOString().slice(0,10);
+  const s=readDaily(key);
+  if(!s){ writeDaily({day:today,base:all,last:all},key); return all; }   // первый запуск
+  if(s.day!==today){                                                     // наступил новый день
+    writeDaily({day:today,base:s.last,last:all},key); return s.last;
+  }
+  if(s.last!==all) writeDaily({day:today,base:s.base,last:all},key);
+  return s.base;
+}
+// Дельта к концу предыдущего дня для произвольной метрики. Для расходов рост — это плохо,
+// поэтому цвет инвертируется: +100 000 ₽ трат красным, экономия зелёным.
+function renderMetricDelta(elId,value,key,fmt,invert){
+  const el=document.getElementById(elId);
+  if(!el || !Number.isFinite(value)) return;
+  const base=dayBaseline(value,key), d=value-base;
+  if(!d){ el.textContent=''; el.className='kdelta'; el.removeAttribute('title'); return; }
+  const up=d>0, bad=invert?up:!up;
+  el.textContent=(up?'▲ +':'▼ −')+fmt(Math.abs(d));
+  el.className='kdelta '+(bad?'down':'up');
+  el.title=`С конца предыдущего дня: было ${fmt(base)}, стало ${fmt(value)}.`
+    +` Двойной клик — сбросить точку отсчёта.`;
+  el.ondblclick=e=>{ e.stopPropagation();
+    writeDaily({day:new Date().toISOString().slice(0,10),base:value,last:value},key); render(); };
+}
+function resetDayBaseline(){                    // двойной клик по дельте — начать отсчёт заново
+  const all=projectedTotal(data);
+  writeDaily({day:new Date().toISOString().slice(0,10),base:all,last:all});
+  renderTotalDelta(all);
+}
+function renderTotalDelta(all){
+  const el=document.getElementById('kAllDelta');
+  if(!el || !Number.isFinite(all)) return;
+  const base=dayBaseline(all), d=all-base;
+  if(!d){                                       // с начала дня итог не сдвинулся
+    el.textContent=''; el.className='kdelta'; el.removeAttribute('title'); return;
+  }
+  const up=d>0;
+  el.textContent=(up?'▲ +':'▼ −')+F(Math.abs(d))+' ₽';
+  el.className='kdelta '+(up?'up':'down');
+  el.title=`С конца предыдущего дня: было ${F(base)} ₽, стало ${F(all)} ₽ (${up?'+':'−'}${F(Math.abs(d))} ₽).`
+    +` Двойной клик — сбросить точку отсчёта на текущее значение.`;
+}
+
+// История KPI «Всего». Журнал хранит дельты, поэтому идём от текущего плана назад,
+// откатывая каждую денежную правку, и на каждом шаге заново считаем итог движком.
+// История умеет считать три метрики: итог «Всего», рублёвый расход до 31.12 и валютный.
+// Какую именно — держит HKIND; переключается кликом по нужной плитке.
+let HKIND='all';
+const HMETA={
+  all:{title:'Изменение суммы «Всего»', unit:'₽', fmt:v=>F(v)+' ₽', invert:false},
+  rub:{title:'Изменение расхода ₽ до 31.12', unit:'₽', fmt:v=>F(v)+' ₽', invert:true},
+  usd:{title:'Изменение расхода $ до 31.12', unit:'$', fmt:v=>'$'+F(v), invert:true},
+};
+function projectedTotal(state,kind){
+  const live=data, liveFX=FX, liveCR=CR, liveST=ST;
+  data=state;
+  // Курсы для исторического состояния берём ИЗ НЕГО САМОГО (data.cbrUsd и соседи), а не
+  // из живых FX/CR/ST — иначе откат записи k='rate' ничего не менял бы и скачки от курса
+  // в истории по-прежнему выглядели бы беспричинными.
+  if(Number.isFinite(state.cbrUsd) && state.cbrUsd>0){ FX=null; CR=null; ST=null; }
+  try{
+    kind=kind||HKIND;
+    if(kind!=='all'){ const b=burnStats(); return Math.round(kind==='rub'?b.rub:b.usd); }
+    const b=runBalance(), last=COLS.length-1;
+    const p=state.startParts||{};
+    const other=(p.ya||0)+(p.cash||0)+(p.tkf||0);
+    return Math.round((b.dif[last]||0)+(b.usdDif[last]||0)*fxRate(true)+other+(p.cashusd||0)*fxRate(true));
+  } finally { data=live; FX=liveFX; CR=liveCR; ST=liveST; }
+}
+function recalcStateStart(state){
+  const p=state.startParts||{}, r=fxRate(true);
+  state.start=Math.round(ST_FIELDS.reduce((s,k)=>s+(p[k]||0)*(ST_USD[k]?r:1),0));
+}
+function reverseMoneyEvent(state,ev){
+  const r=Number(ev.ri), c=Number(ev.c), numeric=Number.isFinite(+ev.from);
+  // Смена курса ЦБ и цен MEGA/ETH/Полюса. Рубли в rows[][] для валютных ячеек — только
+  // витрина, движок считает по единицам и курсу, поэтому откатывать надо именно курс.
+  if(ev.k==='rate' && ev.from && typeof ev.from==='object'){
+    const f=ev.from, put=(k,field)=>{ if(f[k]!=null) state[field]=f[k]; };
+    put('cbr','cbrUsd'); put('kzt','cbrKzt'); put('gbp','cbrGbp');
+    put('mega','megaUsd'); put('eth','ethUsd'); put('plzl','plzlPx');
+    put('zk','zkUsd'); put('strk','strkUsd');
+    return true;
+  }
+  // day хранит «старое значение отдельного дня → новый итог периода», а не две
+  // версии итоговой ячейки. Откатывать строку по такой записи нельзя.
+  if(['edit','cell'].includes(ev.k) && numeric && state.rows[r] && c>=0){
+    state.rows[r][c]=+ev.from; return true;
+  }
+  if(ev.k==='paid' && numeric && state.rows[r] && c>=0){
+    state.rows[r][c]=(state.rows[r][c]||0)+(+ev.from); return true;
+  }
+  if(ev.k==='unpaid' && Number.isFinite(+ev.to) && state.rows[r] && c>=0){
+    state.rows[r][c]=Math.max(0,(state.rows[r][c]||0)-(+ev.to)); return true;
+  }
+  if(ev.k==='start' && ev.field && numeric){
+    state.startParts=state.startParts||{};
+    state.startParts[String(ev.field).replace('st_','')]=+ev.from;
+    recalcStateStart(state); return true;
+  }
+  return false;
+}
+const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+function totalHistory(){
+  const state=JSON.parse(JSON.stringify(data)), log=(data.log||[]);
+  let after=projectedTotal(state), changes=[];
+  for(let i=log.length-1;i>=0;i--){
+    const ev=log[i], stamp=ev.t||ev.ts;
+    if(!stamp || !reverseMoneyEvent(state,ev)) continue;
+    const before=projectedTotal(state);
+    // Старые ручные/структурные записи журнала иногда не содержат достаточно
+    // данных для точного отката. Невозможные отрицательные реконструкции отбрасываем.
+    if(before>=0 && after>=0 && before!==after) changes.push({t:new Date(stamp),before,after,ev});
+    after=before;
+  }
+  return changes.reverse();
+}
+function drawTotalHistory(){
+  const M=HMETA[HKIND]||HMETA.all;
+  const ht=document.getElementById('historyTitle'); if(ht) ht.textContent=M.title;
+  const allChanges=totalHistory(), current=projectedTotal(data);
+  const fromRaw=document.getElementById('historyFrom').value, toRaw=document.getElementById('historyTo').value;
+  const from=fromRaw?new Date(fromRaw+'T00:00:00'):null;
+  const to=toRaw?new Date(toRaw+'T23:59:59.999'):null;
+  let first=allChanges.length?allChanges[0].before:current;
+  if(from) allChanges.forEach(x=>{ if(x.t<from) first=x.after; });
+  let last=to?(allChanges.length?allChanges[0].before:current):current;
+  if(to) allChanges.forEach(x=>{ if(x.t<=to) last=x.after; });
+  const changes=allChanges.filter(x=>(!from||x.t>=from)&&(!to||x.t<=to));
+  if(!changes.length) last=first;
+  const delta=last-first;
+  const fmtDate=d=>d.toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('historySummary').innerHTML=
+    `<span>В начале периода<b>${M.fmt(first)}</b></span><span>В конце периода<b>${M.fmt(last)}</b></span>`+
+    `<span>Изменение<b style="color:${(M.invert?delta>0:delta<0)?'var(--crit)':'var(--accent)'}">${delta>0?'+':''}${M.fmt(delta)}</b></span>`+
+    `<span>Зафиксировано правок<b>${changes.length}</b></span>`;
+  const rangeStart=from||(changes.length?new Date(changes[0].t.getTime()-1):new Date());
+  const raw=changes.length?[{t:rangeStart,v:first},...changes.map(x=>({t:x.t,v:x.after}))]:[{t:rangeStart,v:first}];
+  // Отрицательные исторические расчёты не показываем: график отвечает на вопрос,
+  // сколько денег было, и всегда начинается с нулевой отметки.
+  const nonNegative=raw.filter(p=>p.v>=0);
+  const visible=nonNegative.length?nonNegative:[{t:rangeStart,v:0}];
+  const step=Math.max(1,Math.ceil(visible.length/220));
+  const pts=visible.filter((_,i)=>i%step===0||i===visible.length-1), vals=pts.map(p=>p.v);
+  let lo=0, hi=Math.max(...vals); if(hi<=0) hi=1;
+  const W=880,H=280,L=74,R=18,T=18,B=34, x=i=>L+(W-L-R)*(pts.length===1?.5:i/(pts.length-1));
+  const y=v=>T+(H-T-B)*(hi-v)/(hi-lo), path=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
+  const axisMoney=v=>{
+    if(Math.abs(hi)<100000) return M.fmt(Math.round(v));        // доллары и мелкие суммы — как есть
+    const m=v/1000000, digits=Math.abs(m)>=10?0:1;
+    return new Intl.NumberFormat('ru-RU',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(m)+' млн';
+  };
+  const ticks=[0,.25,.5,.75,1].map(q=>{const v=hi-(hi-lo)*q,yy=T+(H-T-B)*q;
+    return `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="var(--line)"/>`+
+      `<text x="${L-8}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="11">${esc(axisMoney(v))}</text>`;}).join('');
+  const zero=`<line x1="${L}" y1="${y(0)}" x2="${W-R}" y2="${y(0)}" stroke="var(--line)" stroke-width="1.5"/>`;
+  const area=`${path} L ${x(pts.length-1)} ${H-B} L ${x(0)} ${H-B} Z`;
+  const hitPoints=pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="8" fill="transparent"><title>${esc(fmtDate(p.t))}: ${esc(M.fmt(p.v))}</title></circle>`).join('');
+  document.getElementById('historyChart').innerHTML=ticks+zero+
+    `<path d="${area}" fill="var(--accent-soft)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round"/>`+
+    `<circle cx="${x(pts.length-1)}" cy="${y(vals[vals.length-1])}" r="4" fill="var(--accent)"/>`+
+    hitPoints+
+    (pts.length>1?`<text x="${L}" y="${H-9}" fill="var(--muted)" font-size="10">${esc(fmtDate(pts[0].t))}</text>`+
+      `<text x="${W-R}" y="${H-9}" text-anchor="end" fill="var(--muted)" font-size="10">${esc(fmtDate(pts[pts.length-1].t))}</text>`:'');
+  const shown=[...changes].reverse().slice(0,200);
+  document.getElementById('historyList').innerHTML=shown.length?shown.map(x=>{
+    const d=x.after-x.before, label=x.ev.lbl||x.ev.col||x.ev.field||'Изменение плана';
+    return `<div class="history-item"><time>${esc(fmtDate(x.t))}</time><span>${esc(label)}<br><small>${esc(x.ev.col||'')}</small></span>`+
+      `<strong style="color:${(M.invert?d>0:d<0)?'var(--crit)':'var(--accent)'}">${d>0?'+':''}${esc(M.fmt(d))}</strong></div>`;
+  }).join(''):'<p class="note">Денежных изменений в журнале пока нет.</p>';
+}
+function setHistoryRange(days){
+  const to=new Date(), from=new Date(to);
+  document.getElementById('historyTo').value=to.toISOString().slice(0,10);
+  if(days){ from.setDate(from.getDate()-days+1); document.getElementById('historyFrom').value=from.toISOString().slice(0,10); }
+  else { document.getElementById('historyFrom').value=''; document.getElementById('historyTo').value=''; }
+  drawTotalHistory();
+}
+function openTotalHistory(kind){
+  HKIND=(typeof kind==='string' && HMETA[kind])?kind:'all';
+  drawTotalHistory(); document.getElementById('historyWrap').style.display='block';
+}
+// Дельта живёт внутри кликабельного «Всего», поэтому гасим всплытие: одиночный клик по ней
+// не должен открывать историю, двойной — сбрасывает точку отсчёта.
+document.getElementById('kAllDelta').addEventListener('click',e=>e.stopPropagation());
+document.getElementById('kAllDelta').addEventListener('dblclick',e=>{e.stopPropagation();resetDayBaseline();});
+document.getElementById('kAllOpen').addEventListener('click',openTotalHistory);
+document.getElementById('kAllOpen').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openTotalHistory();}});
+document.getElementById('historyClose').onclick=()=>{document.getElementById('historyWrap').style.display='none';};
+document.getElementById('historyWrap').addEventListener('click',e=>{if(e.target.id==='historyWrap')e.target.style.display='none';});
+document.getElementById('historyFrom').addEventListener('change',drawTotalHistory);
+document.getElementById('historyTo').addEventListener('change',drawTotalHistory);
+document.querySelectorAll('[data-history-days]').forEach(b=>b.addEventListener('click',()=>setHistoryRange(+b.dataset.historyDays)));
+// Плитки расхода открывают ту же панель истории, но по своей метрике.
+[['bRubBox','rub'],['bUsdBox','usd']].forEach(([id,kind])=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('click',()=>openTotalHistory(kind));
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openTotalHistory(kind);}});
+});
+// ─── Расход до конца года: рубли и валюта раздельно ────────────────────────────────
+// Считаем по колонкам до 31.12 включительно, январь не берём — год закрывается декабрём.
+// Валютные ячейки (usd/kzt/gbp/mega) в рублёвый расход не попадают и наоборот: движок
+// разводит их по разным кошелькам, и метрика обязана делать так же.
+function burnStats(series){
+  const DEC=COLS.indexOf('31.12');
+  let rub=0, usd=0, usdInc=0;
+  for(let ci=0;ci<=DEC;ci++){
+    data.rows.forEach((row,ri)=>{
+      const v=row[ci]; if(!v) return;
+      const q=data.units && data.units[ri+'_'+ci];
+      const isInc=TYPE(ri)==='inc';
+      if(q && !RUB_UNITS[q.u]){ const u=usdOf(q); if(isInc) usdInc+=u; else usd+=u; }
+      else if(!isInc) rub+=v;
+    });
+  }
+  const p=data.startParts||{};
+  const card=(p.freedom||0)+(p.tbc||0);          // чем реально платятся подписки
+  const cash=p.cashusd||0;                       // нал: в поездке годится, на карту — нет
+  // Две даты, а не одна. Карта (Freedom+TBC) — единственный источник для подписок:
+  // Claude, ChatGPT, Adobe списываются только с неё, наличными их не оплатить. Но в
+  // поездках доллары тратятся из кармана, поэтому вторая дата считает пул вместе с налом.
+  // Идём по дневным потокам нарастающим итогом: первый день, где ресурс ушёл в минус.
+  const flow=dayFlows(), days=[...flow.keys()].sort();
+  let cum=0, dry=null, dryCash=null;
+  days.forEach(k=>{
+    const f=flow.get(k)||{};
+    cum+=(f.ui||0)-(f.ue||0);
+    if(dry===null && card+cum<0) dry=k;
+    if(dryCash===null && card+cash+cum<0) dryCash=k;
+  });
+  return {rub,usd,usdInc,card,cash,res:card+cash,dry,dryCash};
+}
+function renderBurn(series,bought){
+  const b=burnStats(series), set=(id,t)=>{const e=document.getElementById(id); if(e)e.textContent=t;};
+  const fx=fxRate(true);
+  set('bRub',F(b.rub)+' ₽');
+  set('bRubSub','с Райфа и наличных рублей, без валютных ячеек');
+  set('bUsd','$'+F(b.usd));
+  set('bUsdSub',`≈ ${F(b.usd*fx)} ₽ · подписки, поездки, всё в валюте`);
+  set('bRes','$'+F(b.res));
+  set('bResSub',`карты $${F(b.card)} (Freedom+TBC) + наличные $${F(b.cash)}`);
+  // Сколько приходится на сегодня — берём из того же потока по дням, что и движок.
+  const tk=dkey(new Date()), f=(dayFlows().get(tk))||{e:0,ue:0};
+  set('bRubToday', f.e ? 'сегодня −'+F(f.e)+' ₽' : 'сегодня трат нет');
+  set('bUsdToday', f.ue ? 'сегодня −$'+F(f.ue) : 'сегодня трат нет');
+  renderMetricDelta('bRubDelta', Math.round(b.rub), 'burnRubDaily', v=>F(v)+' ₽', true);
+  renderMetricDelta('bUsdDelta', Math.round(b.usd), 'burnUsdDaily', v=>'$'+F(v), true);
+  const box=document.getElementById('bEndBox'), dm=k=>k?k.split('-').reverse().slice(0,2).join('.'):null;
+  if(b.dry || b.dryCash){
+    set('bEnd', b.dryCash ? dm(b.dryCash) : 'с налом хватает');
+    set('bEndSub',
+      (b.dry?`карта Freedom+TBC ($${F(b.card)}) кончается ${dm(b.dry)}`:`карты хватает до конца года`)
+      +(b.dryCash?`; вместе с наличными $${F(b.cash)} — ${dm(b.dryCash)}`:`; с наличными $${F(b.cash)} хватает до 31.12`)
+      +`. Докупка по ЦБ+5% — ${F(bought)} ₽ за план`);
+    if(box) box.className='burn-t '+(b.dryCash?'crit':'warn');
+  } else {
+    set('bEnd','до 31.12 хватает');
+    set('bEndSub',`ресурс $${F(b.res)} перекрывает валютный расход`);
+    if(box) box.className='burn-t';
+  }
+}
+
+// ─── Волатильные активы ────────────────────────────────────────────────────────────
+// В строках плана они нулевые (правило 09.08.2026: волатильное не участвует в движении
+// денег, иначе итог скачет от рынка и минимум года врёт). Но это деньги, поэтому в KPI
+// «Всего» они входят отдельным блоком поверх остатков на 31.12.
+// Живые цены берутся оттуда же, откуда их берёт план: CoinGecko/ЦБ через engine.js.
+// ⚠️ Правило от 28.08.2026: здесь замораживаются ТОЛЬКО КОЛИЧЕСТВА, никогда не рубли.
+// Раньше крипта стояла рублёвой константой VOL_CRYPTO_RUB (2 251 110 ₽ по курсу 78,8 от
+// 24.08), и «Активы» врали на десятки тысяч при каждом движении курса. Цены ZK и STRK
+// тоже были константами от 09.08 — теперь их тянет сервер с CoinGecko.
+// Обновлять при пересчёте портфеля (POST /api/portfolio/recount) и при сверке бирж:
+const VOL_CRYPTO_USD=28630.88;     // 56 EVM-кошельков: токены $24 693,61 + NFT по floor $3 937,27 (DeBank/CoinGecko 27.08.2026)
+const VOL_ETH_QTY=0.6847616;       // эфир — по замеру 18.08 лежит на BingX, ПОДЛЕЖИТ ВЫВОДУ
+const VOL_ZK_QTY=154888.537888;    // ZK, цена живая (CoinGecko zksync)
+const VOL_STRK_QTY=21832.760166;   // STRK, цена живая (CoinGecko starknet)
+const VOL_USDT=6.3689;             // мелочь на бирже, курс к доллару 1:1
+const VOL_PLZL_QTY=198;            // акции Полюс, цена живая из plzlPx()
+const VOL_MEGA_QTY=3*4167;         // MegaETH: три оставшихся разлока по 4 167 токенов
+function volatileAssets(){
+  const fx=fxRate(true);                                    // активы продаём → ЦБ−5%
+  const crypto=VOL_CRYPTO_USD*fx;
+  const plzl=VOL_PLZL_QTY*(plzlPx()||0);                    // цена уже в рублях
+  const mega=VOL_MEGA_QTY*(megaUsd()||0)*fx;
+  const exchUsd=VOL_ETH_QTY*(ethUsd()||0)+VOL_ZK_QTY*zkPx()
+               +VOL_STRK_QTY*strkPx()+VOL_USDT;       // остатки на Bybit и BingX
+  const bybit=exchUsd*fx;
+  const sum=Math.round(crypto+plzl+mega+bybit);
+  return {crypto:Math.round(crypto),plzl:Math.round(plzl),mega:Math.round(mega),
+    bybit:Math.round(bybit),sum,
+    note:`Крипта $${F(VOL_CRYPTO_USD)} = ${F(crypto)} ₽ (56 кошельков, DeBank 27.08 — обновляется пересчётом портфеля) `
+        +`+ Полюс ${VOL_PLZL_QTY} шт × ${F(plzlPx()||0)} ₽ `
+        +`+ MegaETH ${F(VOL_MEGA_QTY)} × $${F2(megaUsd()||0)} `
+        +`+ биржи $${F(exchUsd)} (ETH ${VOL_ETH_QTY} × $${F(ethUsd()||0)} + ZK ${F(VOL_ZK_QTY)} × $${zkPx()} `
+        +`+ STRK ${F(VOL_STRK_QTY)} × $${strkPx()} + USDT ${VOL_USDT}). `
+        +`Курс продажи ${F2(fx)} ₽/$. Заморожены только количества — цены и курс живые.`};
+}
+const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
+const ST_USD={freedom:1,tbc:1,bybit:1,cashusd:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
+// На Bybit лежит эфир, а не доллары. Храним количество монет, а долларовый эквивалент
+// пересчитываем по цене CoinGecko — это бесплатный запрос, в отличие от DeBank.
+function syncBybit(){
+  const n=data.bybitEth, px=ethUsd();
+  if(n==null || !px || !data.startParts) return false;
+  const usd=Math.round(n*px);
+  if(data.startParts.bybit===usd) return false;
+  data.startParts.bybit=usd; return true;
+}
+function recalcStart(){
+  const p=data.startParts||{}, r=fxRate(true);   // остатки — это то, что продаёшь
+  let sum=0, usd=0;
+  ST_FIELDS.forEach(k=>{
+    const v=p[k]||0;
+    if(ST_USD[k]){ usd+=v; sum+=v*r; } else sum+=v;   // r = курс продажи
+  });
+  data.start=Math.round(sum);
+  document.getElementById('st_sum').textContent=F(data.start)+' ₽';
+  const el=document.getElementById('st_fxrub');
+  if(el){ el.textContent=F(Math.round(usd*r))+' ₽';
+    document.getElementById('fxStartBox').title=`$${usd} × ${F2(r)} ₽ = ${F(Math.round(usd*r))} ₽`; }
+}
+function readStart(){
+  if(!data.startParts) data.startParts={};
+  const p=data.startParts;
+  ST_FIELDS.forEach(k=>{
+    const el=document.getElementById('st_'+k);
+    if(ST_USD[k]){                      // доллары: и «1917д», и просто «1917»
+      const q=parseUnit(el.value);
+      p[k]= q ? q.v : (parseFloat(String(el.value).replace(/\s/g,'').replace(',','.'))||0);
+    } else {
+      p[k]=parseFloat(String(el.value).replace(/\s/g,'').replace(',','.'))||0;
+    }
+  });
+  recalcStart();
+}
+function setStartInputs(){
+  const p=data.startParts||{raif:(data.start!=null?data.start:142000)};
+  if(p.fxUsd!=null && p.freedom==null){        // миграция со старого единого поля
+    p.freedom=1917; p.tbc=100; p.bybit=170;
+    delete p.fxUsd; delete p.fx;
+  }
+  ST_FIELDS.forEach(k=>{ if(typeof p[k]!=='number') p[k]=0; });
+  data.startParts=p;
+  ST_FIELDS.forEach(k=>{
+    document.getElementById('st_'+k).value = ST_USD[k] ? p[k]+'д' : p[k];
+  });
+  recalcStart();
+}
+let baseRev=(data&&data.rev)||0;   // версия, от которой ушла эта вкладка
+async function saveState(){ return;  // сценарная копия: в файл не пишем
+
+  readStart();
+  // защита от конфликта вкладок: если на сервере версия новее нашей базовой —
+  // не затираем чужие правки, а перезагружаемся
+  try{
+    const r=await fetch('/api/plan',{cache:'no-store'});
+    if(r.ok){ const srv=await r.json();
+      if(srv && (srv.rev||0)>baseRev){
+        // ВАЖНО: сначала сохранить набранное, потом перезагружаться. Раньше выход был
+        // до localStorage.setItem, и всё, что напечатано с последнего автосейва,
+        // исчезало без следа (баг найден 10.08.2026).
+        try{ localStorage.setItem(LS+':conflict',JSON.stringify({ts:Date.now(),data:data})); }catch(e){}
+        document.getElementById('saveInfo').textContent=
+          '⚠ план изменён в другом месте — перезагружаю. Ваши правки сохранены в резервную копию';
+        setTimeout(()=>location.reload(),1200);
+        return;
+      } }
+  }catch(e){}
+  data.rev=(data.rev||0)+1; baseRev=data.rev;
+  try{ fetch('/api/plan',{method:'POST',body:JSON.stringify(data)})
+    .then(r=>{ if(r.status===409) location.reload(); }).catch(()=>{}); }catch(e){}
+  try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
+}
+setStartInputs();
+ST_FIELDS.map(k=>'st_'+k).forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('focus',e=>{ e.target.dataset.orig=e.target.value; });
+  el.addEventListener('change',e=>{
+    const o=parseFloat(e.target.dataset.orig)||0, nv=parseFloat(e.target.value)||0;
+    if(o!==nv) logEv('start',-1,-1,o,nv,{field:id});
+  });
+  el.addEventListener('input',()=>{readStart();calc();autoSave();});
+});
+window.addEventListener('storage',e=>{
+  if(e.key===LS && e.newValue && document.activeElement.tagName!=='INPUT'){
+    try{ const d=JSON.parse(e.newValue);
+      if(d && d.rows){ data=d; baseRev=d.rev||0; if(!data.labels) data.labels=PLAN.map(r=>r[1]);
+        setStartInputs(); build();
+        document.getElementById('saveInfo').textContent='обновлено с карточек '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      } }catch(_){}
+  }
+});
+let autoT=null;
+function autoSave(){ return;  // сценарная копия
+  clearTimeout(autoT);
+  autoT=setTimeout(()=>{ saveState();
+    document.getElementById('saveInfo').textContent='автосохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  },300);
+}
+document.getElementById('save').onclick=()=>{ saveState();
+  document.getElementById('saveInfo').textContent='сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); };
+
+document.getElementById('logbtn').onclick=()=>{
+  const log=data.log||[];
+  const blob=new Blob([JSON.stringify(log,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='finplan-log.json'; a.click();
+};
+grid.addEventListener('click',e=>{
+  if(e.target.id!=='unhide') return;
+  e.preventDefault(); data.hidden=[]; build(); autoSave();
+});
+// начальное состояние кнопки — под сохранённый выбор
+document.getElementById('hidecols').classList.toggle('on',hideEmpty);
+document.getElementById('hidecols').textContent=hideEmpty?'🙈 Пустые столбцы':'👁 Все столбцы';
+document.getElementById('hidecols').onclick=()=>{
+  hideEmpty=!hideEmpty;
+  refreshEmptyCols();                 // пересобрать список пустых по кнопке
+  document.getElementById('hidecols').classList.toggle('on',hideEmpty);
+  try{ localStorage.setItem('hideEmptyCols',hideEmpty?'1':'0'); }catch(e){}
+  document.getElementById('hidecols').textContent=hideEmpty?'🙈 Пустые столбцы':'👁 Все столбцы';
+  build();
+};
+document.getElementById('addrow').onclick=()=>{
+  const name=prompt('Название новой статьи:'); if(!name) return;
+  const isExp=confirm('OK — это РАСХОД.  Отмена — это ДОХОД.');
+  data.labels.push(name.trim());
+  data.extraTypes.push(isExp?'exp':'inc');
+  data.types.push(isExp?'exp':'inc');
+  data.rows.push(Array(COLS.length).fill(0));
+  logEv('addrow',data.rows.length-1,-1,'',name.trim());
+  build(); autoSave();
+};
+document.getElementById('undo').onclick=()=>{
+  const log=data.log||[];
+  const ev=log.pop();
+  if(!ev){ alert('Журнал пуст — отменять нечего'); return; }
+  if(ev.k==='restore'){   // откатывать нечего: восстановление заменило план целиком
+    log.push(ev);
+    alert('Последним было восстановление из файла — его «Отменить» не откатывает.\nВерни нужную версию через «⤒ Восстановить».');
+    return;
+  }
+  try{
+    if(ev.k==='edit'){ data.rows[ev.ri][ev.c]=ev.from;
+      // снять валютную привязку: иначе applyRate при следующем обновлении курса
+      // пересчитает ячейку по units и воскресит отменённую сумму (баг 10.08.2026)
+      if(data.units) delete data.units[ev.ri+'_'+ev.c]; }
+    else if(ev.k==='rename'){ data.labels[ev.ri]=ev.from; }
+    else if(ev.k==='start'){ data.startParts[ev.field.replace('st_','')]=ev.from; setStartInputs(); }
+    else if(ev.k==='paid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
+      data.rows[ev.ri][ev.c]=(data.rows[ev.ri][ev.c]||0)+ev.from;
+      if(data.paid) delete data.paid[key]; }
+    else if(ev.k==='unpaid'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
+      data.rows[ev.ri][ev.c]=Math.max(0,(data.rows[ev.ri][ev.c]||0)-ev.to);
+      if(!data.paid) data.paid={}; data.paid[key]={a:ev.to,iso:ev.iso||''}; }
+    else if(ev.k==='move'){ const key=ev.ri+'_'+ev.c+'_'+ev.idx;
+      if(ev.from) data.moves[key]=ev.from; else if(data.moves) delete data.moves[key]; }
+    else if(ev.k==='addrow'){ if(ev.ri===data.rows.length-1){
+      data.rows.pop(); data.labels.pop(); data.extraTypes.pop();
+      // types тоже: без этого следующая добавленная строка наследовала чужой тип
+      // и доход считался расходом (баг 10.08.2026)
+      if(Array.isArray(data.types) && data.types.length>data.rows.length) data.types.pop(); } }
+    else if(ev.k==='day'){                     // ручная разбивка по дням
+      const key=ev.ri+'_'+ev.c;
+      if(!data.days) data.days={};
+      if(Array.isArray(ev.days)) data.days[key]=ev.days.slice();
+      else if(ev.day!=null && data.days[key]) data.days[key][ev.day]=ev.from;
+      if(data.days[key]) data.rows[ev.ri][ev.c]=data.days[key].reduce((a,b)=>a+(b||0),0);
+    }
+    else if(ev.k==='rollover'){                // перенос суммы из прошедшего периода
+      if(ev.from!=null) data.rows[ev.ri][ev.c]=ev.from;
+      if(ev.srcC!=null && ev.srcFrom!=null) data.rows[ev.ri][ev.srcC]=ev.srcFrom;
+    }
+    else { log.push(ev);                       // неизвестный вид — не делать вид, что откатили
+      build();
+      document.getElementById('saveInfo').textContent='«'+ev.k+'» отменить нельзя — событие оставлено в журнале';
+      return; }
+  }catch(e){}
+  build(); autoSave();
+  document.getElementById('saveInfo').textContent='отменено: '+ev.k+' ('+(ev.lbl||'')+')';
+};
+document.getElementById('backup').onclick=()=>{
+  const pack={ts:new Date().toISOString(), finplan:data};
+  try{ pack.optimization=JSON.parse(localStorage.getItem('opt26')||'{}'); }catch(e){}
+  const blob=new Blob([JSON.stringify(pack,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='finance-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+};
+
+// Проверка целостности: битый план раньше молча рисовался как NaN по всей таблице
+function checkPlan(d){
+  if(!d || typeof d!=='object') return 'это не объект плана';
+  if(!Array.isArray(d.rows) || !d.rows.length) return 'нет строк (rows)';
+  if(d.rows.some(r=>!Array.isArray(r) || r.length!==COLS.length))
+    return 'строки не по '+COLS.length+' колонок';
+  if(d.rows.some(r=>r.some(v=>typeof v!=='number' || !isFinite(v))))
+    return 'в ячейках не числа';
+  if(d.labels && d.labels.length!==d.rows.length)
+    return 'подписей '+d.labels.length+', а строк '+d.rows.length;
+  return '';
+}
+document.getElementById('restore').onclick=()=>document.getElementById('restoreFile').click();
+document.getElementById('restoreFile').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  let pack;
+  try{ pack=JSON.parse(await f.text()); }catch(_){ alert('Файл не читается как JSON'); return; }
+  const d=(pack && pack.finplan) ? pack.finplan : pack;   // файл кнопки «Бэкап» либо голый план
+  const bad=checkPlan(d);
+  if(bad){ alert('Не восстанавливаю: '+bad); return; }
+  const when=pack && pack.ts ? 'Бэкап от '+pack.ts.slice(0,16).replace('T',' ')+'\n' : '';
+  if(!confirm(when+'Строк: '+d.rows.length+'\nЗаменить текущий план целиком? Текущие данные будут перезаписаны.')) return;
+  d.rev=(data.rev||0)+1;            // иначе сервер отобьёт restore как устаревший (409)
+  data=d; migrate(); emptySnap=null;
+  if(!data.log) data.log=[];
+  logEv('restore',-1,-1,'',f.name);
+  baseRev=data.rev;
+  setStartInputs(); build(); saveState();
+  document.getElementById('saveInfo').textContent='восстановлено из '+f.name;
+};
+document.getElementById('csv').onclick=()=>{
+  const rows=[['Статья',...COLS],
+    ...data.rows.map((row,ri)=>[LBL(ri),...row])];
+  const blob=new Blob(['﻿'+rows.map(r=>r.join(';')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='finplan-2026.csv'; a.click();
+};
+
+// ---- провал в дни: клик по заголовку периода -----------------------------
+// Границы берём как «от даты колонки до даты следующей колонки, не включая её».
+// «26 числа», «16 и 23 числа» — ставим в эти дни месяца
+function periodEnd(ci){
+  const p=PERIODS[ci]; if(!p) return null;
+  const d=new Date(p[0]+'T12:00:00'); d.setDate(d.getDate()+p[1]-1); return d;
+}
+function isPast(ci){               // период целиком в прошлом
+  const e=periodEnd(ci); if(!e) return false;
+  const t=new Date(); t.setHours(0,0,0,0);
+  return e<t;
+}
+function rollPast(){
+  // Прошедший период не обнуляем, а переносим его остаток в следующий: незакрытое
+  // не должно исчезать, иначе план покажет денег больше, чем есть.
+  let moved=0, sum=0;
+  for(let c=0;c<COLS.length-1;c++){
+    if(!isPast(c)) continue;
+    const to=c+1;
+    data.rows.forEach((row,ri)=>{
+      const v=row[c]||0;
+      if(!v) { if(data.days) delete data.days[ri+'_'+c]; return; }
+      const su=data.units && data.units[ri+'_'+c];
+      const tu=data.units && data.units[ri+'_'+to];
+      if(su && tu && su.u===tu.u){                 // та же валюта — складываем единицы
+        tu.v = +(tu.v + su.v).toFixed(6);
+        row[to]=unitRub(tu,TYPE(ri)==='inc');
+      } else if(su && !tu && !row[to]){            // цель пуста — переносим валюту как есть
+        data.units[ri+'_'+to]={v:su.v,u:su.u};
+        row[to]=v;
+      } else {                                    // иначе всё в рубли
+        // привязку цели снимаем ТОЛЬКО если переносим валюту поверх другой валюты.
+        // Раньше рублёвый перенос срывал units у валютной цели, и строка навсегда
+        // переставала переоцениваться по курсу (баг 10.08.2026)
+        if(su && data.units) delete data.units[ri+'_'+to];
+        row[to]=(row[to]||0)+v;
+      }
+      if(data.units) delete data.units[ri+'_'+c];
+      if(data.days){ delete data.days[ri+'_'+c]; delete data.days[ri+'_'+to]; }
+      logEv('rollover',ri,c,v,0,{col:COLS[c],to:COLS[to]});
+      row[c]=0; moved++; sum+=v;
+    });
+  }
+  return {moved,sum};
+}
+function colRange(i){              // «16.07» → «16.07–31.07»
+  const p=PERIODS[i]; if(!p) return COLS[i];
+  const a=new Date(p[0]+'T12:00:00'), b=new Date(a); b.setDate(a.getDate()+p[1]-1);
+  const f=d=>String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');
+  return p[1]===1 ? f(a) : f(a)+'–'+f(b);
+}
+let dayCi=null, dayDates=[], dayFrom=0, dayRows=[];   // dayRows фиксируется при открытии   // dayFrom — первый неушедший день периода
+function firstOpenDay(dates){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const i=dates.findIndex(d=>{ const x=new Date(d); x.setHours(0,0,0,0); return x>=t; });
+  return i<0 ? dates.length-1 : i;          // весь период в прошлом → всё в последний день
+}
+// Прошедшие дни не показываем, а их суммы складываем в первый открытый день:
+// незакрытое за 16–25 июля должно висеть на сегодня, а не потеряться.
+function foldPast(parts){
+  const v=parts.slice(dayFrom);
+  let carry=0; for(let i=0;i<dayFrom;i++) carry+=parts[i]||0;
+  v[0]=(v[0]||0)+carry;
+  return v;
+}
+// Правка дня «материализует» разбивку: с этого момента период = сумма своих дней.
+// Обратная связь односторонняя — правка ячейки периода в основной таблице сбрасывает дни.
+function materialize(ri){
+  if(!data.days) data.days={};
+  const k=ri+'_'+dayCi;
+  if(!data.days[k]) data.days[k]=splitOverDays(ri,dayCi,dayDates);
+  return data.days[k];
+}
+function setDay(ri,vi,val){          // vi — индекс в видимой части
+  const arr=materialize(ri);
+  const di=dayFrom+vi;
+  if(vi===0) for(let i=0;i<dayFrom;i++) arr[i]=0;   // прошедшие дни уже схлопнуты в этот
+  arr[di]=val;
+  const sum=arr.reduce((a,b)=>a+(b||0),0);
+  const old=data.rows[ri][dayCi];
+  data.rows[ri][dayCi]=sum;
+  if(data.units) delete data.units[ri+'_'+dayCi];   // сумма теперь в рублях, привязка к валюте снята
+  if(old!==sum) logEv('day',ri,dayCi,old,sum,{col:COLS[dayCi],day:dayDates[di].getDate()});
+  calc(); autoSave();
+}
+function resetDays(){
+  if(!data.days) return;
+  let n=0;
+  for(const k in data.days) if(k.endsWith('_'+dayCi)){ delete data.days[k]; n++; }
+  if(n){ calc(); autoSave(); }
+  renderDays();
+}
+// Подсказка по экономии на конкретный день. Правила выведены из моих же выписок и
+// тарифов: 3% по MCC даёт Райффайзен Подписка, 7–10% — категории Яндекс Pay, а даты
+// компенсаций и списаний фиксированные. Ничего не выдумываем — только то, что проверено.
+// Подсказка по экономии на конкретный день. Ежедневную мелочь (еда, рестораны, такси)
+// сюда не пишем — она есть в каждом дне и подсказка превращалась в шум. Постоянное
+// правило вынесено одной строкой над таблицей, а по дням — только то, что уникально:
+// календарные даты банков и разовые платежи. Правила взяты из тарифов и моих выписок.
+// Подсказка на день — только календарные события банков. Советы вида «плати картой»
+// повторялись изо дня в день и превращались в шум: постоянные правила вынесены
+// одной строкой над таблицей, здесь остаётся то, что привязано к конкретной дате.
+function dayTip(x, i){
+  const d=x.getDate(), last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();
+  const out=[];
+  if(d===25)   out.push('проверить оборот по Райфу: 150 000 ₽/мес → бизнес-залы');
+  if(d===26)   out.push('придёт компенсация Райфа 8 500 ₽');
+  if(d===28)   out.push('<b>выбрать категории Яндекс Pay на след. месяц</b>');
+  if(d===last) out.push('проценты по накопительному за месяц');
+  return out.join(' · ');
+}
+function renderDays(){
+  const ci=dayCi, dates=dayDates.slice(dayFrom), len=dates.length;
+  // Состав строк зафиксирован при открытии: обнулил ячейки — строка остаётся на месте
+  // до перезагрузки или повторного открытия, иначе она исчезала прямо под курсором.
+  const ord=dayRows;
+  let h='<tr><th>Статья</th>'+dates.map(x=>{
+      const we=(x.getDay()===0||x.getDay()===6)?' class="we"':'';
+      return `<th${we}>${WD[x.getDay()]} ${x.getDate()}</th>`;
+    }).join('')+'<th>Σ период</th></tr>';
+  h+='<tr class="tips"><td class="lbl">💡 как сэкономить</td>'
+    + dates.map((x,i)=>{ const t=dayTip(x,i); return `<td class="tip">${t||''}</td>`; }).join('')
+    + '<td></td></tr>';
+  const inc=Array(len).fill(0), exp=Array(len).fill(0);
+  const fxInc=Array(len).fill(0), fxExp=Array(len).fill(0);   // валютные — отдельно
+  ord.forEach(ri=>{
+    const parts=foldPast(splitOverDays(ri,ci,dayDates));
+    const man=!!(data.days && data.days[ri+'_'+ci]);
+    // Валютные строки списываются с долларового пула, а не с рублей Райфа — так считает
+    // dayFlows() в движке. Дневная таблица раньше вычитала их из рублёвого остатка,
+    // из-за чего показывала провалы, которых в плане нет (баг 10.08.2026).
+    const isFx=!!(data.units && data.units[ri+'_'+ci]);
+    parts.forEach((v,i)=>{
+      if(isFx){ if(TYPE(ri)==='inc') fxInc[i]+=v; else fxExp[i]+=v; }
+      else if(TYPE(ri)==='inc') inc[i]+=v; else exp[i]+=v;
+    });
+    h+=`<tr class="${TYPE(ri)}"><td title="${LBL(ri)}">${man?'✎ ':''}${LBL(ri)}</td>`
+      + parts.map((v,i)=>`<td><input data-r="${ri}" data-d="${i}" class="${v?'':'z'}" value="${v||0}"></td>`).join('')
+      + `<td>${F(data.rows[ri][ci])}</td></tr>`;
+  });
+  const cell=(a)=>a.map(v=>`<td>${F(v)}</td>`).join('');
+  h+=`<tr class="tot t-inc"><td>Доход за день (₽)</td>${cell(inc)}<td>${F(inc.reduce((a,b)=>a+b,0))}</td></tr>`;
+  h+=`<tr class="tot t-exp"><td>Расход за день (₽)</td>${cell(exp)}<td>${F(exp.reduce((a,b)=>a+b,0))}</td></tr>`;
+  const fxSum=fxInc.reduce((a,b)=>a+b,0)+fxExp.reduce((a,b)=>a+b,0);
+  if(fxSum) h+=`<tr class="tot t-exp"><td title="Списывается с валюты на картах (Freedom/TBC), рублёвый остаток не трогает — так же считает движок">Валютные траты за день (не из рублей)</td>`
+    + fxExp.map((v,i)=>`<td>${(v||fxInc[i])?F(v-(fxInc[i]||0)):'—'}</td>`).join('')
+    + `<td>${F(fxExp.reduce((a,b)=>a+b,0)-fxInc.reduce((a,b)=>a+b,0))}</td></tr>`;
+  // % капают каждый день, но приходят на счёт 5-го числа следующего месяца — до этого
+  // дня их нет в остатке. Поэтому «начислено» и «зачислено» — две разные строки.
+  const CRD=runBalance().credits;
+  let run=prevDiff(ci), runs=[], pcts=[], crd=[], acc=0;   // prevDiff — только рубли в Райфе
+  let pre=0; for(let i=0;i<dayFrom;i++) pre+=CRD.get(dkey(dayDates[i]))||0;
+  for(let i=0;i<len;i++){
+    run+=inc[i]-exp[i];
+    const c=(CRD.get(dkey(dayDates[dayFrom+i]))||0)+(i===0?pre:0);
+    run+=c; crd.push(c);
+    const p = run>0 ? run*RATE/365 : 0;
+    acc+=p; pcts.push(p); runs.push(run);
+  }
+  h+=`<tr class="tot t-inc"><td>% начислено за день (${RATE*100}% годовых) — придут в последний день месяца</td>`
+    + pcts.map(v=>`<td>${F(v)}</td>`).join('')
+    + `<td>${F(acc)}</td></tr>`;
+  h+=`<tr class="tot t-inc"><td>% зачислены на счёт (последний день месяца)</td>`
+    + crd.map(v=>`<td>${v?F(v):'—'}</td>`).join('')
+    + `<td>${F(crd.reduce((a,b)=>a+b,0))}</td></tr>`;
+  h+=`<tr class="tot t-dif"><td>Остаток на конец дня</td>`
+    + runs.map(v=>`<td class="${v<0?'neg':''}">${F(v)}</td>`).join('')
+    + `<td class="${runs[len-1]<0?'neg':''}">${F(runs[len-1])}</td></tr>`;
+  const t=document.getElementById('dayTable');
+  t.innerHTML=h;
+  t.querySelectorAll('input[data-r]').forEach(inp=>{
+    inp.addEventListener('focus',e=>e.target.select());
+    inp.addEventListener('input',e=>{
+      setDay(+e.target.dataset.r, +e.target.dataset.d,
+             parseFloat(String(e.target.value).replace(/\s/g,'').replace(',','.'))||0);
+      updateDayTotals();
+    });
+    inp.addEventListener('change',()=>renderDays());
+    inp.addEventListener('keydown',e=>{
+      if(e.key!=='Enter' && e.key!=='ArrowUp' && e.key!=='ArrowDown') return;
+      e.preventDefault();
+      const r=+e.target.dataset.r, d=+e.target.dataset.d, dr=(e.key==='ArrowUp')?-1:1;
+      const list=[...t.querySelectorAll('input[data-d="'+d+'"]')];
+      const pos=list.findIndex(x=>+x.dataset.r===r);
+      const nxt=list[pos+dr]; if(nxt){ nxt.focus(); nxt.select(); }
+    });
+  });
+}
+function updateDayTotals(){    // быстрый пересчёт итогов без перерисовки полей ввода
+  const t=document.getElementById('dayTable'), len=dayDates.length-dayFrom;
+  const inc=Array(len).fill(0), exp=Array(len).fill(0);
+  t.querySelectorAll('input[data-r]').forEach(i=>{
+    const ri=+i.dataset.r, di=+i.dataset.d, v=parseFloat(String(i.value).replace(/\s/g,'').replace(',','.'))||0;
+    if(TYPE(ri)==='inc') inc[di]+=v; else exp[di]+=v;
+  });
+  const rows=t.querySelectorAll('tr.tot');
+  const put=(tr,arr)=>{ const td=tr.querySelectorAll('td');
+    arr.forEach((v,i)=>{ if(td[i+1]) td[i+1].textContent=F(v); });
+    if(td[arr.length+1]) td[arr.length+1].textContent=F(arr.reduce((a,b)=>a+b,0)); };
+  if(rows[0]) put(rows[0],inc);
+  if(rows[1]) put(rows[1],exp);
+  const CRD=runBalance().credits;
+  let run=prevDiff(dayCi), runs=[], pcts=[], crd=[], acc=0;
+  let pre=0; for(let i=0;i<dayFrom;i++) pre+=CRD.get(dkey(dayDates[i]))||0;
+  for(let i=0;i<len;i++){
+    run+=inc[i]-exp[i];
+    const c=(CRD.get(dkey(dayDates[dayFrom+i]))||0)+(i===0?pre:0);
+    run+=c; crd.push(c);
+    const p = run>0 ? run*RATE/365 : 0;
+    acc+=p; pcts.push(p); runs.push(run);
+  }
+  if(rows[2]) put(rows[2],pcts);
+  if(rows[3]) put(rows[3],crd);
+  if(rows[4]){ const td=rows[4].querySelectorAll('td');
+    runs.forEach((v,i)=>{ if(td[i+1]){ td[i+1].textContent=F(v); td[i+1].classList.toggle('neg',v<0); } });
+    if(td[len+1]){ td[len+1].textContent=F(runs[len-1]); td[len+1].classList.toggle('neg',runs[len-1]<0); } }
+}
+function openDays(ci){
+  const [iso,len]=PERIODS[ci]||[];
+  if(!iso) return;
+  if(isPast(ci)){ alert('Период уже прошёл — незакрытые суммы перенесены в следующий.'); return; }
+  const d0=new Date(iso+'T12:00:00');
+  dayDates=[]; for(let i=0;i<len;i++){ const x=new Date(d0); x.setDate(d0.getDate()+i); dayDates.push(x); }
+  dayCi=ci; dayFrom=firstOpenDay(dayDates);
+  if(data.days) for(const k in data.days){          // подчищаем пустые разбивки, чтобы не висел ✎
+    const a=data.days[k];
+    if(Array.isArray(a) && !a.some(x=>x)) delete data.days[k];
+  }
+  const vis=data.rows.map((_,i)=>i).filter(i=>data.rows[i][ci]);
+  dayRows=[...vis.filter(i=>TYPE(i)==='inc'), ...vis.filter(i=>TYPE(i)!=='inc')];
+  const first=dayDates[dayFrom], last=dayDates[len-1];
+  document.getElementById('dayTitle').textContent =
+    `📆 ${colRange(ci)} по дням · ${first.getDate()} ${MN[first.getMonth()]} — ${last.getDate()} ${MN[last.getMonth()]} ${last.getFullYear()}`
+    + ` (${len-dayFrom} дн.${dayFrom?', прошедшие '+dayFrom+' свёрнуты в первый':''})`;
+  document.getElementById('dayHint').innerHTML =
+    '<b>💡 Постоянное правило:</b> еда, продукты, рестораны, кальянные и такси — <b>всегда картой Райфа</b>: '
+   +'MCC 5411/5812/5813/5814/4121/3990 дают 3% по Подписке вместо 1,5%. Такси через Райф выгоднее, чем через '
+   +'Яндекс Pay без категории (3% против 2%). Лавка от 1 000 ₽ и категория месяца — наоборот, через Яндекс Pay (7–10%). '
+   +'В строке 💡 ниже — только то, что уникально для конкретного дня.<br>'
+   +(dayFrom ? '<b>Дни до сегодня не показаны — всё незакрытое по ним сложено в первый день списка.</b> ' : '')
+   +'Ячейки редактируются: сумма за период станет суммой своих дней, и в основной таблице пересчитается сама. '
+   +'Строки с ручной разбивкой помечены <b>✎</b>. Пока не тронул — '
+   +'подписки стоят в своё число, еда, ресты и такси разложены по дням, мелочь вроде бадов и расходников — '
+   +'одной суммой в середину периода, остальное в первый день. '
+   +'Правка ячейки периода в основной таблице сбрасывает дневную разбивку обратно на автоматическую. '
+   +'Валютная ячейка при правке по дням становится рублёвой.';
+  renderDays();
+  document.getElementById('dayWrap').style.display='block';
+}
+
+// ---- расчёт остатка и процентов по КАЛЕНДАРНЫМ ДНЯМ ----------------------
+// Раньше проценты считались по весу колонки: остаток на конец полумесяца умножался
+// на длину этого полумесяца. Из-за этого 12 млн, приходящие 31 июля, «работали»
+// все 16 дней второй половины месяца и давали 64 237 ₽ вместо реальных ~4 200 ₽.
+// Теперь поток раскладывается по дням той же функцией, что и дневная таблица.
+function prevDiff(ci){        // рубли в Райфе на конец предыдущего периода
+  if(ci<=0) return (data.startParts&&data.startParts.raif)||0;
+  return runBalance().dif[ci-1];
+}
+
+document.getElementById('dayReset').onclick=()=>{
+  if(confirm('Вернуть автоматическое распределение по дням для этого периода?')) resetDays();
+};
+document.getElementById('dayClose').onclick=()=>{ document.getElementById('dayWrap').style.display='none'; };
+document.getElementById('dayWrap').addEventListener('click',e=>{
+  if(e.target.id==='dayWrap') e.target.style.display='none';
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.getElementById('dayWrap').style.display='none';
+    document.getElementById('historyWrap').style.display='none';
+  }
+});
+grid.addEventListener('click',e=>{
+  const th=e.target.closest('th.colhead');
+  if(th) openDays(+th.dataset.c);
+});
+
+{ const r=rollPast(); if(r.moved) autoSave(); }
+if(location.protocol!=='file:'){ document.getElementById('navCards').href='cards.html'; document.getElementById('navHome').href='/'; document.getElementById('navTasks').href='tasks.html'; }
+build();
+// курс ЦБ − 5%: сначала план, потом курс — иначе пересчёт лёг бы на старые данные
+async function loadRate(){
+  try{
+    const [r,c,st]=await Promise.all([fetch('/api/rate',{cache:'no-store'}),
+                                      fetch('/api/crypto',{cache:'no-store'}),
+                                      fetch('/api/stocks',{cache:'no-store'})]);
+    if(r.ok) FX=await r.json();
+    if(c.ok) CR=await c.json();
+    if(st.ok) ST=await st.json();
+  }catch(e){}
+  showRate();
+  if(applyRate()){          // курс изменился — рублёвые суммы долларовых ячеек поехали
+    build(); autoSave();
+    document.getElementById('saveInfo').textContent='курс обновлён — долларовые ячейки пересчитаны';
+  }
+}
+
+// --- СЦЕНАРНАЯ КОПИЯ ПЛАНА ---------------------------------------------
+// Читает тот же /api/plan, добавляет строки сценария только в памяти.
+// Сохранение отключено: основной план этой страницей не меняется.
+function scenarioRows(){ return [
+ {l:'СЦЕНАРИЙ: студия в собственности, рыночная стоимость 7 500 000',t:'inc',v:{36:7500000}},
+ {l:'СЦЕНАРИЙ: остаток долга по ипотеке студии на 31.12.2027',t:'exp',v:{36:3607958}},
+ {l:'СЦЕНАРИЙ: активы уже проданы в ноябре 2026, поэтому из последней колонки их убираем (иначе крипта, биржи и акции считаются дважды)',t:'exp',v:{36:3036385}},
+ {l:'СЦЕНАРИЙ: покупка студии 7 500 000 в Мытищах, взнос 50% и ремонт',t:'exp',v:{8:4000000}},
+ {l:'СЦЕНАРИЙ: продажа крипты, биржевых остатков и акций под взнос',t:'inc',v:{8:3036385}},
+ {l:'СЦЕНАРИЙ: ипотека студии 38 707 плюс страховки и коммуналка',t:'exp',v:{8:47333,10:47333,13:47333,15:47333,17:47333,19:47333,21:47333,23:47333,25:47333,27:47333,29:47333,31:47333,33:47333,35:47333}},
+ {l:'СЦЕНАРИЙ: аренда студии 35 000 минус НПД 4 процента',t:'inc',v:{9:33600,11:33600,14:33600,16:33600,18:33600,20:33600,22:33600,24:33600,26:33600,28:33600,30:33600,32:33600,34:33600,36:33600}}
+]; }
+function applyScenario(){
+  const n=COLS.length;
+  scenarioRows().forEach(r=>{
+    const row=Array(n).fill(0);
+    for(const k in r.v) row[+k]=r.v[k];
+    data.rows.push(row); data.labels.push(r.l); data.types.push(r.t);
+    if(data.extraTypes) data.extraTypes.push(r.t);
+  });
+}
+// если открыто через сервер трекера (localhost:8765) — подтянуть данные из vault-файла
+(async()=>{ try{
+  const r=await fetch('/api/plan',{cache:'no-store'});
+  if(r.ok){ const j=await r.json();
+    if(j && j.rows){
+      const bad=checkPlan(j);
+      if(bad){   // раньше битый файл молча превращал всю таблицу в NaN
+        document.getElementById('saveInfo').innerHTML=
+          '<b style="color:var(--crit)">⚠ plan.json повреждён ('+bad+') — на экране копия из браузера, '
+          +'первая же правка перезапишет файл ею. Хочешь другое — жми «⤒ Восстановить»</b>';
+        await loadRate();
+        return;   // не подменяем рабочие данные битыми
+      }
+      data=j; migrate(); applyScenario(); emptySnap=null;
+      baseRev=data.rev||0;                                   // иначе вкладка вечно считает себя устаревшей
+      try{ localStorage.setItem(LS,JSON.stringify(data)); }catch(e){}
+      setStartInputs();
+      const rp=rollPast();
+      build();
+      document.getElementById('saveInfo').textContent='данные: money-tracker/plan.json (vault)'
+        + (rp.moved?' · перенесено с прошедших периодов: '+rp.moved+' сумм на '+F(rp.sum)+' ₽':'');
+      if(rp.moved) autoSave(); } }
+}catch(e){}
+  await loadRate();          // курс — после плана, иначе пересчёт лёг бы на старые данные
+  await checkCrypto();       // крипта протухла? предложить пересчёт
+})();
+
+// ---- крипта: напоминание о пересчёте -------------------------------------
+// Портфель меняется каждый день, а строка в плане замирает на дате пересчёта.
+// Если данным больше 14 дней — спрашиваем, обновить ли. Сам не обновляю: запрос
+// к DeBank Pro платный, списываются units.
+const CRYPTO_STALE_DAYS=14;
+const cryptoRow=()=> (data.labels||[]).findIndex(l=>/Продажа крипты/i.test(l||''));
+function setCrypto(usd, tokens, nft){
+  const ri=cryptoRow(); if(ri<0) return false;
+  const ci=data.rows[ri].findIndex(v=>v);           // колонка, где строка стоит сейчас
+  if(ci<0) return false;
+  data.units=data.units||{};
+  data.units[ri+'_'+ci]={v:Math.round(usd),u:'usd'};
+  data.rows[ri][ci]=Math.round(usd*fxRate(true));
+  data.labels[ri]='Продажа крипты: токены $'+F(tokens)+' + NFT по floor $'+F(nft)
+                 +' = $'+F(usd)+' (55 EVM-кошельков)';
+  delete (data.days||{})[ri+'_'+ci];                // ручная разбивка больше не актуальна
+  return true;
+}
+async function checkCrypto(){
+  let p=null;
+  try{ const r=await fetch('/api/portfolio',{cache:'no-store'}); if(r.ok) p=await r.json(); }catch(e){ return; }
+  const day=p&&p.day, base=day||(data.cryptoDay||'');
+  if(!base) return;                                  // ни разу не считали — не пристаём
+  const age=Math.floor((today0()-new Date(base+'T12:00:00'))/86400000);
+  if(age<CRYPTO_STALE_DAYS) return;
+  const ok=confirm('Данные по крипте от '+base+' — им уже '+age+' дн.\n\n'
+    +'Пересчитать сейчас?\n\n⚠️ Это ПЛАТНАЯ операция: DeBank Pro спишет units '
+    +'за 55 кошельков (баланс + список NFT). Floor берётся с CoinGecko, минимальный. '
+    +'Займёт около минуты.');
+  if(!ok){ document.getElementById('saveInfo').textContent=
+             'крипта не пересчитана (данным '+age+' дн.) — обновить можно перезагрузкой страницы'; return; }
+  document.getElementById('saveInfo').textContent='считаю крипту через DeBank… это займёт ~минуту';
+  try{
+    const r=await fetch('/api/portfolio/recount',{method:'POST',body:'{}'});
+    const j=await r.json();
+    if(j.error){ document.getElementById('saveInfo').textContent='крипта: '+j.error; return; }
+    if(setCrypto(j.total,j.tokens,j.nft)){
+      build(); autoSave();
+      document.getElementById('saveInfo').textContent=
+        'крипта пересчитана: токены $'+F(j.tokens)+' + NFT $'+F(j.nft)+' = $'+F(j.total)
+        +' · кошельков '+j.addrs+' · коллекций проверено '+j.checked+' из '+j.collections
+        +(j.skipped?' (остальные '+j.skipped+' считаны нулём)':'');
+    }
+  }catch(e){ document.getElementById('saveInfo').textContent='крипта: пересчёт не удался ('+e+')'; }
+}
+</script>
+
+<div id="taxblock" style="max-width:1200px;margin:22px 0 10px;background:rgba(138,90,24,.08);border:1px solid rgba(138,90,24,.4);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.55">
+  <b>🧾 Налоги по этому плану (доходы 2026 → платить в 2027), пересчёт от 21.07.2026 по ДКП:</b>
+  <table style="border-collapse:collapse;margin-top:8px;font-size:12.5px">
+    <tr><td style="padding:3px 14px 3px 0">НДФЛ с продажи студии: 12 050 000 (цена по ДКП) − 7 445 302 (оплата по ДДУ, передаточный акт) = 4 604 698 → 13% с 2,4 млн + 15% с остатка. <b>Строка-резерв уже в плане (янв.27)</b></td><td style="text-align:right;font-weight:600;white-space:nowrap">642 705 ₽</td></tr>
+    <tr><td style="padding:3px 14px 3px 0">Кладовая Алтуфьево (продажа 1,0 млн − покупка 0,73 = 270 000 × 15%; продажа перенесена на янв.2027 → платить в 2028)</td><td style="text-align:right;font-weight:600">40 500 ₽</td></tr>
+    <tr><td style="padding:3px 14px 3px 0">Кладовая Павелецкая 1,3 млн (янв.2027): возврат займа — 0 ₽; продажа без подтверждённых расходов — до 157 500 ₽ (вычет 250к)</td><td style="text-align:right;font-weight:600">0…157 500 ₽</td></tr>
+    <tr><td style="padding:3px 14px 3px 0">Аренда однушки (НПД 4% при самозанятости; без неё — 13%)</td><td style="text-align:right;font-weight:600">≈ 6 600 ₽</td></tr>
+    <tr><td style="padding:3px 14px 3px 0">− Вычеты: учёба +13 000, основной +70 000 (в плане, янв.27); ИИС при взносе 400к до 31.12 даст ещё до +52 000 (в плане нет)</td><td style="text-align:right;font-weight:600">−83 000…−135 000 ₽</td></tr>
+    <tr><td style="padding:6px 14px 3px 0;border-top:1px solid rgba(138,90,24,.4)"><b>К уплате за 2026 год (декларация до 30.04.2027, оплата до 15.07.2027)</b></td><td style="text-align:right;font-weight:700;border-top:1px solid rgba(138,90,24,.4);white-space:nowrap"><b>≈ 570 000 — 610 000 ₽</b></td></tr>
+  </table>
+  <div style="margin-top:8px;color:#8a5a18">Резерв 643 тыс. стоит строкой в янв.27 — из августовских денег отложи его на отдельный вклад до июля 2027. Документы для декларации: ДДУ + платёжка эскроу Газпромбанка + передаточный акт (папка «инфа по фин и задачам/Зарегистрированный архив»). Налоги от продаж кладовых в январе-2027 — это уже доходы 2027 года, платить в 2028.</div>
+</div>
+
+</body>
+</html>
