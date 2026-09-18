@@ -60,13 +60,23 @@ SC.base = () => {
 };
 
 // Один объект покупки
-// {name, price, downPct, ratePct, years, buyKey:'2026-11', rentGross, rentTaxPct, upkeep, renovation}
+// {name, price, downPct, ratePct, years, buyKey:'2026-11', rentGross, rentTaxPct, upkeep, renovation,
+//  payoffKey:'2027-12' — месяц досрочного ПОЛНОГО гашения ипотеки}
+//
+// Досрочное гашение: в месяце payoffKey разово списывается весь остаток долга, после чего
+// ежемесячный аннуитет и обе ипотечные страховки прекращаются. Коммуналка и аренда остаются:
+// объект никуда не делся, ушёл только кредит.
 SC.applyPurchase = (rows, obj) => {
   const idx = rows.findIndex(r => r.key === obj.buyKey);
   if (idx < 0) return { pay: 0, down: 0, loan: 0, idx: -1 };
   const down = Math.round(obj.price * obj.downPct / 100);
   const loan = obj.price - down;
   const pay = loan > 0 ? SC.annuity(loan, obj.ratePct, obj.years) : 0;
+  // месяц гашения; платежи идут с idx по poIdx включительно, остаток гасим в poIdx
+  const poIdx = obj.payoffKey ? rows.findIndex(r => r.key === obj.payoffKey) : -1;
+  const paid = poIdx >= idx ? poIdx - idx + 1 : 0;
+  const payoff = (poIdx >= idx && loan > 0)
+    ? Math.round(SC.mortgageState(loan, obj.ratePct, obj.years, paid).debt) : 0;
   rows.forEach((r, i) => {
     r.sc = r.sc || { out: 0, in: 0, notes: [] };
     if (i === idx) {
@@ -74,19 +84,49 @@ SC.applyPurchase = (rows, obj) => {
       r.sc.notes.push(`${obj.name}: взнос ${SC.F(down)}` + (obj.renovation ? ` + ремонт ${SC.F(obj.renovation)}` : ''));
     }
     if (i >= idx) {
-      if (pay) r.sc.out += pay;
+      const underLoan = poIdx < 0 || i <= poIdx;   // кредит ещё жив
+      if (pay && underLoan) r.sc.out += pay;
       if (obj.upkeep) r.sc.out += obj.upkeep;
-      // страховки: жизнь считается от остатка долга, имущество от стоимости объекта
-      if (obj.insuranceYear) r.sc.out += obj.insuranceYear / 12;
-      if (obj.lifePct) r.sc.out += (obj.price - Math.round(obj.price*obj.downPct/100)) * obj.lifePct / 100 / 12;
-      if (obj.propPct) r.sc.out += obj.price * obj.propPct / 100 / 12;
+      // страховки: жизнь считается от остатка долга, имущество от стоимости объекта;
+      // обе требует банк, после гашения кредита обе снимаются
+      if (obj.insuranceYear && underLoan) r.sc.out += obj.insuranceYear / 12;
+      if (obj.lifePct && underLoan) r.sc.out += loan * obj.lifePct / 100 / 12;
+      if (obj.propPct && underLoan) r.sc.out += obj.price * obj.propPct / 100 / 12;
+      if (i === poIdx && payoff) {
+        r.sc.out += payoff;
+        r.sc.notes.push(`${obj.name}: досрочное ПОЛНОЕ гашение ипотеки ${SC.F(payoff)} ₽, дальше платежей нет`);
+      }
       if (obj.rentGross && (i > idx || obj.rentNow)) {   // rentNow — сдаём с первого месяца
         const net = obj.rentGross * (1 - (obj.rentTaxPct || 0) / 100);
         r.sc.in += net;
       }
     }
   });
-  return { pay, down, loan, idx };
+  return { pay, down, loan, idx, poIdx, payoff, paidMonths: paid };
+};
+
+// Сколько процентов экономит досрочное гашение против жизни по графику до конца срока
+SC.payoffSaving = (obj, res) => {
+  if (!res.loan || !res.payoff) return 0;
+  const full = SC.mortgageState(res.loan, obj.ratePct, obj.years, obj.years * 12).interest;
+  const till = SC.mortgageState(res.loan, obj.ratePct, obj.years, res.paidMonths).interest;
+  return Math.round(full - till);
+};
+
+// Банковские кредиты и ипотека вне сценария: ищем в основном плане живые строки-расходы.
+// Ипотека ДОМ.РФ погашена 29.07.2026, потребы и кредитки Райфа закрыты 27–28.07.2026,
+// поэтому в норме здесь ноль. Если в плане снова появится кредитная строка, она сюда попадёт.
+SC.LOAN_RE = /ипотек|кредит|заём|займ|долг родител/i;
+SC.otherLoans = () => {
+  const HR = new Set(data.hidden || []);
+  const out = [];
+  for (let ri = 0; ri < data.rows.length; ri++) {
+    if (HR.has(ri) || TYPE(ri) !== 'exp') continue;
+    if (!SC.LOAN_RE.test(LBL(ri))) continue;
+    const s = data.rows[ri].reduce((a, v) => a + (v || 0), 0);
+    if (s) out.push({ ri, sum: s, label: LBL(ri) });
+  }
+  return { list: out, sum: out.reduce((a, x) => a + x.sum, 0) };
 };
 
 // Пересчёт остатка с учётом сценария: идём по месяцам и копим
