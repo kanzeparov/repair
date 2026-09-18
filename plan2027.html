@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>План 2027</title>
+<style>
+  :root{--bg:#141311;--card:#1e1d1a;--ink:#eceae5;--dim:#9d998f;--line:#302e2a;
+        --accent:#7fb069;--accent-soft:#25301f;--crit:#d9705f;--warn:#d9a441}
+  *{box-sizing:border-box}
+  body{margin:0;padding:22px;background:var(--bg);color:var(--ink);
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  h1{font-size:21px;margin:0 0 4px}
+  .sub{color:var(--dim);margin-bottom:16px}
+  nav{margin-bottom:18px;display:flex;gap:14px;flex-wrap:wrap;font-size:13px}
+  nav a{color:var(--accent);text-decoration:none}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:150px}
+  .kpi b{display:block;font-size:19px;margin-top:2px}
+  .kpi span{color:var(--dim);font-size:12px}
+  .good{color:var(--accent)} .bad{color:var(--crit)} .warn{color:var(--warn)}
+  .wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+  th,td{padding:5px 9px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card);
+    max-width:330px;overflow:hidden;text-overflow:ellipsis}
+  thead th{position:sticky;top:0;background:#232220;z-index:2;font-weight:600}
+  tr.sec td{background:#232220;font-weight:600;color:var(--dim)}
+  tr.tot td{font-weight:600;border-top:2px solid var(--line)}
+  td.z{color:#4a4844}
+  .note{margin-top:16px;color:var(--dim);font-size:13px;line-height:1.7;max-width:900px}
+  .note b{color:var(--ink)}
+  .err{background:#3a2420;border:1px solid var(--crit);padding:14px;border-radius:10px}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/plan.html">← Таблица плана</a>
+  <a href="/dashboard.html">Дашборд</a>
+  <a href="/cards.html">Карточки</a>
+  <a href="/tasks.html">Задачи</a>
+</nav>
+
+<h1>План на 2027 год</h1>
+<div class="sub" id="sub">загружаю…</div>
+
+<div class="kpis" id="kpis"></div>
+<div class="wrap"><table id="t"></table></div>
+
+<div class="note" id="note"></div>
+
+<script src="engine.js?v=20260918"></script>
+<script>
+const F=n=>Math.round(n||0).toLocaleString('ru-RU');
+// имя MN уже занято в engine.js (короткие месяцы), поэтому своё называем иначе
+const MONTH_RU=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+// Страница только показывает. Считает всё тот же engine.js, что и основная таблица,
+// чтобы цифры здесь и там не разъезжались. Править план — на /plan.html.
+const PLAN=[];
+
+function boot(d){
+  window.data=d;
+  const first=COLS.findIndex(c=>c.endsWith('.27'));
+  if(first<0){ document.body.innerHTML='<div class="err">В плане нет колонок 2027 года. Сначала продли горизонт в engine.js.</div>'; return; }
+  const cols27=COLS.map((c,i)=>i).filter(i=>COLS[i].endsWith('.27'));
+  const months=[];                       // по два полумесяца в месяц
+  for(let m=0;m<12;m++) months.push([cols27[m*2],cols27[m*2+1]]);
+
+  const bal=runBalance();
+  const sum=(arr,idx)=>idx.reduce((a,i)=>a+(arr[i]||0),0);
+
+  // строки, у которых в 2027 есть хоть что-то
+  const rows=[];
+  for(let ri=0;ri<data.rows.length;ri++){
+    if((data.hidden||[]).includes(ri)) continue;
+    const vals=months.map(ms=>sum(data.rows[ri],ms));
+    if(vals.some(v=>v)) rows.push({ri,type:TYPE(ri),lbl:LBL(ri),vals,year:vals.reduce((a,b)=>a+b,0)});
+  }
+  const inc=rows.filter(r=>r.type==='inc'), exp=rows.filter(r=>r.type!=='inc');
+  const incM=months.map((_,i)=>inc.reduce((a,r)=>a+r.vals[i],0));
+  const expM=months.map((_,i)=>exp.reduce((a,r)=>a+r.vals[i],0));
+  const pctM=months.map((ms,i)=>{                      // проценты 12% по месяцам
+    const mi=MONTHS.findIndex(m=>m.cols[0]===ms[0]);
+    return mi<0?0:(bal.pct[mi]||0);
+  });
+  const incY=incM.reduce((a,b)=>a+b,0), expY=expM.reduce((a,b)=>a+b,0), pctY=pctM.reduce((a,b)=>a+b,0);
+  const endRub=bal.dif[bal.dif.length-1];
+  const startRub=bal.dif[COLS.indexOf('31.12')];
+  const minRub=Math.min(...cols27.map(i=>bal.dif[i]));
+
+  document.getElementById('sub').textContent =
+    'Горизонт с 1 января по 31 декабря 2027. Данные и расчёт общие с основной таблицей, здесь только просмотр.';
+
+  const kpi=(t,v,s,cls)=>`<div class="kpi"><span>${t}</span><b class="${cls||''}">${v}</b>${s?`<span>${s}</span>`:''}</div>`;
+  document.getElementById('kpis').innerHTML=
+     kpi('Доходы за год',F(incY)+' ₽','включая премию и активы','good')
+    +kpi('Расходы за год',F(expY)+' ₽','','bad')
+    +kpi('Проценты 12%',F(pctY)+' ₽','на рублёвый остаток','good')
+    +kpi('Остаток 31.12.26',F(startRub)+' ₽','точка входа в год')
+    +kpi('Остаток 31.12.27',F(endRub)+' ₽','конец горизонта','good')
+    +kpi('Минимум за год',F(minRub)+' ₽','самая низкая точка',minRub<0?'bad':'warn');
+
+  let h='<thead><tr><th>Статья</th>'+MN.map(m=>`<th>${m.slice(0,3)}</th>`).join('')+'<th>За год</th></tr></thead><tbody>';
+  const line=r=>`<tr><td title="${r.lbl.replace(/"/g,'&quot;')}">${r.lbl}</td>`
+      +r.vals.map(v=>`<td class="${v?'':'z'}">${v?F(v):'·'}</td>`).join('')
+      +`<td><b>${F(r.year)}</b></td></tr>`;
+  h+='<tr class="sec"><td>Доходы</td>'+MN.map(()=>'<td></td>').join('')+'<td></td></tr>';
+  inc.sort((a,b)=>b.year-a.year).forEach(r=>h+=line(r));
+  h+=`<tr class="tot"><td>Итого доходы</td>${incM.map(v=>`<td class="good">${F(v)}</td>`).join('')}<td class="good">${F(incY)}</td></tr>`;
+  h+='<tr class="sec"><td>Расходы</td>'+MN.map(()=>'<td></td>').join('')+'<td></td></tr>';
+  exp.sort((a,b)=>b.year-a.year).forEach(r=>h+=line(r));
+  h+=`<tr class="tot"><td>Итого расходы</td>${expM.map(v=>`<td class="bad">${F(v)}</td>`).join('')}<td class="bad">${F(expY)}</td></tr>`;
+  h+=`<tr class="tot"><td>Проценты 12%</td>${pctM.map(v=>`<td class="good">${F(v)}</td>`).join('')}<td class="good">${F(pctY)}</td></tr>`;
+  h+=`<tr class="tot"><td>Сальдо месяца</td>${months.map((_,i)=>{const s=incM[i]-expM[i]+pctM[i];
+        return `<td class="${s<0?'bad':'good'}">${F(s)}</td>`;}).join('')}<td>${F(incY-expY+pctY)}</td></tr>`;
+  h+=`<tr class="tot"><td>Остаток на конец месяца</td>${months.map(ms=>{const v=bal.dif[ms[1]];
+        return `<td class="${v<0?'bad':''}">${F(v)}</td>`;}).join('')}<td>${F(endRub)}</td></tr>`;
+  h+='</tbody>';
+  document.getElementById('t').innerHTML=h;
+
+  document.getElementById('note').innerHTML=
+    '<b>Что заложено в год.</b> ЗП 200 900 ₽ дважды в месяц, <b>с 1 июля +5%</b> → 210 945 ₽. '
+   +'<b>1 апреля премия 482 160 ₽</b> — 10% годового нетто 2026 (200 900 × 24). '
+   +'<b>С 1 марта бытовые траты +10%</b>: еда, рестораны, такси, здоровье, расходники, маркетплейсы, бады, одежда, квартплата, кладовая. '
+   +'Подписки не индексируются, валютные пересчитываются по курсу ЦБ ±5%. '
+   +'НДФЛ с продажи студии 643 000 ₽ стоит в первой половине июля, срок уплаты до 15.07.2027. '
+   +'Активы (крипта, биржи, Полюс, ТБанк) лежат строками в последней колонке, поэтому декабрь выглядит аномально большим — это не доход, а остаток. '
+   +'Правки вносятся в <a href="/plan.html" style="color:var(--accent)">основной таблице</a>, эта страница их только показывает.';
+}
+
+fetch('/api/plan').then(r=>r.json()).then(boot).catch(e=>{
+  document.body.innerHTML='<div class="err">Не смог загрузить /api/plan: '+e+'</div>';
+});
+</script>
+</body>
+</html>
