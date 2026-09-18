@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сценарий: студия сразу</title>
+<style>
+  :root{--bg:#141311;--card:#1e1d1a;--ink:#eceae5;--dim:#9d998f;--line:#302e2a;
+        --accent:#7fb069;--crit:#d9705f;--warn:#d9a441}
+  *{box-sizing:border-box}
+  body{margin:0;padding:22px;background:var(--bg);color:var(--ink);
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  h1{font-size:21px;margin:0 0 4px} h2{font-size:16px;margin:22px 0 8px}
+  .sub{color:var(--dim);margin-bottom:16px;max-width:860px}
+  nav{margin-bottom:18px;display:flex;gap:14px;flex-wrap:wrap;font-size:13px}
+  nav a{color:var(--accent);text-decoration:none}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:150px}
+  .kpi b{display:block;font-size:19px;margin-top:2px} .kpi span{color:var(--dim);font-size:12px}
+  .good{color:var(--accent)} .bad{color:var(--crit)} .warn{color:var(--warn)} .z{color:#4a4844}
+  .params{display:flex;gap:18px;flex-wrap:wrap}
+  fieldset{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-width:290px}
+  legend{color:var(--dim);padding:0 6px}
+  label{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:6px 0;font-size:13px}
+  input,select{background:#141311;border:1px solid var(--line);color:var(--ink);border-radius:7px;
+    padding:5px 8px;width:135px;font:inherit;text-align:right}
+  .wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-top:10px}
+  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+  th,td{padding:5px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{position:sticky;top:0;background:#232220;z-index:2}
+  tr.bad-row td{background:#3a2420}
+  .note{margin-top:14px;color:var(--dim);font-size:13px;line-height:1.7;max-width:900px}
+  .verdict{margin-top:14px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);max-width:900px}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/plan.html">← Таблица плана</a>
+  <a href="/plan2027.html">План 2027</a>
+  <a href="/plan-kvartira.html">Сценарий: квартира, потом студия</a>
+  <a href="/dashboard.html">Дашборд</a>
+</nav>
+
+<h1>Сценарий: студия в Мытищах сразу, 7,5 млн</h1>
+<div class="sub">Берём текущий план как есть (доходы, траты, проценты 12% на остаток) и покупаем доходную студию прямо сейчас, без квартиры.
+Считается по месяцам с октября 2026 по декабрь 2027. Цифры в полях можно менять — пересчёт мгновенный,
+в сам план ничего не пишется.</div>
+
+<div class="params" id="params"></div>
+<label style="display:inline-flex;gap:8px;margin-top:10px;font-size:13px"><input type="checkbox" id="sell" style="width:auto" checked> продать крипту, биржевые остатки и акции к дате покупки</label>
+<div class="kpis" id="kpis"></div>
+<div class="verdict" id="verdict"></div>
+<h2>По месяцам</h2>
+<div class="wrap"><table id="t"></table></div>
+<div class="note" id="note"></div>
+
+<script src="engine.js?v=20260919"></script>
+<script src="scenario.js?v=20260919"></script>
+<script>
+const PLAN=[];
+const DEF={
+  studio:{name:'Студия в Мытищах',price:7500000,downPct:50,ratePct:9.3,years:15,buyKey:'2026-11',
+        rentGross:35000,rentTaxPct:4,upkeep:5500,renovation:250000,rentNow:true,lifePct:0.7,propPct:0.15}
+};
+const LS='scenario-studiya';
+let CFG=JSON.parse(localStorage.getItem(LS)||'null')||structuredClone(DEF);
+
+const FIELDS=[['price','Цена, ₽'],['insuranceYear','Страховка, ₽/год'],['downPct','Первый взнос, %'],['ratePct','Ставка, %'],
+  ['years','Срок, лет'],['buyKey','Месяц покупки'],['renovation','Ремонт и мебель, ₽'],
+  ['upkeep','Коммуналка, ₽/мес'],['rentGross','Аренда, ₽/мес'],['rentTaxPct','Налог с аренды, %']];
+
+function drawParams(monthKeys){
+  document.getElementById('params').innerHTML=['studio'].map(k=>{
+    const o=CFG[k];
+    return `<fieldset><legend>Студия под аренду</legend>`
+      +FIELDS.map(([f,t])=>{
+        if(f==='buyKey') return `<label>${t}<select data-k="${k}" data-f="${f}">`
+            +monthKeys.map(m=>`<option value="${m.key}" ${o.buyKey===m.key?'selected':''}>${m.label}</option>`).join('')
+            +'</select></label>';
+        return `<label>${t}<input data-k="${k}" data-f="${f}" value="${o[f]}"></label>`;
+      }).join('')+'</fieldset>';
+  }).join('');
+  document.querySelectorAll('#params input,#params select').forEach(el=>{
+    el.onchange=()=>{
+      const v=el.tagName==='SELECT'?el.value:(parseFloat(String(el.value).replace(/\s/g,'').replace(',','.'))||0);
+      CFG[el.dataset.k][el.dataset.f]=v;
+      localStorage.setItem(LS,JSON.stringify(CFG));
+      render();
+    };
+  });
+}
+
+let ROWS=null, START=0;
+function render(){
+  const rows=ROWS.map(r=>({...r,sc:{out:0,in:0,notes:[]}}));
+  const sell=document.getElementById('sell').checked;
+  const sold=sell?SC.moveAssets(rows,CFG.studio.buyKey):0;
+  const r2=SC.applyPurchase(rows,CFG.studio);
+  const r1={pay:0,down:0,loan:0,idx:-1};
+  const proj=SC.project(rows,START);
+  const min=Math.min(...proj.map(p=>p.bal));
+  const minAt=proj.find(p=>p.bal===min);
+  const end=proj[proj.length-1].bal;
+  const need=CFG.studio.price*CFG.studio.downPct/100+(CFG.studio.renovation||0);
+  const monthly=r2.pay+(CFG.studio.upkeep||0)+(CFG.studio.insuranceYear||0)/12
+                -(CFG.studio.rentGross||0)*(1-(CFG.studio.rentTaxPct||0)/100);
+  document.getElementById('kpis').innerHTML=
+     SC.kpi('Нужно на входе',SC.F(need)+' ₽','взнос и ремонт')
+    +SC.kpi('Платёж по ипотеке',SC.F(r2.pay)+' ₽',CFG.studio.downPct>=100?'покупка за наличные':'аннуитет')
+    +SC.kpi('Аренда после налога',SC.F((CFG.studio.rentGross||0)*(1-(CFG.studio.rentTaxPct||0)/100))+' ₽','в месяц','good')
+    +SC.kpi('Нагрузка в месяц',SC.F(monthly)+' ₽','платёж, коммуналка, страховка минус аренда',monthly>0?'warn':'good')
+    +SC.kpi('Чистыми с аренды',SC.F((CFG.studio.rentGross||0)*(1-(CFG.studio.rentTaxPct||0)/100)-(CFG.studio.upkeep||0)-(CFG.studio.insuranceYear||0)/12)+' ₽','после налога, ЖКХ и страховки','good')
+    +SC.kpi('Продано активов',SC.F(sold)+' ₽',sold?'крипта, биржи, Полюс':'не продаём')
+    +SC.kpi('Минимум остатка',SC.F(min)+' ₽',minAt?minAt.label:'',min<0?'bad':'good')
+    +SC.kpi('Остаток 31.12.27',SC.F(end)+' ₽','',end<0?'bad':'good');
+  document.getElementById('verdict').innerHTML=
+    (min<0
+      ? `<b class="bad">Не проходит.</b> В ${minAt.label} остаток уходит в минус на ${SC.F(-min)} ₽. `
+        +`Варианты: сдвинуть покупку позже, поднять первый взнос за счёт крипты и акций, либо уменьшить цену объекта.`
+      : `<b class="good">Проходит.</b> Самая низкая точка — ${SC.F(min)} ₽ в ${minAt.label}, в минус план не уходит.`)
+    +'<br>'+SC.longRun(CFG.studio,r2);
+  document.getElementById('t').innerHTML=SC.table(proj);
+  document.getElementById('note').innerHTML=
+    'Что учтено: первый взнос и ремонт разово в месяц покупки, дальше ежемесячный аннуитет и содержание; '
+   +'аренда начинает капать со следующего месяца после покупки, за вычетом налога. '
+   +'Что НЕ учтено: налоговый вычет по процентам, страховка залога (обычно 0,1–0,3% от суммы кредита в год), '
+   +'рост стоимости объектов и досрочные погашения. Крипта и акции в остатке уже есть строками плана, '
+   +'но они лежат в последней колонке, то есть на первый взнос их надо продать отдельно.';
+}
+
+document.getElementById('sell').onchange=()=>render();
+fetch('/api/plan').then(r=>r.json()).then(d=>{
+  window.data=d;
+  const base=SC.base();
+  const startIdx=base.findIndex(r=>r.key==='2026-10');
+  ROWS=base.slice(startIdx);
+  START=base[startIdx-1]?base[startIdx-1].endRub:0;
+  drawParams(ROWS);
+  render();
+}).catch(e=>{document.body.innerHTML='<div class="verdict bad">Не загрузился /api/plan: '+e+'</div>';});
+</script>
+</body>
+</html>
