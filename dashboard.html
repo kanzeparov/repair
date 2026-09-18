@@ -179,7 +179,7 @@ function tbl(el,head,rows,empty){
      kpi('На счетах сейчас',F(data.start||0)+' ₽','Райф '+F(rubNow)+' · $'+F(usdNow))
     +kpi('Минимум года',F(lo.run)+' ₽',human(lo.k),lo.run<100000?'bad':'warn')
     +kpi('Осталось долгов',F(debt)+' ₽',debt?'ипотека ДОМ.РФ':'всё закрыто',debt?'warn':'good')
-    +kpi('Итог янв.27',F(end)+' ₽','+ валюта $'+F(r.usdDif[r.usdDif.length-1]),'good')
+    +kpi('Итог 31.12.27',F(end)+' ₽','+ валюта $'+F(r.usdDif[r.usdDif.length-1]),'good')
     +kpi('Проценты за год','+'+F(r.pct.reduce((a,b)=>a+b,0))+' ₽',RATE*100+'% на остаток Райфа','good');
 
   drawChart(S);

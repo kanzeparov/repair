@@ -217,7 +217,7 @@
       <span>Σ Доход <b id="kInc">—</b></span>
       <span>Σ Расход <b id="kExp">—</b></span>
       <span>Итог 31.12 ₽ <b id="kDec">—</b></span>
-      <span>Итог янв.27 ₽ <b id="kEnd">—</b></span>
+      <span>Итог 31.12.27 ₽ <b id="kEnd">—</b></span>
       <span>Валюта на 31.12 <b id="kUsd">—</b></span>
       <span>Активы <b id="kVol">—</b></span>
       <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i><i id="kAll31" class="k31"></i></span>
@@ -765,9 +765,9 @@ function calc(){
   document.getElementById('kExp').textContent=F(sE)+' ₽';
   document.getElementById('kDec').textContent=F(dif[12])+' ₽';
   document.getElementById('kEnd').textContent=F(dif[COLS.length-1])+' ₽';
-  // «Всего» — итоговая цифра всего горизонта, то есть последняя колонка (янв.27). Именно
+  // «Всего» — итоговая цифра всего горизонта, то есть последняя колонка (16.12.27). Именно
   // там припаркованы активы: крипта, Bybit, акции Полюс, MegaETH и обе кладовые. Отдельные
-  // KPI «Итог 31.12» и «Итог янв.27» показывают рублёвые остатки на каждую из дат.
+  // KPI «Итог 31.12» и «Итог 31.12.27» показывают рублёвые остатки на каждую из дат.
   const IDX_ALL=COLS.length-1;
   const uEnd=usdDif[IDX_ALL]||0;
   const sp0=data.startParts||{};
@@ -775,7 +775,7 @@ function calc(){
   // Наличные доллары в пул карт не входят (ими не оплатить подписку с Freedom), но это
   // деньги — в Σ старт они есть, значит и в итоге года должны быть, иначе итог занижен.
   const cashUsd=sp0.cashusd||0, cashUsdRub=cashUsd*fxRate(true);
-  // Активы больше НЕ прибавляются к итогу отдельно: они стоят строками в колонке янв.27,
+  // Активы больше НЕ прибавляются к итогу отдельно: они стоят строками в последней колонке,
   // то есть уже сидят внутри dif[IDX_ALL]. Прибавить их ещё раз — двойной счёт на 2,4 млн.
   const cash31=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;
   const V=volatileAssets();                                       // только для расшифровки в KPI
