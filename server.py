@@ -142,6 +142,8 @@ PLAN = os.path.join(DIR, "plan.json")
 # Журнал правок (94% веса plan.json) живёт отдельно и не попадает в git: иначе каждое
 # сохранение клало в историю новую полную копию шифртекста на сотню килобайт.
 PLAN_LOG = os.path.join(DIR, "plan-log.json")
+# Журнал прогонов /_common: по дню на запись, что отмечено в чек-листе и что нашли.
+COMMON = os.path.join(DIR, "common.json")
 
 def _write_json(path, obj):
     tmp = path + ".tmp"
@@ -511,6 +513,12 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json(stock_px())
         if self.path == "/api/portfolio":
             return self._json(read_portfolio())
+        if self.path == "/api/common":         # журнал прогонов чек-листа /_common
+            try:
+                with open(COMMON, encoding="utf-8") as fh:
+                    return self._json(json.load(fh))
+            except Exception:
+                return self._json({"rev": 0, "days": {}})
         if self.path == "/api/facts":          # факты из выписок, вне репозитория
             try:
                 with open(os.path.join(DIR, "facts.json"), encoding="utf-8") as fh:
@@ -561,6 +569,11 @@ class H(http.server.SimpleHTTPRequestHandler):
                 json.dump(body, fh, ensure_ascii=False, indent=1)
             os.replace(TASKS + ".tmp", TASKS)
             git_commit_tasks("tasks: change")
+            return self._json({"ok": True})
+        if self.path == "/api/common":        # журнал прогонов чек-листа
+            if not self._rev_ok(COMMON, body):
+                return self._json({"error": "stale rev — обнови вкладку"}, 409)
+            _write_json(COMMON, body)
             return self._json({"ok": True})
         if self.path == "/api/portfolio/recount":   # платная операция — только по кнопке
             return self._json(recount_portfolio())

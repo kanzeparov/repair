@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🗓 Чек-лист /_common</title>
+<style>
+  :root { --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE;
+    --warn:#8A5A18; --warn-bg:#F7EFDC; --crit:#96382C; --crit-bg:#F6E8E4;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace; --serif:Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A;
+      --warn:#D9A85C; --warn-bg:#322A18; --crit:#D98876; --crit-bg:#37231F; } }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;
+    padding:26px 14px 80px;font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .bar{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .bar a,.bar button{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none;cursor:pointer}
+  .bar button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .bar input[type=date]{padding:7px 10px;font-size:12.5px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);color:var(--ink);font-family:var(--mono)}
+  .layout{display:grid;grid-template-columns:230px 1fr;gap:14px}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+  .days{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;
+    max-height:78vh;overflow:auto}
+  .day{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:7px 9px;
+    border-radius:7px;cursor:pointer;font-size:12.5px;margin-bottom:3px}
+  .day:hover{background:var(--paper)}
+  .day.sel{background:var(--accent-soft);border:1px solid var(--accent)}
+  .day .d{font-family:var(--mono)}
+  .day .p{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .day.full .p{color:var(--accent)}
+  .day.none .p{color:var(--crit)}
+  .main{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+  .head h2{font-family:var(--serif);font-weight:400;font-size:19px;margin:0}
+  .runs{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+  .prog{font-family:var(--mono);font-size:13px;color:var(--accent);white-space:nowrap}
+  .prog.zero{color:var(--crit)}
+  .sec{margin-bottom:14px}
+  .sec h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 6px;padding-bottom:4px;border-bottom:1px dashed var(--line)}
+  .it{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start;padding:5px 0}
+  .it input{width:16px;height:16px;accent-color:var(--accent);margin-top:2px;cursor:pointer}
+  .it label{cursor:pointer;line-height:1.45;font-size:13px}
+  .it.done label{opacity:.5;text-decoration:line-through}
+  .it .tag{font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:4px;
+    background:var(--paper);border:1px solid var(--line);color:var(--muted);margin-left:5px;
+    white-space:nowrap;text-decoration:none;display:inline-block;vertical-align:1px}
+  .it .tag.vs{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-bg)}
+  .it .tag.sl{opacity:.7}
+  .it .note{display:block;width:100%;margin-top:4px;padding:5px 8px;font-size:12px;
+    border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);resize:vertical;min-height:28px}
+  .it .note:placeholder-shown{opacity:.6}
+  .sum{width:100%;min-height:110px;padding:10px 12px;font-size:13px;border:1px solid var(--line);
+    border-radius:8px;background:var(--paper);color:var(--ink);font-family:var(--sans);resize:vertical}
+  .hint{color:var(--muted);font-size:11.5px;margin-top:6px}
+  .save{position:fixed;right:16px;bottom:16px;font-family:var(--mono);font-size:11.5px;
+    padding:7px 12px;border-radius:20px;background:var(--accent);color:#fff;opacity:0;
+    transition:opacity .25s;pointer-events:none}
+  .save.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗓 Чек-лист <span style="font-family:var(--mono);font-size:19px">/_common</span></h1>
+  <div class="sub">Был ли прогон в этот день, что отмечено и что нашли. Источник правды по пунктам: <span style="font-family:var(--mono)">.claude/skills/_common/CHECKLIST.md</span></div>
+
+  <div class="bar">
+    <a href="index.html">🗂 Главная</a>
+    <a href="tasks.html">✅ Задачи</a>
+    <a href="plan.html">📊 Финплан</a>
+    <input type="date" id="pick">
+    <button id="today">Сегодня</button>
+    <button class="primary" id="markrun">Отметить прогон</button>
+    <button id="allon">Все ✓</button>
+    <button id="alloff">Снять все</button>
+    <span style="flex:1"></span>
+    <span class="prog" id="streak"></span>
+  </div>
+
+  <div class="layout">
+    <div class="days" id="days"></div>
+    <div class="main">
+      <div class="head">
+        <div>
+          <h2 id="dtitle">—</h2>
+          <div class="runs" id="runs">прогонов не было</div>
+        </div>
+        <div class="prog" id="prog">0 / 0</div>
+      </div>
+      <div id="secs"></div>
+      <div class="sec">
+        <h3>Что было в этот день</h3>
+        <textarea class="sum" id="summary" placeholder="Итог прогона: находки, что отправлено, что требует действий"></textarea>
+        <div class="hint">Пишется в common.json на сервере, переживает перезапуск и виден из любой сессии</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="save" id="saved">сохранено</div>
+
+<script>
+const SECTIONS = [
+ ["0. Старт", [
+   ["0.1","Спросить режим 1 или 2, в режиме 2 дальше не идти","к"]]],
+ ["1. Контекст", [
+   ["1.1","Память: pending-august-2026, commitments-august-2026","к"],
+   ["1.2","Vault: funds-and-refunds-checkpoint.md","к"]]],
+ ["2. Почта, по блоку на ящик", [
+   ["2.1","Gmail ruslankanzeparov@gmail.com (query, не q)","к"],
+   ["2.2","Яндекс kanzeparov@yandex.ru (UNSEEN SINCE)","к"],
+   ["2.3","Отец kanzeparov2014@mail.ru — Госуслуги, Росреестр, ФНС","к"],
+   ["2.4","Мама kanzeparovlala@yandex.ru","к"],
+   ["2.5","Пустой ящик упомянуть строкой «пусто»","к"],
+   ["2.6","Пришла выписка → разбор + запись в financerus","сл"]]],
+ ["3. Финансы", [
+   ["3.1","Списания сегодня и завтра, с какой карты","к"],
+   ["3.2","План против факта дня, темп против 11 тыс. ₽","к"],
+   ["3.3","Остаток Freedom, флаг если меньше двух месяцев подписок","к"],
+   ["3.4","🔴 Страж ипотеки: новые заявки, одобрения, лимиты","к"]]],
+ ["4. Инфраструктура", [
+   ["4.1","watch.py — «жив N из 15», упавшее чинить","к"],
+   ["4.2","task all — прерванные задачи с командой продолжения","к"],
+   ["4.3","Свою работу длиннее 5 минут пускать через task run","к"]]],
+ ["5. Здоровье", [
+   ["5.1","«До 75»: вес, среднее за 7 дней, талия, тренировки","к"],
+   ["5.2","Понедельник: напомнить замер талии","вс"]]],
+ ["6. Даты и сроки", [
+   ["6.1","Дни рождения по Дни_рождения.ics","к"],
+   ["6.2","Дедлайн-радар ≤7 дней + просроченное","к"],
+   ["6.3","Висящие обещания дольше 3 дней","к"]]],
+ ["7. Telegram", [
+   ["7.1","list_chats unread_only, аккаунт default","к"],
+   ["7.2","По каждому личному непрочитанному — get_history","к"],
+   ["7.3","Перед отправкой перечитать последние 3–5 сообщений","к"],
+   ["7.4","Тусовочка Moove","к"],
+   ["7.5","Аспиранты Синергия","к"],
+   ["7.6","🌇 ДП :: 13к3п1","к"],
+   ["7.7","Хранители Рода: бот и чат","к"],
+   ["7.8","⭐️ САТОШИ PRIVATE — что сказал Рафаэль","к"],
+   ["7.9","Карманный архивариус + ошибки бота","к"]]],
+ ["8. AI LAND", [
+   ["8.1","Пост дня: нет за 24 ч → черновик сразу","к"],
+   ["8.2","Тексты в канал писать через скилл tg-post","к"],
+   ["8.3","Статистика: подписчики, просмотры, дельта","к"],
+   ["8.4","Чат обсуждений: новые комментарии","к"],
+   ["8.5","Закреп: pinned_msg_id должен стать 80","к"],
+   ["8.6","Недельная сводка форматов в журнал ailand","вс"]]],
+ ["9. Купленные аккаунты", [
+   ["9.1","⛔️ india/usa из Claude не трогать, отправить в zai или codex","к"],
+   ["9.2","Напомнить, что 2FA продавца 332211 не сменён","к"]]],
+ ["10. Недвижимость", [
+   ["10.1","Канал Харыбина: ЖК, рынок, сделки, машиноместа","к"],
+   ["10.2","Рекламу с erid не тащить","к"]]],
+ ["11. Крипта", [
+   ["11.1","tg_scan_all.py 26 — дропы за сутки","к"],
+   ["11.2","scan_tokens.py (6 сетей) — строки NEW","к"],
+   ["11.3","Открытые окна ≤7 дней из трекера дропов","к"],
+   ["11.4","Полный проход по каналам за неделю","вс"],
+   ["11.5","Кладовка Алтуфьево: поиск «кладовк»","вс"]]],
+ ["12. Прочие источники", [
+   ["12.1","Автоответчик: журнал responder за сегодня","к"],
+   ["12.2","Клуб ИИнутых, иначе строка «в клубе пусто»","к"]]],
+ ["13. Задачи", [
+   ["13.1","Не-done на сегодня — полным списком","к"],
+   ["13.2","Не-done на завтра — отдельным блоком","к"],
+   ["13.3","Просроченные — только число","к"]]],
+ ["14. Отчёт", [
+   ["14.1","Клуб ИИнутых одной строкой","к"],
+   ["14.2","Требует действий сегодня, по срочности","к"],
+   ["14.3","САТОШИ PRIVATE, 2–4 строки","к"],
+   ["14.4","Дропы","к"],
+   ["14.5","Недвижимость, Харыбин","к"],
+   ["14.6","Что ушло в TG дословно + черновики","к"],
+   ["14.7","Списания, дни рождения, разбор выписки","к"],
+   ["14.8","Ждём — только изменения против вчерашнего","к"],
+   ["14.9","Задачи дня","к"],
+   ["14.10","Мусор одной строкой","к"]]],
+ ["15. После брифинга", [
+   ["15.1","Статусы — в память и funds-and-refunds-checkpoint","к"],
+   ["15.2","Договорённости из TG — в commitments-august-2026","к"],
+   ["15.3","Новый факт класть туда, где его будет искать следующая сессия","к"],
+   ["15.4","Сломался или ожил инструмент — правка в «Жёсткие правила»","к"]]],
+];
+const TAGLABEL = {"к":"каждый","вс":"вс","сл":"по случаю","1":"режим 1"};
+const ALL = SECTIONS.flatMap(s => s[1].map(i => i[0]));
+const DAILY = SECTIONS.flatMap(s => s[1].filter(i => i[2]==="к").map(i => i[0]));
+
+let db = {rev:0, days:{}};
+let cur = iso(new Date());
+let timer = null;
+
+function iso(d){ return d.toISOString().slice(0,10); }
+function ru(s){ const [y,m,d]=s.split("-"); return d+"."+m+"."+y; }
+function dayOf(k){ if(!db.days[k]) db.days[k]={items:{},notes:{},runs:[],summary:""};
+  const x=db.days[k]; x.items=x.items||{}; x.notes=x.notes||{}; x.runs=x.runs||[]; return x; }
+
+async function load(){
+  const r = await fetch("/api/common");
+  db = await r.json();
+  if(!db.days) db.days = {};
+  if(typeof db.rev !== "number") db.rev = 0;
+  render();
+}
+function save(){
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    db.rev = (db.rev|0) + 1;
+    const r = await fetch("/api/common", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(db)});
+    const j = await r.json();
+    if(j.error){ alert("Не сохранилось: "+j.error); location.reload(); return; }
+    const s = document.getElementById("saved");
+    s.classList.add("on"); setTimeout(()=>s.classList.remove("on"), 1200);
+    renderDays();
+  }, 450);
+}
+
+function doneCount(k){
+  const d = db.days[k]; if(!d) return 0;
+  return DAILY.filter(id => d.items && d.items[id]).length;
+}
+function hasRun(k){ const d = db.days[k]; return !!(d && d.runs && d.runs.length); }
+
+function renderDays(){
+  const box = document.getElementById("days");
+  box.innerHTML = "";
+  const today = new Date();
+  for(let i=0;i<30;i++){
+    const dt = new Date(today); dt.setDate(today.getDate()-i);
+    const k = iso(dt);
+    const n = doneCount(k), tot = DAILY.length;
+    const el = document.createElement("div");
+    el.className = "day" + (k===cur?" sel":"") + (n>=tot?" full":"") + (n===0?" none":"");
+    const wd = ["вс","пн","вт","ср","чт","пт","сб"][dt.getDay()];
+    el.innerHTML = `<span class="d">${ru(k).slice(0,5)} <span style="color:var(--muted)">${wd}</span></span>`+
+                   `<span class="p">${hasRun(k)?n+"/"+tot:"—"}</span>`;
+    el.onclick = () => { cur = k; render(); };
+    box.appendChild(el);
+  }
+  const st = [];
+  for(let i=0;i<30;i++){
+    const dt = new Date(today); dt.setDate(today.getDate()-i);
+    if(hasRun(iso(dt))) st.push(1); else break;
+  }
+  document.getElementById("streak").textContent = st.length ? "подряд дней с прогоном: "+st.length : "прогонов подряд: 0";
+}
+
+function render(){
+  document.getElementById("pick").value = cur;
+  document.getElementById("dtitle").textContent = ru(cur);
+  const d = db.days[cur];
+  const runs = (d && d.runs) || [];
+  document.getElementById("runs").textContent = runs.length
+    ? "прогоны: " + runs.map(r => r.t + (r.mode?" (режим "+r.mode+")":"")).join(" · ")
+    : "прогонов не было";
+  const n = doneCount(cur);
+  const p = document.getElementById("prog");
+  p.textContent = n + " / " + DAILY.length;
+  p.className = "prog" + (n===0?" zero":"");
+
+  const box = document.getElementById("secs");
+  box.innerHTML = "";
+  for(const [title, items] of SECTIONS){
+    const sec = document.createElement("div"); sec.className = "sec";
+    sec.innerHTML = `<h3>${title}</h3>`;
+    for(const [id, text, tag] of items){
+      const on = !!(d && d.items && d.items[id]);
+      const note = (d && d.notes && d.notes[id]) || "";
+      const row = document.createElement("div");
+      row.className = "it" + (on?" done":"");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = on; cb.id = "cb_"+id;
+      cb.onchange = () => { dayOf(cur).items[id] = cb.checked;
+        if(!cb.checked) delete dayOf(cur).items[id];
+        row.className = "it" + (cb.checked?" done":"");
+        const nn = doneCount(cur); const pp=document.getElementById("prog");
+        pp.textContent = nn+" / "+DAILY.length; pp.className="prog"+(nn===0?" zero":"");
+        save(); };
+      const lab = document.createElement("label");
+      lab.htmlFor = "cb_"+id;
+      lab.innerHTML = `<span style="font-family:var(--mono);color:var(--muted);font-size:11px">${id}</span> ${text}`+
+        (tag!=="к" ? `<span class="tag ${tag==="вс"?"vs":"sl"}">${TAGLABEL[tag]}</span>` : "");
+      const ta = document.createElement("textarea");
+      ta.className = "note"; ta.rows = 1; ta.value = note;
+      ta.placeholder = "что нашли";
+      ta.oninput = () => { const v = ta.value.trim();
+        if(v) dayOf(cur).notes[id] = v; else delete dayOf(cur).notes[id];
+        save(); };
+      const col = document.createElement("div");
+      col.appendChild(lab); col.appendChild(ta);
+      row.appendChild(cb); row.appendChild(col);
+      sec.appendChild(row);
+    }
+    box.appendChild(sec);
+  }
+  const s = document.getElementById("summary");
+  s.value = (d && d.summary) || "";
+  s.oninput = () => { dayOf(cur).summary = s.value; save(); };
+  renderDays();
+}
+
+document.getElementById("pick").onchange = e => { cur = e.target.value; render(); };
+document.getElementById("today").onclick = () => { cur = iso(new Date()); render(); };
+document.getElementById("markrun").onclick = () => {
+  const m = prompt("Режим прогона (1 или 2)?", "1");
+  if(m === null) return;
+  const t = new Date().toTimeString().slice(0,5);
+  dayOf(cur).runs.push({t, mode: m.trim() || "1"});
+  save(); render();
+};
+document.getElementById("allon").onclick = () => {
+  if(!confirm("Отметить все пункты дня?")) return;
+  const x = dayOf(cur); ALL.forEach(id => x.items[id] = true); save(); render();
+};
+document.getElementById("alloff").onclick = () => {
+  if(!confirm("Снять все отметки дня?")) return;
+  dayOf(cur).items = {}; save(); render();
+};
+load();
+</script>
+</body>
+</html>
