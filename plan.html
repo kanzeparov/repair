@@ -43,6 +43,10 @@
     color:var(--accent);outline:none}
   /* Дельта «Всего» относительно конца предыдущего дня. Знак и стрелка дублируют цвет,
      чтобы значение читалось и без различения цветов. */
+  .kopt{margin-left:8px;padding:3px 9px;font-size:11.5px;font-weight:600;border-radius:6px;cursor:pointer;
+    border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+  .kopt[hidden]{display:none}
+  .kopt:disabled{opacity:.6;cursor:wait}
   .kdelta{font-style:normal;font-weight:600;font-size:11.5px;margin-left:6px;white-space:nowrap}
   .kdelta:empty{display:none}
   .kdelta.up{color:var(--accent)}
@@ -224,6 +228,7 @@
       <span>Валюта на 31.12 <b id="kUsd">—</b></span>
       <span>Активы <b id="kVol">—</b></span>
       <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i><i id="kAll31" class="k31"></i></span>
+      <button id="kOpt" class="kopt" type="button" hidden title="Пропорционально подстроить гибкие траты (рестораны, такси, продукты, маркетплейсы, подарки, одежда, путешествия) с текущего периода, чтобы «Всего» стало равно цели">⚖️ до 10 млн</button>
     </span>
   </div>
 
@@ -796,6 +801,7 @@ function calc(){
     `на картах (Freedom/TBC/Bybit) — из него идут валютные траты.`
     +` Наличные $${cashUsd} (${F(cashUsdRub)} ₽) сюда НЕ входят: ими не оплатить подписку с Freedom`;
   document.getElementById('kAll').textContent=F(all)+' ₽';
+  renderOpt(all);
   document.getElementById('kAll').parentNode.title=
     `Всё вместе на конец горизонта: Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))}`
     +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽.`
@@ -1188,6 +1194,58 @@ function setStartInputs(){
   recalcStart();
 }
 let baseRev=(data&&data.rev)||0;   // версия, от которой ушла эта вкладка
+// ---- кнопка «до 10 млн» -------------------------------------------------
+// Цель итога горизонта (data.target, по умолчанию 10 млн). Если «Всего» отличается
+// больше чем на OPT_TOL — показываем кнопку. По нажатию один общий коэффициент
+// умножает гибкие расходы с текущего периода и подбирается бинарным поиском тем же
+// движком, что считает «Всего». Подписки, аренда, налоги, кредиты не трогаются.
+const OPT_TOL=1000;
+const OPT_FLEX=/Ресты|еда вне|Такси|Еда|продукт|Маркетплейс|Подарк|Одежд|Путешеств/i;
+const OPT_SKIP=/Подписк|Claude|ChatGPT|аренд|Налог|НДФЛ|Кредит|Погашен|Покупка|ипотек/i;
+function optTarget(){ return data.target||10000000; }
+function totalNow(){
+  const r=runBalance(), L=COLS.length-1, sp=data.startParts||{};
+  const other=(sp.ya||0)+(sp.cash||0)+(sp.tkf||0), cu=(sp.cashusd||0)*fxRate(true);
+  return r.dif[L]+(r.usdDif[L]||0)*fxRate(true)+other+cu;
+}
+function optRows(){
+  return data.rows.map((_,ri)=>ri).filter(ri=>TYPE(ri)==='exp'&&OPT_FLEX.test(LBL(ri))&&!OPT_SKIP.test(LBL(ri))
+    &&!(data.hidden||[]).includes(ri));
+}
+function renderOpt(all){
+  const b=document.getElementById('kOpt'); if(!b) return;
+  const diff=all-optTarget();
+  if(Math.abs(diff)<=OPT_TOL){ b.hidden=true; return; }
+  b.hidden=false;
+  b.textContent=(diff>0?'⚖️ +':'⚖️ −')+F(Math.abs(Math.round(diff)))+' → до '+F(optTarget());
+}
+function optimizeToTarget(){
+  const c0=COLS.findIndex((_,i)=>!isPast(i)); if(c0<0) return;
+  const rows=optRows(), target=optTarget();
+  const base=rows.map(ri=>data.rows[ri].slice());
+  const baseDays={}; rows.forEach(ri=>{ for(let c=c0;c<COLS.length;c++){ const k=ri+'_'+c; if(data.days&&data.days[k]) baseDays[k]=data.days[k].slice(); } });
+  const apply=f=>{
+    rows.forEach((ri,j)=>{ for(let c=c0;c<COLS.length;c++){
+      if(unitAt(ri,c)||!base[j][c]) continue;
+      const v=Math.max(0,Math.round(base[j][c]*f/100)*100); data.rows[ri][c]=v;
+      const k=ri+'_'+c; if(baseDays[k]){ const s=baseDays[k].reduce((a,b)=>a+(b||0),0)||1; data.days[k]=baseDays[k].map(x=>Math.round((x||0)*v/s)); }
+    }});
+  };
+  let lo=0.2, hi=3;
+  apply(lo); if(totalNow()<target){ apply(1); alert('Даже при срезке гибких трат на 80% до цели не дотянуть'); return; }
+  for(let i=0;i<40;i++){ const m=(lo+hi)/2; apply(m); if(totalNow()>=target) lo=m; else hi=m; }
+  apply(lo);
+  const f=lo; let n=0;
+  rows.forEach((ri,j)=>{ for(let c=c0;c<COLS.length;c++){
+    if(data.rows[ri][c]!==base[j][c]){ data.log.push({t:new Date().toISOString(),src:'optimizer',k:'edit',ri,c,lbl:LBL(ri),from:base[j][c],to:data.rows[ri][c],col:COLS[c]}); n++; }
+  }});
+  if(data.log.length>1000) data.log=data.log.slice(-1000);
+  build(); calc(); autoSave();
+  const pct=Math.round((f-1)*1000)/10;
+  document.getElementById('saveInfo').textContent='оптимизация: гибкие траты '+(pct>=0?'+':'')+pct+'% ('+n+' ячеек, '+rows.length+' строк)';
+}
+document.addEventListener('click',e=>{ if(e.target&&e.target.id==='kOpt'){ const b=e.target; b.disabled=true; setTimeout(()=>{ try{ optimizeToTarget(); } finally { b.disabled=false; } },20); } });
+
 async function saveState(){
   readStart();
   // защита от конфликта вкладок: если на сервере версия новее нашей базовой —
