@@ -753,7 +753,7 @@ function calc(){
     let cum=(p.freedom||0)+(p.tbc||0)+cash, out=[];
     for(let ci=0;ci<COLS.length;ci++){
       periodDates(ci).forEach(x=>{ const f=flow.get(dkey(x))||{}; cum+=(f.ui||0)-(f.ue||0); });
-      out.push(cum-cashSoldBy(data,ci));
+      out.push(cum);
     }
     document.getElementById('rUsdCash').innerHTML=
       `<td class="lbl" title="Freedom + TBC + наличные $${F(cash)}. Без автодокупки: минус означает, что валюты физически не хватает и её нужно купить или пополнить Freedom">Валюта с наличными (нарастающим, $)</td>`
@@ -790,7 +790,7 @@ function calc(){
   const other=(sp0.ya||0)+(sp0.cash||0)+(sp0.tkf||0);      // Яндекс, наличные, ТКФ
   // Наличные доллары в пул карт не входят (ими не оплатить подписку с Freedom), но это
   // деньги — в Σ старт они есть, значит и в итоге года должны быть, иначе итог занижен.
-  const cashUsd=cashUsdEnd(data), cashUsdRub=cashUsd*fxRate(true);
+  const cashUsd=sp0.cashusd||0, cashUsdRub=cashUsd*fxRate(true);
   // Активы больше НЕ прибавляются к итогу отдельно: они стоят строками в последней колонке,
   // то есть уже сидят внутри dif[IDX_ALL]. Прибавить их ещё раз — двойной счёт на 2,4 млн.
   const cash31=dif[IDX_ALL]+uEnd*fxRate(true)+other+cashUsdRub;
@@ -911,7 +911,7 @@ function projectedTotal(state,kind){
     const b=runBalance(), last=COLS.length-1;
     const p=state.startParts||{};
     const other=(p.ya||0)+(p.cash||0)+(p.tkf||0);
-    return Math.round((b.dif[last]||0)+(b.usdDif[last]||0)*fxRate(true)+other+cashUsdEnd(state)*fxRate(true));
+    return Math.round((b.dif[last]||0)+(b.usdDif[last]||0)*fxRate(true)+other+(p.cashusd||0)*fxRate(true));
   } finally { data=live; FX=liveFX; CR=liveCR; ST=liveST; }
 }
 function recalcStateStart(state){
@@ -1144,18 +1144,6 @@ function volatileAssets(){
 }
 const ST_FIELDS=['raif','tkf','cash','ya','freedom','tbc','bybit','cashusd'];
 const ST_USD={freedom:1,tbc:1,bybit:1,cashusd:1};   // эти поля хранятся в ДОЛЛАРАХ, не в рублях
-// Продажа наличных $ строками-доходами (28.09.2026): «Нал $» держит ФАКТ на руках, а доллары,
-// проданные строкой, списываются из нала с колонки продажи. data.cashSale = {ri: сколько $}.
-// Без этого одни и те же доллары считались дважды: в «Нал $» и рублями в строке продажи.
-function cashSoldBy(obj,ci){
-  const m=(obj&&obj.cashSale)||{}; let s=0;
-  for(const ri in m){
-    const row=((obj.rows||[])[+ri])||[], c=row.findIndex(v=>v);
-    if(c>=0 && (ci==null || c<=ci)) s+=(+m[ri]||0);
-  }
-  return s;
-}
-function cashUsdEnd(obj){ return Math.max(0,(((obj&&obj.startParts)||{}).cashusd||0)-cashSoldBy(obj)); }
 // На Bybit лежит эфир, а не доллары. Храним количество монет, а долларовый эквивалент
 // пересчитываем по цене CoinGecko — это бесплатный запрос, в отличие от DeBank.
 function syncBybit(){
@@ -1217,7 +1205,7 @@ const OPT_SKIP=/^Подписка|Claude|ChatGPT|аренд|Налог|НДФЛ|
 function optTarget(){ return data.target||10000000; }
 function totalNow(){
   const r=runBalance(), L=COLS.length-1, sp=data.startParts||{};
-  const other=(sp.ya||0)+(sp.cash||0)+(sp.tkf||0), cu=cashUsdEnd(data)*fxRate(true);
+  const other=(sp.ya||0)+(sp.cash||0)+(sp.tkf||0), cu=(sp.cashusd||0)*fxRate(true);
   return r.dif[L]+(r.usdDif[L]||0)*fxRate(true)+other+cu;
 }
 function optRows(){
