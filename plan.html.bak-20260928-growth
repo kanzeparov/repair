@@ -229,7 +229,6 @@
       <span>Активы <b id="kVol">—</b></span>
       <span id="kAllOpen" class="history-link" role="button" tabindex="0" style="color:var(--accent);font-weight:600" title="Нажми, чтобы посмотреть историю и график">Всего <b id="kAll">—</b><i id="kAllDelta" class="kdelta"></i><i id="kAll31" class="k31"></i></span>
       <button id="kOpt" class="kopt" type="button" hidden title="Пропорционально подстроить гибкие траты (рестораны, такси, продукты, маркетплейсы, подарки, одежда, путешествия) с текущего периода, чтобы «Всего» стало равно цели">⚖️ до 10 млн</button>
-      <span id="kGrowth" hidden style="color:#d32f2f;font-weight:700;font-size:12.5px" title="Строки 🚀 в последней колонке: рост крипто-портфеля заложен сценарием, это не факт. Не дойдёт — убрать строки, и «Всего» уйдёт в минус на эту сумму"></span>
     </span>
   </div>
 
@@ -803,14 +802,6 @@ function calc(){
     +` Наличные $${cashUsd} (${F(cashUsdRub)} ₽) сюда НЕ входят: ими не оплатить подписку с Freedom`;
   document.getElementById('kAll').textContent=F(all)+' ₽';
   renderOpt(all);
-  // Красная плашка: «Всего» держится на заложенном росте крипты (строки 🚀, 28.09.2026)
-  (()=>{ const el=document.getElementById('kGrowth'); if(!el) return;
-    const g=data.rows.reduce((a,row,ri)=>a+((!(data.hidden||[]).includes(ri)&&/^🚀/.test(LBL(ri)))?row.reduce((x,v)=>x+(v||0),0):0),0);
-    if(!g){ el.hidden=true; return; }
-    const pct=data.cryptoGrowthPct!=null?Math.round(data.cryptoGrowthPct):null;
-    el.hidden=false;
-    el.textContent='⚠️ с учётом роста крипто-портфеля'+(pct!=null?' +'+pct+'%':'')+' к 31.12.2027 (+'+F(g)+' ₽), сценарий';
-  })();
   document.getElementById('kAll').parentNode.title=
     `Всё вместе на конец горизонта: Райф ${F(dif[IDX_ALL])} + валюта на картах ${F(uEnd*fxRate(true))}`
     +` + Яндекс/наличные ₽ ${F(other)} + наличные $${cashUsd} (${F(cashUsdRub)} ₽) = ${F(all)} ₽.`
