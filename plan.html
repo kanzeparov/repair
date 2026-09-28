@@ -1214,7 +1214,7 @@ let baseRev=(data&&data.rev)||0;   // версия, от которой ушла
 const OPT_TOL=1000;
 const OPT_FLEX=/Ресты|еда вне|Такси|Еда|продукт|Маркетплейс|Подарк|Одежд|Путешеств/i;
 const OPT_SKIP=/^Подписка|Claude|ChatGPT|аренд|Налог|НДФЛ|Кредит|Погашен|Покупка|ипотек/i;
-function optTarget(){ return data.target||10000000; }
+function optTarget(){ return (data.target!=null && data.target!=='') ? +data.target : 10000000; }   // 0 — законная цель, не путать с «не задано»
 function totalNow(){
   const r=runBalance(), L=COLS.length-1, sp=data.startParts||{};
   const other=(sp.ya||0)+(sp.cash||0)+(sp.tkf||0), cu=cashUsdEnd(data)*fxRate(true);
