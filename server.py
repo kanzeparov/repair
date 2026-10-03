@@ -144,6 +144,9 @@ PLAN = os.path.join(DIR, "plan.json")
 PLAN_LOG = os.path.join(DIR, "plan-log.json")
 # Журнал прогонов /_common: по дню на запись, что отмечено в чек-листе и что нашли.
 COMMON = os.path.join(DIR, "common.json")
+# Страница учёбы: прогресс по Java и frontend на 20 дней (часы по дням), study.html
+STUDY = os.path.join(DIR, "study.json")
+STUDY_DEFAULT = {"rev": 0, "cfg": {"start": "2026-10-03", "days": 20, "goal_java": 2, "goal_front": 1}, "days": {}}
 
 def _write_json(path, obj):
     tmp = path + ".tmp"
@@ -519,6 +522,12 @@ class H(http.server.SimpleHTTPRequestHandler):
                     return self._json(json.load(fh))
             except Exception:
                 return self._json({"rev": 0, "days": {}})
+        if self.path == "/api/study":          # прогресс учёбы
+            try:
+                with open(STUDY, encoding="utf-8") as fh:
+                    return self._json(json.load(fh))
+            except Exception:
+                return self._json(STUDY_DEFAULT)
         if self.path == "/api/facts":          # факты из выписок, вне репозитория
             try:
                 with open(os.path.join(DIR, "facts.json"), encoding="utf-8") as fh:
@@ -574,6 +583,11 @@ class H(http.server.SimpleHTTPRequestHandler):
             if not self._rev_ok(COMMON, body):
                 return self._json({"error": "stale rev — обнови вкладку"}, 409)
             _write_json(COMMON, body)
+            return self._json({"ok": True})
+        if self.path == "/api/study":         # прогресс учёбы (rev-защита как у common)
+            if not self._rev_ok(STUDY, body):
+                return self._json({"error": "stale rev — обнови вкладку"}, 409)
+            _write_json(STUDY, body)
             return self._json({"ok": True})
         if self.path == "/api/portfolio/recount":   # платная операция — только по кнопке
             return self._json(recount_portfolio())

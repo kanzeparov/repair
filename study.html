@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📚 Учёба: 20 дней</title>
+<style>
+  :root { --paper:#FAFAF6; --card:#FFFFFF; --ink:#22261F; --muted:#6C7367;
+    --line:#E1E4D9; --accent:#2A5C48; --accent-soft:#EDF3EE; --ok-bg:#E4F0E8;
+    --warn:#8A5A18; --warn-bg:#F7EFDC;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace; --serif:Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#191C17; --card:#20241E; --ink:#E6E8E0; --muted:#9BA394;
+      --line:#343930; --accent:#7FBBA0; --accent-soft:#24322A; --ok-bg:#1F3027;
+      --warn:#D9A85C; --warn-bg:#322A18; } }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);margin:0;padding:26px 14px 80px;font-size:14px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .bar{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .bar a{padding:7px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);text-decoration:none}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+  .tile b{display:block;font-family:var(--mono);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+  .tile span{color:var(--muted);font-size:12px}
+  .pbar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-bottom:14px}
+  .pbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s ease}
+  .goals{display:flex;flex-wrap:wrap;gap:14px;align-items:center;color:var(--muted);font-size:13px;margin-bottom:12px}
+  .goals input{width:62px;font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font-family:var(--mono)}
+  .note{padding:9px 12px;border-radius:6px;background:var(--warn-bg);color:var(--warn);font-size:13px;margin-bottom:12px}
+  .note[hidden]{display:none}
+  .list{margin:0;padding:0;list-style:none;border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
+  .row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:11px 14px;border-top:1px solid var(--line)}
+  .row:first-child{border-top:0}
+  .row.done{background:var(--ok-bg)}
+  .row.today{box-shadow:inset 3px 0 0 var(--accent)}
+  .row.future{opacity:.6}
+  .day{min-width:120px}
+  .day b{font-weight:600}
+  .day small{display:block;color:var(--muted);font-size:12px}
+  .chip{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:600;background:var(--accent-soft);color:var(--accent);vertical-align:1px}
+  .row.done .chip{background:var(--accent);color:var(--card)}
+  .steps{display:flex;flex-wrap:wrap;gap:14px}
+  .step{display:flex;align-items:center;gap:6px}
+  .step em{font-style:normal;font-size:12px;color:var(--muted);width:62px}
+  .step button{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:17px;line-height:1;cursor:pointer}
+  .step button:hover{border-color:var(--accent);color:var(--accent)}
+  .step output{min-width:42px;text-align:center;font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums}
+  button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .foot{margin-top:18px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><a href="index.html">← Главная</a><a href="tasks.html">✅ Задачи</a></div>
+  <h1>📚 Учёба: 20 дней</h1>
+  <div class="sub">Java и frontend, часы по дням. Данные: <code>money-tracker/study.json</code></div>
+  <div class="tiles">
+    <div class="tile"><b id="t-days">0 из 20</b><span>дней выполнено (Java по цели)</span></div>
+    <div class="tile"><b id="t-streak">0</b><span>дней подряд</span></div>
+    <div class="tile"><b id="t-java">0</b><span>часов Java всего</span></div>
+    <div class="tile"><b id="t-front">0</b><span>часов frontend всего</span></div>
+  </div>
+  <div class="pbar" aria-label="Выполнено дней"><i id="pfill"></i></div>
+  <div class="goals">
+    <label>Цель Java, ч/день <input type="number" id="g-java" min="0" max="24" step="0.5" inputmode="decimal"></label>
+    <label>Цель frontend, ч/день <input type="number" id="g-front" min="0" max="24" step="0.5" inputmode="decimal"></label>
+  </div>
+  <div class="note" id="note" hidden></div>
+  <ul class="list" id="list"></ul>
+  <p class="foot">День выполнен, когда часов Java не меньше цели. Часы вносятся с шагом 0,5 и сразу сохраняются.</p>
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var st = { rev: 0, cfg: { start: '2026-10-03', days: 20, goal_java: 2, goal_front: 1 }, days: {} };
+  var saveTimer = null, saving = false, dirty = false;
+  var WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  function iso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function parse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function fmt(h) { return String(h).replace('.', ','); }
+  function note(t) { var n = $('note'); n.textContent = t || ''; n.hidden = !t; }
+
+  function rows() {
+    var out = [], s = parse(st.cfg.start);
+    for (var i = 0; i < st.cfg.days; i++) {
+      var d = new Date(s.getFullYear(), s.getMonth(), s.getDate() + i), key = iso(d), v = st.days[key] || {};
+      out.push({ n: i + 1, key: key, d: d, java: +v.java || 0, front: +v.front || 0 });
+    }
+    return out;
+  }
+
+  function render() {
+    var today = iso(new Date()), rs = rows(), gj = +st.cfg.goal_java, done = 0, tj = 0, tf = 0;
+    rs.forEach(function (r) { r.ok = gj > 0 ? r.java >= gj : r.java > 0; if (r.ok) done++; tj += r.java; tf += r.front; });
+    var idx = -1; rs.forEach(function (r, i) { if (r.key <= today) idx = i; });
+    var streak = 0, k = idx;
+    if (k >= 0 && !rs[k].ok && rs[k].key === today) k--;
+    while (k >= 0 && rs[k].ok) { streak++; k--; }
+    $('t-days').textContent = done + ' из ' + rs.length;
+    $('t-streak').textContent = streak;
+    $('t-java').textContent = fmt(tj);
+    $('t-front').textContent = fmt(tf);
+    $('pfill').style.width = (rs.length ? Math.round(done / rs.length * 100) : 0) + '%';
+    if (document.activeElement !== $('g-java')) $('g-java').value = st.cfg.goal_java;
+    if (document.activeElement !== $('g-front')) $('g-front').value = st.cfg.goal_front;
+
+    var ul = $('list'); ul.textContent = '';
+    rs.forEach(function (r) {
+      var li = document.createElement('li');
+      li.className = 'row' + (r.ok ? ' done' : '') + (r.key === today ? ' today' : '') + (r.key > today ? ' future' : '');
+      var day = document.createElement('div'); day.className = 'day';
+      var b = document.createElement('b'); b.textContent = 'День ' + r.n;
+      if (r.ok) { var c = document.createElement('span'); c.className = 'chip'; c.textContent = '✓'; b.appendChild(c); }
+      else if (r.key === today) { var c2 = document.createElement('span'); c2.className = 'chip'; c2.textContent = 'сегодня'; b.appendChild(c2); }
+      var sm = document.createElement('small'); sm.textContent = WD[r.d.getDay()] + ' ' + ('0' + r.d.getDate()).slice(-2) + '.' + ('0' + (r.d.getMonth() + 1)).slice(-2);
+      day.appendChild(b); day.appendChild(sm); li.appendChild(day);
+      var steps = document.createElement('div'); steps.className = 'steps';
+      [['java', 'Java'], ['front', 'Frontend']].forEach(function (f) {
+        var box = document.createElement('div'); box.className = 'step';
+        var em = document.createElement('em'); em.textContent = f[1];
+        var minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.setAttribute('aria-label', f[1] + ' минус полчаса, день ' + r.n);
+        var out = document.createElement('output'); out.textContent = fmt(r[f[0]]);
+        var plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.setAttribute('aria-label', f[1] + ' плюс полчаса, день ' + r.n);
+        minus.addEventListener('click', function () { change(r.key, f[0], -0.5); });
+        plus.addEventListener('click', function () { change(r.key, f[0], 0.5); });
+        box.appendChild(em); box.appendChild(minus); box.appendChild(out); box.appendChild(plus); steps.appendChild(box);
+      });
+      li.appendChild(steps); ul.appendChild(li);
+    });
+  }
+
+  function touch() { dirty = true; render(); clearTimeout(saveTimer); saveTimer = setTimeout(save, 450); }
+  function change(key, field, delta) {
+    var row = st.days[key] || (st.days[key] = {});
+    row[field] = Math.round(Math.max(0, Math.min(24, (+row[field] || 0) + delta)) * 4) / 4;
+    touch();
+  }
+
+  function save() {
+    if (saving) { saveTimer = setTimeout(save, 300); return; }
+    saving = true; st.rev = (st.rev || 0) + 1;
+    fetch('/api/study', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(st) })
+      .then(function (r) {
+        if (r.status === 409) { note('Данные изменились в другой вкладке. Подтягиваю свежие, повторите последнее действие.'); dirty = false; return load(true); }
+        if (!r.ok) throw new Error('http ' + r.status);
+        dirty = false; note('');
+      })
+      .catch(function () { note('Не удалось сохранить. Проверьте, что трекер запущен (localhost:8765).'); })
+      .then(function () { saving = false; });
+  }
+
+  function load(force) {
+    if (!force && (dirty || saving)) return Promise.resolve();
+    return fetch('/api/study', { cache: 'no-store' }).then(function (r) { return r.json(); })
+      .then(function (d) { if (!force && (dirty || saving)) return; st = d; if (!st.cfg) st.cfg = { start: '2026-10-03', days: 20, goal_java: 2, goal_front: 1 }; if (!st.days) st.days = {}; render(); })
+      .catch(function () { note('Нет связи с трекером.'); });
+  }
+
+  ['java', 'front'].forEach(function (k) {
+    $('g-' + k).addEventListener('input', function (ev) {
+      var v = parseFloat(String(ev.target.value).replace(',', '.'));
+      if (!(v >= 0 && v <= 24)) return;
+      st.cfg['goal_' + k] = v; touch();
+    });
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(); });
+  render(); load(true); setInterval(function () { if (!document.hidden) load(); }, 30000);
+})();
+</script>
+</body>
+</html>
