@@ -1,5 +1,5 @@
 {
- "rev": 117,
+ "rev": 118,
  "days": {
   "2026-09-21": {
    "items": {
@@ -2244,17 +2244,97 @@
    "summary": "Л4 личное+рабочее завершён по доступным данным. 207TG источников/1470дельт,13 полных YouTube-выжимок,61/140 личных аудио. Tasks1075:16 сегодня,33 завтра,0просроч. 8карточек исправлены. Все недоступные пункты имеют причины;100% не заявлено. | Claude 18:20: доделаны 7.3,7.8,9.2,12.15,15.1,15.2,15.4; заблокированы 8.5 (закреп, нужно слово Руслана), 12.11 (--mark не ставился), 12.12–12.14 (Chrome не подключён, платные тексты)."
   },
   "2026-10-07": {
-   "items": {},
-   "notes": {},
+   "items": {
+    "1.1": true,
+    "1.2": true,
+    "2.6": false,
+    "3.1": true,
+    "3.2": false,
+    "3.3": false,
+    "3.4": true,
+    "5.1": true,
+    "5.2": false,
+    "6.1": true,
+    "6.2": true,
+    "6.3": true,
+    "13.1": true,
+    "13.2": true,
+    "13.3": true,
+    "2.1": true,
+    "2.2": true,
+    "2.3": true,
+    "2.4": true,
+    "2.5": true,
+    "10.1": false,
+    "10.2": true,
+    "10.3": false,
+    "10.4": false,
+    "10.5": false,
+    "12.12": false,
+    "12.13": false,
+    "12.14": false,
+    "0.1": true,
+    "4.3": true,
+    "7.1": true,
+    "7.2": true,
+    "7.3": false,
+    "8.1": true,
+    "8.4": true,
+    "8.5": false
+   },
+   "notes": {
+    "1.1": "Relevant pending and commitments memory read; latest Oct6 exclusion respected",
+    "1.2": "Checkpoint read incl latest CityTravel Oct6",
+    "2.6": "No newbankstatementattachment found;weekly historic214rows rechecked separately",
+    "3.1": "Oct7-8 known schedule checked; oldMax cancelled, no confirmed renewal",
+    "3.2": "data.tx empty; actual daily spending unavailable",
+    "3.3": "475USD userOct5/liveplan; no fresh bank balance or reliable2month runway",
+    "3.4": "Mail mortgage guard reviewed;CredistoryPremium is promo,no new application/approval/limit evidence found.",
+    "5.1": "Live do75 checked; all measurements unavailable; reminder",
+    "5.2": "Wednesday;Monday-only reminder not due",
+    "6.1": "ICS checked;Tanya contact excluded by standing instruction;no birthday draft",
+    "6.2": "Radar reconciled with latest checkpoint/tasks; domains root handles",
+    "6.3": "Latest commitments read; no old personal nudges",
+    "13.1": "All39 active today included",
+    "13.2": "All27 active tomorrow included",
+    "13.3": "17 rolled to tomorrow API1102→1103; zero overdue",
+    "2.1": "Fresh Gmail150headers2pages,93MIMEbodies fetched; meaningful mail read; no unread-only filter. New City refund reversal,Oct10domains,Dec17RZD.",
+    "2.2": "Fresh Yandex510messages sinceSep30,IMAPreadonly; third attempt succeeded. VDSina stop3149857,all4Synergy emails,newPDF visually read.",
+    "2.3": "Father85fresh messages; government/utility/delivery bodies reviewed. Bills to finance;new pickupOct21.",
+    "2.4": "MotherYandex INBOX0sinceSep30;connection successful. Secondary Gmail unconfigured,contents unknown.",
+    "2.5": "Separate mailbox sections incl emptyMotherYandex and blockedsecondaryGmail.",
+    "10.1": "Kharyb10delta text rows;figures inphoto9809–9818 pending;invest_realty1065delta delegatedfinance.",
+    "10.2": "Ads excluded from four propertyTGdeltas and shortlist.",
+    "10.3": "Shenkursky rental search cancelledOct1;not resumed",
+    "10.4": "vds1blocked;freshSkazochnyLes price/withdrawalcomparison unavailable.",
+    "10.5": "vds1blocked;Mytishchi web403/oldindex;salemedian/rentmedianunverified.",
+    "12.12": "108DCweeklycards31publicbodiesread77restricted;paidX/IMD/podcast inaccessible;canonicalreport saved.",
+    "12.13": "FreshEraweek52articles18oldunlocked34locked;all7todaylocked;portfolio/scenario auditincomplete.",
+    "12.14": "FreshOct6politicaldigest andOct7politics locked;noheadlinesynthesis.",
+    "0.1": "User specified L4 including personal; no further mode question",
+    "4.3": "Long collectors registered with task run",
+    "7.1": "Fresh default account dialogs incl archive collected",
+    "7.2": "18personal dialogs read;old unanswered excluded byOct6instruction;weekly audio ongoing",
+    "7.3": "No messages sent;pre-send check not applicable",
+    "8.1": "LatestOct5 18:28,43hoursold;newerailand2daycadence governs;no daily failure",
+    "8.4": "Discussion group snapshot no new comments",
+    "8.5": "Fresh pinned_msg_id null;publication/pin not authorized"
+   },
    "runs": [
     {
      "time": "13:21",
      "mode": "Л4",
      "engine": "codex",
      "stage": "А: fresh personal L4 collection started"
+    },
+    {
+     "time": "13:33",
+     "mode": "Л4",
+     "engine": "codex",
+     "stage": "А complete; Б/В substantive review ongoing"
     }
    ],
-   "summary": "L4 personal briefing in progress: fresh mail, Telegram, finance, media and property collection"
+   "summary": "Fresh mail and finance complete;205TG sources collected;Abstract assets found;VDSina stop confirmed;personal audio and media audit ongoing"
   }
  }
 }
