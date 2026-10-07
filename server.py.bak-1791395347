@@ -147,9 +147,6 @@ COMMON = os.path.join(DIR, "common.json")
 # Страница учёбы: прогресс по Java и frontend на 20 дней (часы по дням), study.html
 STUDY = os.path.join(DIR, "study.json")
 STUDY_DEFAULT = {"rev": 0, "cfg": {"start": "2026-10-03", "days": 20, "goal_java": 2, "goal_front": 1}, "days": {}}
-# Категории общения A–E, выбранные вручную на comm.html: ключ = @ник строчными или «n:имя»
-COMMCATS = os.path.join(DIR, "comm_cats.json")
-COMMCATS_DEFAULT = {"rev": 0, "cats": {}}
 
 def _write_json(path, obj):
     tmp = path + ".tmp"
@@ -525,12 +522,6 @@ class H(http.server.SimpleHTTPRequestHandler):
                     return self._json(json.load(fh))
             except Exception:
                 return self._json({"rev": 0, "days": {}})
-        if self.path == "/api/comm_cats":      # ручные категории A–E
-            try:
-                with open(COMMCATS, encoding="utf-8") as fh:
-                    return self._json(json.load(fh))
-            except Exception:
-                return self._json(COMMCATS_DEFAULT)
         if self.path == "/api/study":          # прогресс учёбы
             try:
                 with open(STUDY, encoding="utf-8") as fh:
@@ -592,11 +583,6 @@ class H(http.server.SimpleHTTPRequestHandler):
             if not self._rev_ok(COMMON, body):
                 return self._json({"error": "stale rev — обнови вкладку"}, 409)
             _write_json(COMMON, body)
-            return self._json({"ok": True})
-        if self.path == "/api/comm_cats":     # ручные категории A–E (rev-защита)
-            if not self._rev_ok(COMMCATS, body):
-                return self._json({"error": "stale rev — обнови вкладку"}, 409)
-            _write_json(COMMCATS, body)
             return self._json({"ok": True})
         if self.path == "/api/study":         # прогресс учёбы (rev-защита как у common)
             if not self._rev_ok(STUDY, body):
