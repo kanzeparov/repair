@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Задачи дня с переносами</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1c1c1a;--mut:#6b6b66;--line:#e3e3de;--acc:#2f6fed;--fin:#b45309;--ok:#1a7f4b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193}}
+:root[data-theme="dark"]{--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:20px 16px 80px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:14px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px;align-items:center}
+input[type=search],input[type=date]{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);font-size:15px}
+input[type=search]{flex:1;min-width:180px}
+button{padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);cursor:pointer;font-size:14px}
+button:hover{border-color:var(--acc)}
+button.on{border-color:var(--acc);color:var(--acc)}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li.t{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:opacity .25s}
+li.gone{opacity:.35}
+.head{display:flex;gap:10px;align-items:flex-start}
+.n{color:var(--mut);font-variant-numeric:tabular-nums;min-width:26px;padding-top:1px}
+.tt{flex:1;word-break:break-word}
+.fin{color:var(--fin);font-weight:700;border:1px solid var(--fin);border-radius:6px;padding:0 6px;font-size:13px;height:22px;flex:none}
+.act{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0 36px}
+.act button{padding:5px 10px;font-size:13px}
+.act .ok{border-color:var(--ok);color:var(--ok)}
+.msg{color:var(--mut);font-size:13px;margin:6px 0 0 36px}
+details{margin:6px 0 0 36px}
+summary{color:var(--acc);cursor:pointer;font-size:13px}
+details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;word-break:break-word}
+.cnt{color:var(--mut);font-size:14px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
+.toast.show{opacity:1}
+@media (max-width:520px){.act,.msg,details{margin-left:0}}
+</style>
+</head>
+<body>
+<main>
+<h1 id="h">Задачи дня</h1>
+<p class="sub" id="sub">Загрузка из трекера…</p>
+<div class="bar">
+  <input type="date" id="day">
+  <input type="search" id="q" placeholder="Поиск по задачам">
+  <button id="hf">Только деньги ₽</button>
+  <button id="rl">Обновить</button>
+</div>
+<p class="cnt" id="cnt"></p>
+<ol id="list"></ol>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const STEPS=[1,2,7,15,30,60];
+const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const qs=new URLSearchParams(location.search);
+let DAY=qs.get('d')||'2026-10-09';
+let onlyFin=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number);const x=new Date(y,m-1,d+n);return ymd(x)}
+function human(iso){const [y,m,d]=iso.split('-').map(Number);const w=['вс','пн','вт','ср','чт','пт','сб'][new Date(y,m-1,d).getDay()];return d+' '+MON[m-1]+', '+w}
+function title(s){
+  s=(s||'').replace(/\s+/g,' ').trim();
+  for(let i=0;i<15;i++){
+    const m=s.replace(/^(⏭|🕒|🗑|🔗|🔎|📌|✅|🔀)[^()»]*?(\([^)]*\)|»[^.]*)\.?\s*/,'');
+    if(m===s)break;s=m;
+  }
+  const cut=s.slice(40).search(/[.:;]\s/);
+  return (cut>=0&&40+cut<150)?s.slice(0,40+cut+1):s.slice(0,110);
+}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2400)}
+async function getAll(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw new Error('GET '+r.status);return r.json()}
+async function mutate(id,fn){
+  const d=await getAll();
+  const t=d.tasks.find(x=>String(x.id)===String(id));
+  if(!t)throw new Error('задача не найдена');
+  fn(t,d);
+  d.rev=(d.rev||0)+1;
+  const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  if(!r.ok)throw new Error('POST '+r.status);
+  return t;
+}
+async function move(id,n){
+  const li=document.querySelector('li[data-id="'+id+'"]');
+  try{
+    let newDate;
+    await mutate(id,(t,d)=>{
+      const old=t.date||DAY; newDate=addDays(old,n);
+      const o=old.slice(8)+'.'+old.slice(5,7), nn=newDate.slice(8)+'.'+newDate.slice(5,7);
+      t.txt='⏭ '+o+' → '+nn+' (страница задач дня, +'+n+' д). '+t.txt;
+      t.date=newDate;
+      (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});
+    });
+    li.classList.add('gone');
+    li.querySelector('.msg').textContent='Перенесено на '+human(newDate)+' (+'+n+' д)';
+    li.querySelectorAll('.act button').forEach(b=>b.disabled=true);
+    toast('Перенесено на '+human(newDate));cnt();
+  }catch(e){toast('Ошибка: '+e.message)}
+}
+async function done(id){
+  const li=document.querySelector('li[data-id="'+id+'"]');
+  try{
+    await mutate(id,(t,d)=>{t.done=true;(d.log=d.log||[]).push({ts:new Date().toISOString(),k:'done',id:t.id,txt:(t.txt||'').slice(0,70),src:'page'})});
+    li.classList.add('gone');li.querySelector('.msg').textContent='Сделано';
+    li.querySelectorAll('.act button').forEach(b=>b.disabled=true);toast('Отмечено выполненным');cnt();
+  }catch(e){toast('Ошибка: '+e.message)}
+}
+function cnt(){
+  const all=[...document.querySelectorAll('li.t')];
+  const left=all.filter(e=>!e.classList.contains('gone')&&e.style.display!=='none').length;
+  $('cnt').textContent='Осталось '+left+' из '+all.length;
+}
+function filt(){
+  const q=$('q').value.toLowerCase();
+  document.querySelectorAll('li.t').forEach(e=>{
+    const ok=(!q||e.dataset.q.includes(q))&&(!onlyFin||e.dataset.fin==='1');
+    e.style.display=ok?'':'none';
+  });cnt();
+}
+async function load(){
+  $('day').value=DAY;
+  try{
+    const d=await getAll();
+    const L=d.tasks.filter(x=>!x.done&&!x.archived&&x.date===DAY);
+    L.sort((a,b)=>(b.fin?1:0)-(a.fin?1:0));
+    $('h').textContent='Задачи на '+human(DAY);
+    $('sub').textContent=L.length+' задач, из них '+L.filter(x=>x.fin).length+' про деньги. Кнопки переносят задачу в трекере на +1, +2, +7, +15, +30, +60 дней от даты задачи.';
+    $('list').innerHTML=L.map((x,i)=>{
+      const full=esc((x.txt||'').trim());
+      return '<li class="t" data-id="'+x.id+'" data-fin="'+(x.fin?1:0)+'" data-q="'+esc((x.txt||'').toLowerCase().slice(0,600))+'">'
+        +'<div class="head"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'+(x.fin?'<span class="fin">₽</span>':'')+'</div>'
+        +'<div class="act">'+STEPS.map(n=>'<button data-n="'+n+'">+'+n+' д</button>').join('')+'<button class="ok" data-ok="1">✓ сделано</button></div>'
+        +'<div class="msg"></div>'
+        +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
+    }).join('');
+    document.querySelectorAll('li.t').forEach(li=>{
+      const id=li.dataset.id;
+      li.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):move(id,+b.dataset.n));
+    });
+    filt();
+  }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/day-tasks.html'}
+}
+$('q').oninput=filt;
+$('hf').onclick=function(){onlyFin=!onlyFin;this.classList.toggle('on',onlyFin);filt()};
+$('rl').onclick=load;
+$('day').onchange=function(){DAY=this.value;load()};
+load();
+</script>
+</body>
+</html>
