@@ -58,7 +58,7 @@
   <h1>📚 Учёба: 20 дней</h1>
   <div class="sub">Java и frontend, часы по дням. Данные: <code>money-tracker/study.json</code></div>
   <div class="tiles">
-    <div class="tile"><b id="t-days">0 из 20</b><span>дней засчитано (Java хотя бы минуту)</span></div>
+    <div class="tile"><b id="t-days">0 из 20</b><span>дней выполнено (Java по цели)</span></div>
     <div class="tile"><b id="t-streak">0</b><span>дней подряд</span></div>
     <div class="tile"><b id="t-java">0</b><span>часов Java всего</span></div>
     <div class="tile"><b id="t-front">0</b><span>часов frontend всего</span></div>
@@ -70,7 +70,7 @@
   </div>
   <div class="note" id="note" hidden></div>
   <ul class="list" id="list"></ul>
-  <p class="foot">День засчитан, если Java хотя бы минуту (цель в часах остаётся ориентиром). Часы вносятся с шагом 0,5 и сразу сохраняются.</p>
+  <p class="foot">День выполнен, когда часов Java не меньше цели. Часы вносятся с шагом 0,5 и сразу сохраняются.</p>
 </div>
 <script>
 (function () {
@@ -94,7 +94,7 @@
 
   function render() {
     var today = iso(new Date()), rs = rows(), gj = +st.cfg.goal_java, done = 0, tj = 0, tf = 0;
-    rs.forEach(function (r) { r.ok = r.java > 0;   // правило Руслана 10.10: день засчитан, если занимался хотя бы минуту if (r.ok) done++; tj += r.java; tf += r.front; });
+    rs.forEach(function (r) { r.ok = gj > 0 ? r.java >= gj : r.java > 0; if (r.ok) done++; tj += r.java; tf += r.front; });
     var idx = -1; rs.forEach(function (r, i) { if (r.key <= today) idx = i; });
     var streak = 0, k = idx;
     if (k >= 0 && !rs[k].ok && rs[k].key === today) k--;
