@@ -65,7 +65,7 @@ li.over{border-color:var(--fin)}
 </main>
 <div class="toast" id="toast"></div>
 <script>
-const STEPS=[[1,'Завтра'],[7,'+7 дней'],[31,'+31 день']];
+const STEPS=[[1,'Завтра'],[7,'+7 дней'],[30,'+30 дней']];
 const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
 const qs=new URLSearchParams(location.search);
@@ -164,7 +164,7 @@ async function load(){
     const O=rest.filter(x=>x.date&&x.date<DAY).sort((a,b)=>a.date<b.date?-1:1);
     const N=rest.filter(x=>!x.date);
     $('h').textContent='Сегодня, '+human(DAY);
-    $('sub').textContent=T.length+' на сегодня, '+O.length+' просроченных'+(N.length?', '+N.length+' без даты':'')+'. Кнопки считают от сегодняшней даты: «Завтра» = '+human(addDays(DAY,1))+', «+7 дней» = '+human(addDays(DAY,7))+', «+31 день» = '+human(addDays(DAY,31))+'.';
+    $('sub').textContent=T.length+' на сегодня, '+O.length+' просроченных'+(N.length?', '+N.length+' без даты':'')+'. Кнопки считают от сегодняшней даты: «Завтра» = '+human(addDays(DAY,1))+', «+7 дней» = '+human(addDays(DAY,7))+', «+30 дней» = '+human(addDays(DAY,30))+'.';
     $('schwrap').innerHTML=sc.html;
     let k=0;
     $('lists').innerHTML=

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сегодня: расписание и задачи</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1c1c1a;--mut:#6b6b66;--line:#e3e3de;--acc:#2f6fed;--fin:#b45309;--ok:#1a7f4b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193}}
+:root[data-theme="dark"]{--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:20px 16px 80px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:14px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px;align-items:center}
+input[type=search],input[type=date]{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);font-size:15px}
+input[type=search]{flex:1;min-width:180px}
+button{padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);cursor:pointer;font-size:14px}
+button:hover{border-color:var(--acc)}
+button.on{border-color:var(--acc);color:var(--acc)}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li.t{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:opacity .25s}
+li.gone{opacity:.35}
+.head{display:flex;gap:10px;align-items:flex-start}
+.n{color:var(--mut);font-variant-numeric:tabular-nums;min-width:26px;padding-top:1px}
+.tt{flex:1;word-break:break-word}
+.fin{color:var(--fin);font-weight:700;border:1px solid var(--fin);border-radius:6px;padding:0 6px;font-size:13px;height:22px;flex:none}
+.act{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0 36px}
+.act button{padding:5px 10px;font-size:13px}
+.act .ok{border-color:var(--ok);color:var(--ok)}
+.msg{color:var(--mut);font-size:13px;margin:6px 0 0 36px}
+details{margin:6px 0 0 36px}
+summary{color:var(--acc);cursor:pointer;font-size:13px}
+details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;word-break:break-word}
+.cnt{color:var(--mut);font-size:14px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
+.toast.show{opacity:1}
+@media (max-width:520px){.act,.msg,details{margin-left:0}}
+
+.sch{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 14px;margin:0 0 18px}
+.sch .r{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.sch .r:last-child{border-bottom:0}
+.sch .tm{min-width:104px;color:var(--acc);font-variant-numeric:tabular-nums;font-weight:600}
+h2{font-size:16px;margin:22px 0 8px}
+h2 small{color:var(--mut);font-weight:400}
+li.over{border-color:var(--fin)}
+.od{color:var(--fin);font-size:12px;border:1px solid var(--fin);border-radius:6px;padding:0 6px;height:22px;flex:none}
+@media (max-width:520px){.sch .r{flex-direction:column;gap:2px}.sch .tm{min-width:0}}
+</style>
+</head>
+<body>
+<main>
+<h1 id="h">Сегодня</h1>
+<p class="sub" id="sub">Загрузка из трекера…</p>
+<div class="bar">
+  <input type="date" id="day">
+  <input type="search" id="q" placeholder="Поиск по задачам">
+  <button id="hf">Только деньги ₽</button>
+  <button id="rl">Обновить</button>
+</div>
+<div id="schwrap"></div>
+<p class="cnt" id="cnt"></p>
+<div id="lists"></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const STEPS=[[1,'Завтра'],[7,'+7 дней'],[31,'+31 день']];
+const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const WD=['вс','пн','вт','ср','чт','пт','сб'];
+const qs=new URLSearchParams(location.search);
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+let DAY=qs.get('d')||ymd(new Date());
+let onlyFin=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number);return ymd(new Date(y,m-1,d+n))}
+function human(iso){const [y,m,d]=iso.split('-').map(Number);return d+' '+MON[m-1]+', '+WD[new Date(y,m-1,d).getDay()]}
+function title(s){
+  s=(s||'').replace(/\s+/g,' ').trim();
+  for(let i=0;i<15;i++){
+    const m=s.replace(/^(⏭|🕒|🗑|🔗|🔎|📌|✅|🔀|⏮)[^()»]*?(\([^)]*\)|»[^.]*)\.?\s*/,'');
+    if(m===s)break;s=m;
+  }
+  const cut=s.slice(40).search(/[.:;]\s/);
+  return (cut>=0&&40+cut<150)?s.slice(0,40+cut+1):s.slice(0,110);
+}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2400)}
+async function getAll(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw new Error('GET '+r.status);return r.json()}
+async function mutate(id,fn){
+  const d=await getAll();
+  const t=d.tasks.find(x=>String(x.id)===String(id));
+  if(!t)throw new Error('задача не найдена');
+  fn(t,d);
+  d.rev=(d.rev||0)+1;
+  const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  if(!r.ok)throw new Error('POST '+r.status+(r.status===409?' (вкладка устарела, нажмите «Обновить»)':''));
+  return t;
+}
+async function move(id,n){
+  const li=document.querySelector('li[data-id="'+id+'"]');
+  try{
+    let newDate;
+    await mutate(id,(t,d)=>{
+      const old=t.date||DAY; newDate=addDays(DAY,n);
+      const o=old.slice(8)+'.'+old.slice(5,7), nn=newDate.slice(8)+'.'+newDate.slice(5,7);
+      t.txt='⏭ '+o+' → '+nn+' (страница «Сегодня», +'+n+' д от '+DAY.slice(8)+'.'+DAY.slice(5,7)+'). '+t.txt;
+      t.date=newDate;
+      (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});
+    });
+    li.classList.add('gone');
+    li.querySelector('.msg').textContent='Перенесено на '+human(newDate);
+    li.querySelectorAll('.act button').forEach(b=>b.disabled=true);
+    toast('Перенесено на '+human(newDate));cnt();
+  }catch(e){toast('Ошибка: '+e.message)}
+}
+async function done(id){
+  const li=document.querySelector('li[data-id="'+id+'"]');
+  try{
+    await mutate(id,(t,d)=>{t.done=true;(d.log=d.log||[]).push({ts:new Date().toISOString(),k:'done',id:t.id,txt:(t.txt||'').slice(0,70),src:'page'})});
+    li.classList.add('gone');li.querySelector('.msg').textContent='Сделано';
+    li.querySelectorAll('.act button').forEach(b=>b.disabled=true);toast('Отмечено выполненным');cnt();
+  }catch(e){toast('Ошибка: '+e.message)}
+}
+function cnt(){
+  const all=[...document.querySelectorAll('li.t')];
+  const left=all.filter(e=>!e.classList.contains('gone')&&e.style.display!=='none').length;
+  $('cnt').textContent='Осталось '+left+' из '+all.length;
+}
+function filt(){
+  const q=$('q').value.toLowerCase();
+  document.querySelectorAll('li.t').forEach(e=>{
+    const ok=(!q||e.dataset.q.includes(q))&&(!onlyFin||e.dataset.fin==='1');
+    e.style.display=ok?'':'none';
+  });cnt();
+}
+function item(x,i,over){
+  const full=esc((x.txt||'').trim());
+  return '<li class="t'+(over?' over':'')+'" data-id="'+x.id+'" data-fin="'+(x.fin?1:0)+'" data-q="'+esc((x.txt||'').toLowerCase().slice(0,600))+'">'
+    +'<div class="head"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'
+    +(over?'<span class="od">просрочено · '+human(x.date)+'</span>':'')+(x.fin?'<span class="fin">₽</span>':'')+'</div>'
+    +'<div class="act">'+STEPS.map(([n,l])=>'<button data-n="'+n+'">'+l+'</button>').join('')+'<button class="ok" data-ok="1">✓ сделано</button></div>'
+    +'<div class="msg"></div>'
+    +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
+}
+function schedule(tasks){
+  const s=tasks.find(x=>!x.done&&x.date===DAY&&/^📅 РАСПИСАНИЕ/.test(x.txt||''));
+  if(!s)return {html:'',id:null};
+  const body=s.txt.replace(/^📅 РАСПИСАНИЕ[^:]*:\s*/,'');
+  const rows=body.split(' · ').map(p=>p.trim().replace(/\.$/,'')).filter(Boolean).map(p=>{
+    const m=p.match(/^((?:до\s)?\d{1,2}:\d{2}(?:[–-]\d{1,2}:\d{2})?)\s*(.*)$/);
+    return m?'<div class="r"><span class="tm">'+esc(m[1])+'</span><span>'+esc(m[2]||'')+'</span></div>':'<div class="r"><span>'+esc(p)+'</span></div>';
+  });
+  return {html:'<h2>Расписание на '+human(DAY)+'</h2><div class="sch">'+rows.join('')+'</div>',id:s.id};
+}
+async function load(){
+  $('day').value=DAY;
+  try{
+    const d=await getAll();
+    const open=d.tasks.filter(x=>!x.done&&!x.archived);
+    const sc=schedule(open);
+    const rest=open.filter(x=>x.id!==sc.id);
+    const T=rest.filter(x=>x.date===DAY).sort((a,b)=>(b.fin?1:0)-(a.fin?1:0));
+    const O=rest.filter(x=>x.date&&x.date<DAY).sort((a,b)=>a.date<b.date?-1:1);
+    const N=rest.filter(x=>!x.date);
+    $('h').textContent='Сегодня, '+human(DAY);
+    $('sub').textContent=T.length+' на сегодня, '+O.length+' просроченных'+(N.length?', '+N.length+' без даты':'')+'. Кнопки считают от сегодняшней даты: «Завтра» = '+human(addDays(DAY,1))+', «+7 дней» = '+human(addDays(DAY,7))+', «+31 день» = '+human(addDays(DAY,31))+'.';
+    $('schwrap').innerHTML=sc.html;
+    let k=0;
+    $('lists').innerHTML=
+      '<h2>Просроченные <small>('+O.length+')</small></h2><ol>'+O.map(x=>item(x,k++,true)).join('')+'</ol>'
+      +'<h2>На сегодня <small>('+T.length+')</small></h2><ol>'+T.map((x,i)=>item(x,i,false)).join('')+'</ol>'
+      +(N.length?'<h2>Без даты <small>('+N.length+')</small></h2><ol>'+N.map((x,i)=>item(x,i,false)).join('')+'</ol>':'');
+    document.querySelectorAll('li.t').forEach(li=>{
+      const id=li.dataset.id;
+      li.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):move(id,+b.dataset.n));
+    });
+    filt();
+  }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/today.html'}
+}
+$('q').oninput=filt;
+$('hf').onclick=function(){onlyFin=!onlyFin;this.classList.toggle('on',onlyFin);filt()};
+$('rl').onclick=load;
+$('day').onchange=function(){DAY=this.value;load()};
+load();
+</script>
+</body>
+</html>
