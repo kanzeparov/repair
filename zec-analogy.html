@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZEC как шаблон для ZK и STRK</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1c1c1a;--mut:#6b6b66;--line:#e3e3de;--grid:#e8e8e3;--zec1:#e8830c;--zec2:#d6342c;--zk:#2f6fed;--strk:#8a4bd8;--ok:#1a7f4b;--bad:#c0392b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--grid:#2a2a27;--zec1:#f0a94e;--zec2:#ff6b5e;--zk:#7aa2ff;--strk:#c19bff;--ok:#5fd193;--bad:#ff8a7a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 70px}
+h1{font-size:23px;margin:0 0 4px}
+h2{font-size:17px;margin:26px 0 8px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px}
+.card ul{margin:6px 0 0;padding-left:20px}
+.card li{margin:5px 0}
+.leg{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 8px;font-size:14px}
+.leg label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.sw{width:22px;height:4px;border-radius:2px;display:inline-block}
+svg{width:100%;height:auto;display:block}
+.tip{position:absolute;pointer-events:none;background:var(--tx);color:var(--bg);padding:8px 10px;border-radius:8px;font-size:12.5px;line-height:1.45;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:5}
+.wrap{position:relative}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600}
+.scroll{overflow-x:auto}
+.note{color:var(--mut);font-size:13px}
+.warn{border-color:var(--bad)}
+.pos{color:var(--ok)} .neg{color:var(--bad)}
+@media (max-width:560px){h1{font-size:20px}}
+</style>
+</head>
+<body>
+<main>
+<h1>ZEC как шаблон для ZK и STRK</h1>
+<p class="sub" id="sub"></p>
+
+<div class="card" id="take"></div>
+
+<h2>Рост от точки старта, во сколько раз (логарифмическая шкала)</h2>
+<div class="card">
+  <div class="leg" id="leg"></div>
+  <div class="wrap" id="wrap"><svg id="svg" viewBox="0 0 960 470" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tip"></div></div>
+  <p class="note">Ось X: дни от точки старта роста. Сплошные линии это факт, пунктир это «если дальше повторить путь ZEC» от сегодняшнего дня (по номеру дня). Это аналогия, а не прогноз.</p>
+</div>
+
+<h2>Сравнение ростов</h2>
+<div class="card scroll"><table id="cmp"></table></div>
+
+<h2>Если ZK и STRK пойдут по пути ZEC (от сегодня)</h2>
+<div class="card scroll"><table id="scn"></table>
+<p class="note" id="scnnote"></p></div>
+
+<div class="card warn">
+<b>Как это читать.</b> Zcash и ZK/STRK разные проекты: у ZEC приватность и свой цикл спроса, у ZK и STRK это L2 с графиком разлоков. Совпадение формы графика не доказывает, что дальше будет так же. Две серии ZEC показывают, как могут выглядеть продолжение и откат после пика, но не дают цену. Это не рекомендация покупать или продавать, решения принимаете вы.
+</div>
+</main>
+<script>
+const D={"paths": {"zec1": [1.0, 1.0252, 1.0252, 1.0054, 1.0136, 1.1704, 1.1936, 1.2493, 1.1916, 1.1805, 1.1822, 1.2269, 1.3033, 1.2446, 1.2313, 1.2671, 1.2629, 1.2427, 1.2074, 1.2483, 1.2784, 1.1988, 1.3593, 1.4483, 1.344, 1.3877, 1.3721, 1.5063, 1.7771, 1.8328, 2.9781, 3.2402, 3.1398, 3.8663, 4.0777, 3.8461, 3.1383, 4.3788, 5.2422, 5.5556, 7.1763, 6.4222, 6.1438, 6.1105, 5.6723, 5.0572, 5.3711, 5.4589, 5.8143, 6.6242, 6.4841, 5.8853, 6.0064, 6.657, 6.8094, 8.0207, 8.4279, 7.7891, 8.6705, 8.5218, 9.9763, 10.1635, 10.3211, 10.6999, 10.8952, 11.7961, 13.2143, 15.9171, 14.8155, 15.1862, 12.8762, 10.9354, 12.4515, 12.8116, 15.0106, 16.5435, 17.238, 15.0565, 15.4195, 16.6387, 16.1731, 13.5822, 12.7744, 14.1285, 12.8222, 12.6094, 12.9975, 12.0856, 11.1472, 11.3559, 10.5534, 8.4811, 7.7142, 8.3531, 9.0646, 8.8797, 8.4229, 8.4533, 9.9995, 10.6787, 9.9736, 11.1194, 11.2205, 10.9273, 9.9707, 10.199, 9.9781, 9.2878, 9.5795, 10.9499, 11.0259, 10.8834, 10.6432, 10.2937, 11.0646, 10.8035, 11.0518, 12.7275, 13.0715, 13.329, 13.0607, 12.634, 12.9731, 12.0473, 12.6143, 12.385, 12.4168, 12.3795, 11.5788, 10.4059, 10.3199], "zec2": [1.0, 1.0088, 1.0702, 1.056, 1.1068, 1.1192, 1.0979, 1.1176, 1.1104, 1.114, 1.0844, 1.052, 1.071, 1.0726, 1.0777, 1.0661, 1.0627, 1.1232, 1.1119, 1.2348, 1.243, 1.6043, 1.7525, 1.8658, 1.8153, 1.6775, 1.783, 1.7697, 1.7489, 1.8388, 1.825, 1.853, 1.813, 1.7818, 2.0815, 2.235, 2.2415, 2.6821, 2.4911, 2.5733, 2.7185, 2.3595, 2.5451, 2.4538, 2.3214, 2.5423, 2.4261, 2.9231, 3.2048, 3.4129, 3.2138, 3.2972, 3.2149, 3.5614, 3.2735, 3.3791, 3.3989, 3.6118, 3.4682, 3.2411, 3.0967, 3.1427, 2.918, 2.8435, 2.8516, 2.9547, 2.9226, 2.9859, 2.9014, 2.5934, 2.6346, 2.6698, 2.7894, 2.7079, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], "zk": [1.0, 1.0124, 1.0373, 1.029, 1.0401, 1.0539, 1.0443, 1.1508, 1.2213, 1.3071, 1.242, 1.2752, 1.2296, 1.2089, 1.2047, 1.2006, 1.13, 1.1355, 1.2559, 1.2185, 1.242, 1.2282, 1.3126, 1.3057, 1.4094, 1.556, 1.4564, 1.4274, 1.3873, 1.2988, 1.3029, 1.3375, 1.3015, 1.3333, 1.242, 1.2351, 1.2766, 1.5574, 1.5657, 1.6183, 1.639, 1.7178, 1.5491, 1.6694, 1.7842, 1.7787, 1.8257, 1.722, 1.6653, 1.6805, 1.6846, 1.7414, 1.8313, 1.8091, 1.7884, 1.7925, 1.6556, 1.5754, 1.9502, 2.101, 2.2268, 2.0899, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], "strk": [1.0, 1.073, 1.142, 1.2888, 1.2158, 1.2666, 1.2029, 1.1415, 1.1673, 1.186, 1.0979, 1.1268, 1.0997, 1.1584, 1.2003, 1.1878, 1.2314, 1.1567, 1.34, 1.4206, 1.3907, 1.3596, 1.3912, 1.2443, 1.275, 1.2862, 1.2457, 1.2835, 1.186, 1.2421, 1.2902, 1.9693, 1.9898, 2.1567, 1.9484, 1.8914, 1.7054, 1.7405, 1.8349, 1.8033, 1.8723, 1.8607, 1.8638, 1.9203, 1.862, 1.9123, 2.4157, 2.6128, 2.352, 2.3, 2.1838, 2.4731, 3.2532, 4.5946, 5.4811, 4.1865, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, "starts": {"zec1": ["2025-09-01", 40.55], "zec2": ["2026-07-31", 457.7], "zk": ["2026-08-12", 0.00723], "strk": ["2026-08-18", 0.02247]}, "now": {"zk": 0.01511, "strk": 0.09407, "zec": 1239.42}, "hold": {"zk": 869588, "strk": 94674}};
+const DAYS=130;
+const SER=[
+ {id:'zec1',label:'ZEC, рост 2025',color:'var(--zec1)',path:D.paths.zec1,start:D.starts.zec1},
+ {id:'zec2',label:'ZEC, рост 2026',color:'var(--zec2)',path:D.paths.zec2,start:D.starts.zec2},
+ {id:'zk',label:'ZK (сейчас)',color:'var(--zk)',path:D.paths.zk,start:D.starts.zk},
+ {id:'strk',label:'STRK (сейчас)',color:'var(--strk)',path:D.paths.strk,start:D.starts.strk}
+];
+const byId=Object.fromEntries(SER.map(s=>[s.id,s]));
+const last=a=>{let i=a.length-1;while(i>=0&&a[i]==null)i--;return i};
+const fmt=(x,d=2)=>x==null?'—':Number(x).toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
+const price=(s,m)=>m*s.start[1];
+const pct=x=>(x>=0?'+':'')+fmt(x*100,0)+'%';
+function stats(s){
+  const n=last(s.path);let pk=0,pi=0;
+  s.path.forEach((v,i)=>{if(v!=null&&v>pk){pk=v;pi=i}});
+  const cur=s.path[n];
+  return {n,pk,pi,cur,dd:cur/pk-1,startDate:s.start[0],startPrice:s.start[1],peakPrice:pk*s.start[1],peakDate:new Date(new Date(s.start[0]).getTime()+pi*864e5).toISOString().slice(0,10)};
+}
+const ST=Object.fromEntries(SER.map(s=>[s.id,stats(s)]));
+// проекции: путь ZEC от текущего номера дня, пересчитанный на текущую цену
+function proj(sid,tid){
+  const s=byId[sid],t=byId[tid],n=last(s.path),tl=last(t.path);
+  if(t.path[n]==null)return null;
+  const out=[];
+  for(let k=0;n+k<=Math.min(DAYS,tl);k++){out.push(s.path[n]*t.path[n+k]/t.path[n])}
+  return {n,vals:out};
+}
+const PR={zk_zec1:proj('zk','zec1'),zk_zec2:proj('zk','zec2'),strk_zec1:proj('strk','zec1'),strk_zec2:proj('strk','zec2')};
+// шапка
+document.getElementById('sub').textContent='Данные Binance (дневные закрытия) на '+new Date().toISOString().slice(0,10)+'. Точка старта: локальный минимум перед ростом.';
+// выводы
+const z1=ST.zec1,z2=ST.zec2,zk=ST.zk,sk=ST.strk;
+document.getElementById('take').innerHTML='<b>Главное:</b><ul>'+
+ '<li>ZEC вырос дважды. <b>2025:</b> от $'+fmt(z1.startPrice,0)+' ('+z1.startDate+') до $'+fmt(z1.peakPrice,0)+' ('+z1.peakDate+'), это ×'+fmt(z1.pk,1)+' за '+z1.pi+' дн, потом откат до ×'+fmt(Math.min(...byId.zec1.path.slice(z1.pi).filter(v=>v)),1)+' (−'+fmt((1-Math.min(...byId.zec1.path.slice(z1.pi).filter(v=>v))/z1.pk)*100,0)+'% от пика). <b>2026:</b> от $'+fmt(z2.startPrice,0)+' ('+z2.startDate+') до $'+fmt(z2.peakPrice,0)+' ('+z2.peakDate+'), ×'+fmt(z2.pk,2)+' за '+z2.pi+' дн, сейчас '+pct(z2.dd)+' от пика.</li>'+
+ '<li><b>STRK:</b> от $'+fmt(sk.startPrice,4)+' ('+sk.startDate+') до пика $'+fmt(sk.peakPrice,3)+' (×'+fmt(sk.pk,1)+' за '+sk.pi+' дн), сейчас ×'+fmt(sk.cur,2)+' ('+pct(sk.dd)+' от пика), день '+sk.n+'.</li>'+
+ '<li><b>ZK:</b> от $'+fmt(zk.startPrice,5)+' ('+zk.startDate+') до пика $'+fmt(zk.peakPrice,4)+' (×'+fmt(zk.pk,2)+' за '+zk.pi+' дн), сейчас ×'+fmt(zk.cur,2)+' ('+pct(zk.dd)+' от пика), день '+zk.n+'.</li>'+
+ '<li>По времени пик ZK и STRK (день '+sk.pi+'–'+zk.pi+') почти совпал с пиком второго роста ZEC (день '+z2.pi+'), после него ZEC откатил '+pct(z2.dd)+'. До «большого» роста 2025 года (×'+fmt(z1.pk,0)+') ZK по множителю пока далеко: ×'+fmt(zk.cur,1)+' против ×'+fmt(byId.zec1.path[zk.n],1)+' у ZEC на тот же день.</li></ul>';
+// легенда
+const vis={zec1:true,zec2:true,zk:true,strk:true,pz:true};
+const leg=document.getElementById('leg');
+SER.forEach(s=>{const l=document.createElement('label');l.innerHTML='<input type="checkbox" checked data-id="'+s.id+'"><span class="sw" style="background:'+s.color+'"></span>'+s.label;leg.appendChild(l)});
+const lp=document.createElement('label');lp.innerHTML='<input type="checkbox" checked data-id="pz"><span class="sw" style="background:repeating-linear-gradient(90deg,var(--mut) 0 4px,transparent 4px 7px)"></span>Пунктир: путь ZEC 2025 дальше';leg.appendChild(lp);
+leg.addEventListener('change',e=>{vis[e.target.dataset.id]=e.target.checked;draw()});
+// график
+const W=960,H=470,M={l:52,r:14,t:14,b:36};
+const iw=W-M.l-M.r,ih=H-M.t-M.b,ymin=0.9,ymax=24;
+const X=d=>M.l+d/DAYS*iw;
+const Y=v=>M.t+ih-(Math.log(v)-Math.log(ymin))/(Math.log(ymax)-Math.log(ymin))*ih;
+function line(vals,from,color,dash,w){
+  let p='',on=false;
+  vals.forEach((v,i)=>{if(v==null){on=false;return}p+=(on?'L':'M')+X(from+i).toFixed(1)+' '+Y(v).toFixed(1);on=true});
+  return '<path d="'+p+'" fill="none" stroke="'+color+'" stroke-width="'+(w||2.4)+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+' stroke-linecap="round" stroke-linejoin="round"/>';
+}
+function draw(){
+  let g='';
+  [1,2,3,5,10,20].forEach(v=>{g+='<line x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--grid)"/><text x="'+(M.l-8)+'" y="'+(Y(v)+4)+'" text-anchor="end" font-size="12" fill="var(--mut)">×'+v+'</text>'});
+  for(let d=0;d<=DAYS;d+=10){g+='<line y1="'+M.t+'" y2="'+(H-M.b)+'" x1="'+X(d)+'" x2="'+X(d)+'" stroke="var(--grid)"/><text x="'+X(d)+'" y="'+(H-M.b+18)+'" text-anchor="middle" font-size="12" fill="var(--mut)">'+d+'</text>'}
+  g+='<text x="'+(W/2)+'" y="'+(H-2)+'" text-anchor="middle" font-size="12" fill="var(--mut)">дней от точки старта</text>';
+  const nz=Math.max(zk.n,sk.n);
+  g+='<line x1="'+X(sk.n)+'" x2="'+X(sk.n)+'" y1="'+M.t+'" y2="'+(H-M.b)+'" stroke="var(--strk)" stroke-dasharray="2 4" opacity=".7"/><line x1="'+X(zk.n)+'" x2="'+X(zk.n)+'" y1="'+M.t+'" y2="'+(H-M.b)+'" stroke="var(--zk)" stroke-dasharray="2 4" opacity=".7"/>';
+  g+='<text x="'+(X(sk.n)-4)+'" y="'+(M.t+12)+'" text-anchor="end" font-size="11" fill="var(--strk)">STRK сегодня (д.'+sk.n+')</text><text x="'+(X(zk.n)+4)+'" y="'+(M.t+12)+'" font-size="11" fill="var(--zk)">ZK сегодня (д.'+zk.n+')</text>';
+  if(vis.pz){
+    [['zk','zec1'],['strk','zec1']].forEach(([a,b])=>{const p=PR[a+'_'+b];if(p)g+=line(p.vals,p.n,byId[a].color,'6 5',1.8)});
+  }
+  SER.forEach(s=>{if(!vis[s.id])return;g+=line(s.path,0,s.color,null,s.id.startsWith('zec')?2.2:3);const t=ST[s.id];g+='<circle cx="'+X(t.pi)+'" cy="'+Y(t.pk)+'" r="4.5" fill="'+s.color+'"/>'});
+  g+='<line id="cur" y1="'+M.t+'" y2="'+(H-M.b)+'" stroke="var(--mut)" opacity="0"/>';
+  document.getElementById('svg').innerHTML=g;
+}
+draw();
+const svg=document.getElementById('svg'),tip=document.getElementById('tip'),wrap=document.getElementById('wrap');
+svg.addEventListener('mousemove',e=>{
+  const r=svg.getBoundingClientRect();const sx=(e.clientX-r.left)/r.width*W;
+  const d=Math.round((sx-M.l)/iw*DAYS);if(d<0||d>DAYS){tip.style.opacity=0;return}
+  let h='<b>День '+d+'</b>';
+  SER.forEach(s=>{if(vis[s.id]&&s.path[d]!=null)h+='<br><span style="color:'+s.color+'">●</span> '+s.label+': ×'+fmt(s.path[d],2)+' ($'+fmt(price(s,s.path[d]),s.id==='zk'?5:s.id==='strk'?4:0)+')'});
+  tip.innerHTML=h;tip.style.opacity=1;
+  const wr=wrap.getBoundingClientRect();tip.style.left=Math.min(wr.width-210,Math.max(0,e.clientX-wr.left+12))+'px';tip.style.top=Math.max(0,e.clientY-wr.top-20)+'px';
+});
+svg.addEventListener('mouseleave',()=>tip.style.opacity=0);
+// сравнение
+document.getElementById('cmp').innerHTML='<tr><th>Серия</th><th>Старт</th><th>Цена старта</th><th>Пик</th><th>Цена пика</th><th>×к пику</th><th>День пика</th><th>Сейчас ×</th><th>От пика</th><th>Дней</th></tr>'+
+ SER.map(s=>{const t=ST[s.id];const dp=s.id==='zk'?5:s.id==='strk'?4:2;return '<tr><td><span class="sw" style="background:'+s.color+'"></span> '+s.label+'</td><td>'+t.startDate+'</td><td>$'+fmt(t.startPrice,dp)+'</td><td>'+t.peakDate+'</td><td>$'+fmt(t.peakPrice,dp)+'</td><td>×'+fmt(t.pk,2)+'</td><td>'+t.pi+'</td><td>×'+fmt(t.cur,2)+'</td><td class="'+(t.dd<0?'neg':'pos')+'">'+pct(t.dd)+'</td><td>'+t.n+'</td></tr>'}).join('');
+// сценарии
+const H1=D.hold;const kk=[7,14,30,60];
+function row(label,sid,pk){
+  const p=PR[pk];if(!p)return '';
+  return kk.map(k=>{
+    if(k>=p.vals.length)return '<td>—</td>';
+    const v=p.vals[k]/p.vals[0];const pr=D.now[sid]*v;return '<td>$'+fmt(pr,sid==='zk'?5:4)+' <span class="'+(v>=1?'pos':'neg')+'">('+pct(v-1)+')</span></td>'
+  }).join('');
+}
+function hold(sid,pk){const p=PR[pk];return kk.map(k=>{if(!p||k>=p.vals.length)return '<td>—</td>';const v=p.vals[k]/p.vals[0];return '<td>$'+fmt(H1[sid]*D.now[sid]*v,0)+'</td>'}).join('')}
+let t='<tr><th>Путь по ZEC</th><th>Монета</th><th>Сейчас</th><th>+7 дн</th><th>+14 дн</th><th>+30 дн</th><th>+60 дн</th></tr>';
+[['zec1','ZEC 2025'],['zec2','ZEC 2026']].forEach(([tid,tl])=>{
+  ['strk','zk'].forEach(sid=>{
+    const key=sid+'_'+tid;
+    t+='<tr><td>'+tl+'</td><td>'+(sid==='zk'?'ZK':'STRK')+' (цена)</td><td>$'+fmt(D.now[sid],sid==='zk'?5:4)+'</td>'+row(tl,sid,key)+'</tr>';
+    t+='<tr><td></td><td>'+(sid==='zk'?'869 588 ZK':'94 674 STRK')+' в $</td><td>$'+fmt(H1[sid]*D.now[sid],0)+'</td>'+hold(sid,key)+'</tr>';
+  });
+  const tot=kk.map(k=>{const a=PR['zk_'+tid],b=PR['strk_'+tid];if(!a||!b||k>=a.vals.length||k>=b.vals.length)return '<td>—</td>';return '<td><b>$'+fmt(H1.zk*D.now.zk*a.vals[k]/a.vals[0]+H1.strk*D.now.strk*b.vals[k]/b.vals[0],0)+'</b></td>'}).join('');
+  t+='<tr><td></td><td><b>ZK + STRK вместе</b></td><td><b>$'+fmt(H1.zk*D.now.zk+H1.strk*D.now.strk,0)+'</b></td>'+tot+'</tr>';
+});
+document.getElementById('scn').innerHTML=t;
+document.getElementById('scnnote').textContent='Расчёт: цена сегодня × (путь ZEC на день n+k / путь ZEC на день n), где n это номер сегодняшнего дня от точки старта ('+sk.n+' у STRK, '+zk.n+' у ZK). Количества: ZK 869 588 (кошельки и Bybit), STRK 94 674. Для ZEC 2026 данных пока только до дня '+last(byId.zec2.path)+', дальше прочерк.';
+</script>
+</body>
+</html>
