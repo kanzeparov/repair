@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Разбор задач дня</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1c1c1a;--mut:#6b6b66;--line:#e3e3de;--acc:#2f6fed;--fin:#b45309;--ok:#1a7f4b;--bad:#c0392b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193;--bad:#ff7b6b}}
+:root[data-theme="dark"]{--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193;--bad:#ff7b6b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:20px 16px 90px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:14px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px;align-items:center}
+input[type=search],input[type=date]{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);font-size:15px}
+input[type=search]{flex:1;min-width:180px}
+button{padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);cursor:pointer;font-size:14px}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:default}
+button.on{border-color:var(--acc);color:var(--acc)}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li.t{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:opacity .25s}
+li.gone{opacity:.4}
+li.fail{border-color:var(--bad)}
+.head{display:flex;gap:10px;align-items:flex-start}
+.n{color:var(--mut);font-variant-numeric:tabular-nums;min-width:30px;padding-top:1px}
+.tt{flex:1;word-break:break-word}
+.fin{color:var(--fin);font-weight:700;border:1px solid var(--fin);border-radius:6px;padding:0 6px;font-size:13px;height:22px;flex:none}
+.act{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0 40px}
+.act button{padding:6px 12px;font-size:14px}
+.act .ok{border-color:var(--ok);color:var(--ok)}
+.msg{font-size:13px;margin:6px 0 0 40px;color:var(--mut)}
+.msg.saved{color:var(--ok)}
+.msg.err{color:var(--bad)}
+details{margin:6px 0 0 40px}
+summary{color:var(--acc);cursor:pointer;font-size:13px}
+details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;word-break:break-word}
+.cnt{color:var(--mut);font-size:14px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.pend{position:fixed;right:14px;top:12px;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px 10px}
+.pend.busy{color:var(--fin);border-color:var(--fin)}
+@media (max-width:520px){.act,.msg,details{margin-left:0}}
+</style>
+</head>
+<body>
+<main>
+<h1 id="h">Разбор задач</h1>
+<p class="sub" id="sub">Загрузка из трекера…</p>
+<div class="bar">
+  <input type="date" id="day">
+  <button id="d0">Сегодня</button>
+  <button id="d1">Завтра</button>
+  <input type="search" id="q" placeholder="Поиск по задачам">
+  <button id="hf">Только деньги ₽</button>
+  <button id="rl">Обновить</button>
+</div>
+<p class="cnt" id="cnt"></p>
+<div id="lists"></div>
+</main>
+<div class="pend" id="pend">все сохранено</div>
+<div class="toast" id="toast"></div>
+<script>
+// Кнопки считают от даты, которую разбираем (по умолчанию завтра): +1 день, +2 дня, +7 дней, +30 дней.
+// Каждое действие пишется в трекер (POST /api/tasks), потом страница перечитывает задачу и проверяет,
+// что значение реально сохранилось. Если сервер ответил 409/таймаут, страница сама повторяет до 4 раз.
+const STEPS=[[1,'+1 день'],[2,'+2 дня'],[7,'+7 дней'],[30,'+30 дней']];
+const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const WD=['вс','пн','вт','ср','чт','пт','сб'];
+const qs=new URLSearchParams(location.search);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number);return ymd(new Date(y,m-1,d+n))}
+function human(iso){const [y,m,d]=iso.split('-').map(Number);return d+' '+MON[m-1]+', '+WD[new Date(y,m-1,d).getDay()]}
+function dm(iso){return iso.slice(8)+'.'+iso.slice(5,7)}
+let DAY=qs.get('d')||addDays(ymd(new Date()),1);
+let onlyFin=false;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function title(s){
+  s=(s||'').replace(/\s+/g,' ').trim();
+  for(let i=0;i<15;i++){
+    const m=s.replace(/^(⏭|🕒|🗑|🔗|🔎|📌|✅|🔀|⏮)[^()»]*?(\([^)]*\)|»[^.]*)\.?\s*/,'');
+    if(m===s)break;s=m;
+  }
+  const cut=s.slice(40).search(/[.:;]\s/);
+  return (cut>=0&&40+cut<150)?s.slice(0,40+cut+1):s.slice(0,130);
+}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
+
+// ---------- сохранение с проверкой ----------
+async function getAll(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw new Error('GET '+r.status);return r.json()}
+async function post(d){
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),40000);
+  try{
+    const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d),signal:ctl.signal});
+    return r.status;
+  }catch(e){return 0}finally{clearTimeout(to)}
+}
+// fn меняет задачу, check(t) говорит, что значение уже сохранено
+async function mutate(id,fn,check){
+  let last='';
+  for(let a=0;a<4;a++){
+    const d=await getAll();
+    const t=d.tasks.find(x=>String(x.id)===String(id));
+    if(!t)throw new Error('задача не найдена');
+    if(check(t))return t;                       // уже применено (например после таймаута)
+    fn(t,d);
+    d.rev=(d.rev||0)+1;
+    const st=await post(d);
+    last='ответ сервера '+st;
+    await sleep(250);
+    try{
+      const v=await getAll();
+      const vt=v.tasks.find(x=>String(x.id)===String(id));
+      if(vt&&check(vt))return vt;               // перечитали: значение на месте
+    }catch(e){}
+    if(st>=200&&st<300)last='сервер принял, но значение не подтвердилось';
+    await sleep(500*(a+1));                      // 409 (кто-то писал параллельно), таймаут: пробуем заново на свежей версии
+  }
+  throw new Error('не сохранилось: '+last);
+}
+// очередь: действия идут строго по одному, чтобы не ловить 409 от самих себя
+let queue=Promise.resolve(),pending=0;
+function setPend(){const e=$('pend');e.textContent=pending?'сохраняю: '+pending:'все сохранено';e.classList.toggle('busy',pending>0)}
+function enqueue(job){pending++;setPend();const p=queue.then(job);queue=p.catch(()=>{});return p.finally(()=>{pending--;setPend()})}
+
+const PREFIX={};   // id -> строка, добавленная к тексту при переносе (для «вернуть»)
+function li(id){return document.querySelector('li[data-id="'+id+'"]')}
+function setMsg(id,text,cls){const l=li(id);if(!l)return;const m=l.querySelector('.msg');m.textContent=text;m.className='msg'+(cls?' '+cls:'')}
+function lock(id,on){const l=li(id);if(!l)return;l.querySelectorAll('.act button').forEach(b=>b.disabled=on)}
+
+function move(id,n){
+  const newDate=addDays(DAY,n);
+  lock(id,true);setMsg(id,'сохраняю…');
+  enqueue(async()=>{
+    try{
+      const pre='⏭ '+dm(DAY)+' → '+dm(newDate)+' (кнопка «+'+n+' д» на странице разбора). ';
+      await mutate(id,(t,d)=>{
+        t.txt=pre+t.txt;t.date=newDate;
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'triage'});
+      },t=>t.date===newDate&&!t.done);
+      PREFIX[id]=pre;
+      const l=li(id);l.classList.remove('fail');l.classList.add('gone');
+      setMsg(id,'✓ сохранено: перенесено на '+human(newDate)+' '+'','saved');
+      const m=l.querySelector('.msg');
+      const u=document.createElement('button');u.textContent='↩ вернуть';u.style.marginLeft='10px';u.onclick=()=>undo(id);m.appendChild(u);
+      toast('Сохранено: '+human(newDate));cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function done(id){
+  lock(id,true);setMsg(id,'сохраняю…');
+  enqueue(async()=>{
+    try{
+      await mutate(id,(t,d)=>{t.done=true;(d.log=d.log||[]).push({ts:new Date().toISOString(),k:'done',id:t.id,txt:(t.txt||'').slice(0,70),src:'triage'})},t=>t.done===true);
+      const l=li(id);l.classList.remove('fail');l.classList.add('gone');setMsg(id,'✓ сохранено: сделано','saved');toast('Сохранено: сделано');cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function undo(id){
+  setMsg(id,'возвращаю…');
+  enqueue(async()=>{
+    try{
+      const pre=PREFIX[id];
+      await mutate(id,(t,d)=>{
+        if(pre&&t.txt.startsWith(pre))t.txt=t.txt.slice(pre.length);
+        t.date=DAY;t.done=false;
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:('↩ '+t.txt).slice(0,70),src:'triage'});
+      },t=>t.date===DAY&&!t.done);
+      const l=li(id);l.classList.remove('gone');lock(id,false);setMsg(id,'↩ возвращено на '+human(DAY),'');cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function fail(id,e){
+  const l=li(id);if(!l)return;l.classList.add('fail');lock(id,false);
+  setMsg(id,'⚠️ НЕ СОХРАНИЛОСЬ: '+e.message+'. Нажмите кнопку ещё раз.','err');toast('Не сохранилось, повторите');
+}
+
+// ---------- список ----------
+function cnt(){
+  const all=[...document.querySelectorAll('li.t')];
+  const left=all.filter(e=>!e.classList.contains('gone')&&e.style.display!=='none').length;
+  $('cnt').textContent='Осталось '+left+' из '+all.length;
+}
+function filt(){
+  const q=$('q').value.toLowerCase();
+  document.querySelectorAll('li.t').forEach(e=>{
+    const ok=(!q||e.dataset.q.includes(q))&&(!onlyFin||e.dataset.fin==='1');
+    e.style.display=ok?'':'none';
+  });cnt();
+}
+function item(x,i){
+  const full=esc((x.txt||'').trim());
+  return '<li class="t" data-id="'+x.id+'" data-fin="'+(x.fin?1:0)+'" data-q="'+esc((x.txt||'').toLowerCase().slice(0,600))+'">'
+    +'<div class="head"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'+(x.fin?'<span class="fin">₽</span>':'')+'</div>'
+    +'<div class="act">'+STEPS.map(([n,l])=>'<button data-n="'+n+'" title="'+human(addDays(DAY,n))+'">'+l+'</button>').join('')+'<button class="ok" data-ok="1">✓ сделано</button></div>'
+    +'<div class="msg"></div>'
+    +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
+}
+async function load(){
+  $('day').value=DAY;
+  try{
+    const d=await getAll();
+    const open=d.tasks.filter(x=>!x.done&&!x.archived&&x.date===DAY);
+    // сначала привязанные ко времени, потом деньги, потом остальные
+    const timed=x=>/\d{1,2}:\d{2}|\b(в|с) \d{1,2}[–-]\d{1,2}|ДР|ПОЗДРАВ/i.test(x.txt||'')?0:1;
+    open.sort((a,b)=>timed(a)-timed(b)||(b.fin?1:0)-(a.fin?1:0));
+    $('h').textContent='Разбор задач: '+human(DAY);
+    $('sub').textContent=open.length+' открытых на эту дату. «+1 день» = '+human(addDays(DAY,1))+', «+2 дня» = '+human(addDays(DAY,2))+', «+7 дней» = '+human(addDays(DAY,7))+', «+30 дней» = '+human(addDays(DAY,30))+'. Каждое нажатие сохраняется в трекер и проверяется.';
+    $('lists').innerHTML='<ol>'+open.map((x,i)=>item(x,i)).join('')+'</ol>';
+    document.querySelectorAll('li.t').forEach(l=>{
+      const id=l.dataset.id;
+      l.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):move(id,+b.dataset.n));
+    });
+    filt();
+  }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/triage.html'}
+}
+function setDay(iso){DAY=iso;history.replaceState(null,'','?d='+iso);load()}
+$('q').oninput=filt;
+$('hf').onclick=function(){onlyFin=!onlyFin;this.classList.toggle('on',onlyFin);filt()};
+$('rl').onclick=load;
+$('day').onchange=function(){setDay(this.value)};
+$('d0').onclick=()=>setDay(ymd(new Date()));
+$('d1').onclick=()=>setDay(addDays(ymd(new Date()),1));
+window.addEventListener('beforeunload',e=>{if(pending){e.preventDefault();e.returnValue=''}});
+setPend();load();
+</script>
+</body>
+</html>
