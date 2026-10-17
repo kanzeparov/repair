@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Все задачи: разбор с комментариями</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1c1c1a;--mut:#6b6b66;--line:#e3e3de;--acc:#2f6fed;--fin:#b45309;--ok:#1a7f4b;--bad:#c0392b;--over:#b45309}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193;--bad:#ff7b6b;--over:#f0a94e}}
+:root[data-theme="dark"]{--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193;--bad:#ff7b6b;--over:#f0a94e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:940px;margin:0 auto;padding:20px 16px 100px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:14px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 10px;align-items:center}
+input[type=search],select{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);font-size:15px}
+input[type=search]{flex:1;min-width:200px}
+button{padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);cursor:pointer;font-size:14px}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:default}
+button.on{border-color:var(--acc);color:var(--acc)}
+h2{font-size:15px;margin:22px 0 8px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:2}
+h2 small{color:var(--mut);font-weight:400}
+h2.over{color:var(--over)}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li.t{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:opacity .25s}
+li.gone{opacity:.4}
+li.fail{border-color:var(--bad)}
+li.hasc{border-left:4px solid var(--acc)}
+.head{display:flex;gap:10px;align-items:flex-start}
+.n{color:var(--mut);font-variant-numeric:tabular-nums;min-width:34px;padding-top:1px}
+.tt{flex:1;word-break:break-word}
+.dt{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:6px;padding:0 6px;height:22px;flex:none;white-space:nowrap}
+.dt.over{color:var(--over);border-color:var(--over)}
+.fin{color:var(--fin);font-weight:700;border:1px solid var(--fin);border-radius:6px;padding:0 6px;font-size:13px;height:22px;flex:none}
+textarea{display:block;width:calc(100% - 44px);margin:10px 0 0 44px;min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--tx);font:14px/1.4 inherit;resize:vertical}
+textarea:focus{outline:none;border-color:var(--acc)}
+.act{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 44px}
+.act button{padding:6px 12px}
+.act .ok{border-color:var(--ok);color:var(--ok)}
+.act .cm{border-color:var(--acc);color:var(--acc)}
+.msg{font-size:13px;margin:6px 0 0 44px;color:var(--mut)}
+.msg.saved{color:var(--ok)}
+.msg.err{color:var(--bad)}
+details{margin:6px 0 0 44px}
+summary{color:var(--acc);cursor:pointer;font-size:13px}
+details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;word-break:break-word}
+.cnt{color:var(--mut);font-size:14px;margin:0 0 4px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.pend{position:fixed;right:14px;top:12px;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px 10px;z-index:5}
+.pend.busy{color:var(--fin);border-color:var(--fin)}
+@media (max-width:560px){textarea{width:100%;margin-left:0}.act,.msg,details{margin-left:0}}
+</style>
+</head>
+<body>
+<main>
+<h1>Все задачи: разбор с комментариями</h1>
+<p class="sub" id="sub">Загрузка из трекера…</p>
+<div class="bar">
+  <select id="rng">
+    <option value="day" id="optday" hidden>Выбранный день</option>
+    <option value="all">Все открытые</option>
+    <option value="over">Просроченные</option>
+    <option value="today">Сегодня</option>
+    <option value="tom">Завтра</option>
+    <option value="week">Ближайшие 7 дней</option>
+    <option value="later">Позже</option>
+    <option value="none">Без даты</option>
+  </select>
+  <input type="search" id="q" placeholder="Поиск по задачам и комментариям">
+</div>
+<div class="bar">
+  <button id="hc">Только с комментарием</button>
+  <button id="hf">Только деньги ₽</button>
+  <button id="rl">Обновить</button>
+</div>
+<p class="cnt" id="cnt"></p>
+<div id="lists"></div>
+</main>
+<div class="pend" id="pend">все сохранено</div>
+<div class="toast" id="toast"></div>
+<script>
+// Что умеет страница:
+//  • показывает ВСЕ открытые задачи трекера по датам;
+//  • у каждой поле «Комментарий» (необязательно), кнопка «Сохранить комментарий» пишет его в задачу (поле cmt + история cmts);
+//  • кнопки +1 / +2 / +7 / +31 день переносят задачу (даты считаются от СЕГОДНЯ) и, если в поле есть текст, сохраняют его вместе с переносом;
+//  • «сделано» тоже сохраняет комментарий, если он есть; «вернуть» откатывает перенос.
+// Каждое действие пишется в трекер и затем перечитывается: зелёное «сохранено» только после проверки.
+const STEPS=[[1,'+1 день'],[2,'+2 дня'],[7,'+7 дней'],[31,'+31 день']];
+const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const WD=['вс','пн','вт','ср','чт','пт','сб'];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number);return ymd(new Date(y,m-1,d+n))}
+function human(iso){const [y,m,d]=iso.split('-').map(Number);return d+' '+MON[m-1]+(y!==new Date().getFullYear()?' '+y:'')+', '+WD[new Date(y,m-1,d).getDay()]}
+function dm(iso){return iso.slice(8)+'.'+iso.slice(5,7)}
+const TODAY=ymd(new Date());
+const QS=new URLSearchParams(location.search);
+const BASE=QS.get('base')||TODAY;
+const DAYP=QS.get('d')||'';
+function title(s){
+  s=(s||'').replace(/\s+/g,' ').trim();
+  for(let i=0;i<15;i++){
+    const m=s.replace(/^(⏭|🕒|🗑|🔗|🔎|📌|✅|🔀|⏮)[^()»]*?(\([^)]*\)|»[^.]*)\.?\s*/,'');
+    if(m===s)break;s=m;
+  }
+  const cut=s.slice(40).search(/[.:;]\s/);
+  return (cut>=0&&40+cut<150)?s.slice(0,40+cut+1):s.slice(0,130);
+}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
+
+// ---------- сохранение с проверкой ----------
+async function getAll(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw new Error('GET '+r.status);return r.json()}
+async function post(d){
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),40000);
+  try{
+    const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d),signal:ctl.signal});
+    return r.status;
+  }catch(e){return 0}finally{clearTimeout(to)}
+}
+async function mutate(id,fn,check){
+  let last='';
+  for(let a=0;a<4;a++){
+    const d=await getAll();
+    const t=d.tasks.find(x=>String(x.id)===String(id));
+    if(!t)throw new Error('задача не найдена');
+    if(check(t))return t;
+    fn(t,d);
+    d.rev=(d.rev||0)+1;
+    const st=await post(d);
+    last='ответ сервера '+st;
+    await sleep(250);
+    try{
+      const v=await getAll();
+      const vt=v.tasks.find(x=>String(x.id)===String(id));
+      if(vt&&check(vt))return vt;
+    }catch(e){}
+    if(st>=200&&st<300)last='сервер принял, но значение не подтвердилось';
+    await sleep(500*(a+1));
+  }
+  throw new Error('не сохранилось: '+last);
+}
+let queue=Promise.resolve(),pending=0;
+function setPend(){const e=$('pend');e.textContent=pending?'сохраняю: '+pending:'все сохранено';e.classList.toggle('busy',pending>0)}
+function enqueue(job){pending++;setPend();const p=queue.then(job);queue=p.catch(()=>{});return p.finally(()=>{pending--;setPend()})}
+
+// ---------- состояние карточек ----------
+const ORIG={},PREFIX={};
+function li(id){return document.querySelector('li[data-id="'+id+'"]')}
+function cmtOf(id){const l=li(id);return l?l.querySelector('textarea').value.trim():''}
+function setMsg(id,text,cls){const l=li(id);if(!l)return;const m=l.querySelector('.msg');m.textContent=text;m.className='msg'+(cls?' '+cls:'')}
+function lock(id,on){const l=li(id);if(!l)return;l.querySelectorAll('button').forEach(b=>b.disabled=on)}
+function addCmt(t,text,act){
+  if(!text||text===(t.cmt||''))return;
+  t.cmt=text;(t.cmts=t.cmts||[]).push({ts:new Date().toISOString(),text:text,act:act});
+}
+function markHasC(id,has){const l=li(id);if(l)l.classList.toggle('hasc',!!has)}
+
+function saveComment(id){
+  const text=cmtOf(id);
+  lock(id,true);setMsg(id,'сохраняю комментарий…');
+  enqueue(async()=>{
+    try{
+      await mutate(id,(t,d)=>{
+        t.cmt=text;(t.cmts=t.cmts||[]).push({ts:new Date().toISOString(),text:text,act:'comment'});
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'comment',id:t.id,txt:('💬 '+text).slice(0,70),src:'alltasks'});
+      },t=>(t.cmt||'')===text);
+      lock(id,false);markHasC(id,text);li(id).classList.remove('fail');
+      setMsg(id,text?'✓ комментарий сохранён':'✓ комментарий очищен','saved');toast('Комментарий сохранён');
+    }catch(e){fail(id,e)}
+  });
+}
+function move(id,n){
+  const newDate=addDays(BASE,n),text=cmtOf(id);
+  lock(id,true);setMsg(id,'сохраняю…');
+  enqueue(async()=>{
+    try{
+      let old;
+      await mutate(id,(t,d)=>{
+        old=t.date||'';
+        const o=old?dm(old):'без даты';
+        const pre='⏭ '+o+' → '+dm(newDate)+' (кнопка «+'+n+' д» на странице всех задач'+(text?', с комментарием':'')+'). ';
+        PREFIX[id]=pre;ORIG[id]=old;
+        t.txt=pre+t.txt;t.date=newDate;
+        addCmt(t,text,'move +'+n);
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'alltasks'});
+      },t=>t.date===newDate&&!t.done&&(!text||(t.cmt||'')===text));
+      const l=li(id);l.classList.remove('fail');l.classList.add('gone');markHasC(id,text);
+      setMsg(id,'✓ сохранено: перенесено на '+human(newDate)+(text?', комментарий записан':'')+' ','saved');
+      const m=l.querySelector('.msg'),u=document.createElement('button');u.textContent='↩ вернуть';u.style.marginLeft='10px';u.onclick=()=>undo(id);m.appendChild(u);
+      lock(id,true);u.disabled=false;
+      toast('Сохранено: '+human(newDate));cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function done(id){
+  const text=cmtOf(id);
+  lock(id,true);setMsg(id,'сохраняю…');
+  enqueue(async()=>{
+    try{
+      await mutate(id,(t,d)=>{
+        t.done=true;addCmt(t,text,'done');
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'done',id:t.id,txt:(t.txt||'').slice(0,70),src:'alltasks'});
+      },t=>t.done===true&&(!text||(t.cmt||'')===text));
+      const l=li(id);l.classList.remove('fail');l.classList.add('gone');markHasC(id,text);
+      setMsg(id,'✓ сохранено: сделано'+(text?', комментарий записан':''),'saved');toast('Сохранено: сделано');cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function undo(id){
+  setMsg(id,'возвращаю…');
+  enqueue(async()=>{
+    try{
+      const pre=PREFIX[id],orig=ORIG[id]||null;
+      await mutate(id,(t,d)=>{
+        if(pre&&t.txt.startsWith(pre))t.txt=t.txt.slice(pre.length);
+        t.date=orig;t.done=false;
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:('↩ '+t.txt).slice(0,70),src:'alltasks'});
+      },t=>(t.date||null)===orig&&!t.done);
+      const l=li(id);l.classList.remove('gone');lock(id,false);setMsg(id,'↩ возвращено'+(orig?' на '+human(orig):''),'');cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function fail(id,e){
+  const l=li(id);if(!l)return;l.classList.add('fail');lock(id,false);
+  setMsg(id,'⚠️ НЕ СОХРАНИЛОСЬ: '+e.message+'. Нажмите ещё раз.','err');toast('Не сохранилось, повторите');
+}
+
+// ---------- список ----------
+let ALL=[];let onlyFin=false,onlyC=false;
+function cnt(){
+  const all=[...document.querySelectorAll('li.t')];
+  const left=all.filter(e=>!e.classList.contains('gone')&&e.style.display!=='none').length;
+  $('cnt').textContent='Показано '+left+' из '+all.length+(onlyC||onlyFin||$('q').value||$('rng').value!=='all'?' (фильтр)':'');
+}
+function inRange(x,r){
+  const d=x.date||null;
+  if(r==='all')return true;
+  if(r==='day')return d===DAYP;
+  if(r==='none')return !d;
+  if(!d)return false;
+  if(r==='over')return d<TODAY;
+  if(r==='today')return d===TODAY;
+  if(r==='tom')return d===addDays(TODAY,1);
+  if(r==='week')return d>=TODAY&&d<=addDays(TODAY,7);
+  if(r==='later')return d>addDays(TODAY,7);
+  return true;
+}
+function filt(){
+  const q=$('q').value.toLowerCase(),r=$('rng').value;
+  document.querySelectorAll('li.t').forEach(e=>{
+    const ok=(!q||e.dataset.q.includes(q))&&(!onlyFin||e.dataset.fin==='1')&&(!onlyC||e.classList.contains('hasc'))&&inRange({date:e.dataset.date||null},r);
+    e.style.display=ok?'':'none';
+  });
+  document.querySelectorAll('h2[data-g]').forEach(h=>{
+    let n=h.nextElementSibling,vis=0;
+    if(n)n.querySelectorAll('li.t').forEach(e=>{if(e.style.display!=='none')vis++});
+    h.style.display=vis?'':'none';
+    const s=h.querySelector('small');if(s)s.textContent='('+vis+')';
+  });
+  cnt();
+}
+function item(x,i){
+  const full=esc((x.txt||'').trim());
+  const over=x.date&&x.date<TODAY;
+  return '<li class="t'+(x.cmt?' hasc':'')+'" data-id="'+x.id+'" data-fin="'+(x.fin?1:0)+'" data-date="'+(x.date||'')+'" data-q="'+esc(((x.txt||'')+' '+(x.cmt||'')).toLowerCase().slice(0,800))+'">'
+    +'<div class="head"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'
+    +(x.fin?'<span class="fin">₽</span>':'')+'<span class="dt'+(over?' over':'')+'">'+(x.date?human(x.date):'без даты')+'</span></div>'
+    +'<textarea placeholder="Комментарий к задаче (необязательно). Сохранится вместе с переносом или отдельной кнопкой.">'+esc(x.cmt||'')+'</textarea>'
+    +'<div class="act"><button class="cm" data-cm="1">💬 Сохранить комментарий</button>'
+    +STEPS.map(([n,l])=>'<button data-n="'+n+'" title="'+human(addDays(BASE,n))+'">'+l+'</button>').join('')
+    +'<button class="ok" data-ok="1">✓ сделано</button></div>'
+    +'<div class="msg"></div>'
+    +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
+}
+async function load(){
+  try{
+    const d=await getAll();
+    ALL=d.tasks.filter(x=>!x.done&&!x.archived);
+    const key=x=>x.date||'9999-99-99';
+    ALL.sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:(b.fin?1:0)-(a.fin?1:0));
+    const groups={};ALL.forEach(x=>{(groups[key(x)]=groups[key(x)]||[]).push(x)});
+    const over=ALL.filter(x=>x.date&&x.date<TODAY).length;
+    $('sub').textContent=ALL.length+' открытых задач, из них просрочено '+over+'. Кнопки считают от '+human(BASE)+': +1 = '+human(addDays(BASE,1))+', +2 = '+human(addDays(BASE,2))+', +7 = '+human(addDays(BASE,7))+', +31 = '+human(addDays(BASE,31))+'. Комментарий можно оставить без переноса; потом я прочитаю все комментарии из трекера.';
+    let k=0;
+    $('lists').innerHTML=Object.keys(groups).map(g=>{
+      const arr=groups[g],isOver=g!=='9999-99-99'&&g<TODAY;
+      return '<h2 data-g="'+g+'" class="'+(isOver?'over':'')+'">'+(g==='9999-99-99'?'Без даты':human(g)+(g===TODAY?' · сегодня':isOver?' · просрочено':''))+' <small>('+arr.length+')</small></h2><ol>'+arr.map(x=>item(x,k++)).join('')+'</ol>';
+    }).join('');
+    document.querySelectorAll('li.t').forEach(l=>{
+      const id=l.dataset.id;
+      l.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):b.dataset.cm?saveComment(id):move(id,+b.dataset.n));
+    });
+    filt();
+  }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/alltasks.html'}
+}
+if(DAYP){const o=$('optday');o.hidden=false;o.textContent='Только '+human(DAYP);$('rng').value='day';document.querySelector('h1').textContent='Задачи на '+human(DAYP)+': разбор с комментариями'}
+$('q').oninput=filt;$('rng').onchange=filt;
+$('hf').onclick=function(){onlyFin=!onlyFin;this.classList.toggle('on',onlyFin);filt()};
+$('hc').onclick=function(){onlyC=!onlyC;this.classList.toggle('on',onlyC);filt()};
+$('rl').onclick=load;
+window.addEventListener('beforeunload',e=>{if(pending){e.preventDefault();e.returnValue=''}});
+setPend();load();
+</script>
+</body>
+</html>
