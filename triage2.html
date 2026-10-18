@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Разбор задач по дням</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1c1c1a;--mut:#6b6b66;--line:#e3e3de;--acc:#2f6fed;--fin:#b45309;--ok:#1a7f4b;--bad:#c0392b;--rnd:#7c3aed}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193;--bad:#ff7b6b;--rnd:#b79bff}}
+:root[data-theme="dark"]{--bg:#161614;--card:#1f1f1c;--tx:#ecece7;--mut:#a3a39b;--line:#33332f;--acc:#7aa2ff;--fin:#f0a94e;--ok:#5fd193;--bad:#ff7b6b;--rnd:#b79bff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 90px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 12px;font-size:14px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px;align-items:center}
+input[type=search],input[type=date],input.cm{padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);font-size:15px}
+input[type=search]{flex:1;min-width:180px}
+button{padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx);cursor:pointer;font-size:14px}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:default}
+button.on{border-color:var(--acc);color:var(--acc)}
+.load{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 10px;font-size:13px;color:var(--mut)}
+.chip b{color:var(--tx)}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li.t{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:opacity .25s}
+li.gone{opacity:.4}
+li.fail{border-color:var(--bad)}
+.head{display:flex;gap:10px;align-items:flex-start}
+.n{color:var(--mut);font-variant-numeric:tabular-nums;min-width:30px;padding-top:1px}
+.tt{flex:1;word-break:break-word}
+.fin{color:var(--fin);font-weight:700;border:1px solid var(--fin);border-radius:6px;padding:0 6px;font-size:13px;height:22px;flex:none}
+.act{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0 40px}
+.act button{padding:6px 11px;font-size:14px}
+.act .rnd{border-color:var(--rnd);color:var(--rnd)}
+.act .ok{border-color:var(--ok);color:var(--ok)}
+.act .cmb{border-style:dashed}
+.cmrow{margin:8px 0 0 40px}
+input.cm{width:100%;font-size:14px;padding:7px 10px}
+.msg{font-size:13px;margin:6px 0 0 40px;color:var(--mut)}
+.msg.saved{color:var(--ok)}
+.msg.err{color:var(--bad)}
+details{margin:6px 0 0 40px}
+summary{color:var(--acc);cursor:pointer;font-size:13px}
+details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;word-break:break-word}
+.cnt{color:var(--mut);font-size:14px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.pend{position:fixed;right:14px;top:12px;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px 10px}
+.pend.busy{color:var(--fin);border-color:var(--fin)}
+@media (max-width:520px){.act,.msg,details,.cmrow{margin-left:0}}
+</style>
+</head>
+<body>
+<main>
+<h1 id="h">Разбор задач по дням</h1>
+<p class="sub" id="sub">Загрузка из трекера…</p>
+<div class="bar">
+  <input type="date" id="day">
+  <button id="d0">Сегодня</button>
+  <button id="d1">Завтра</button>
+  <input type="search" id="q" placeholder="Поиск по задачам">
+  <button id="hf">Только деньги ₽</button>
+  <button id="rl">Обновить</button>
+</div>
+<div class="load" id="load"></div>
+<p class="cnt" id="cnt"></p>
+<div id="lists"></div>
+</main>
+<div class="pend" id="pend">все сохранено</div>
+<div class="toast" id="toast"></div>
+<script>
+// Страница разбора №2. Разбираем задачи на выбранную дату (по умолчанию завтра):
+//  • кнопки пн…вс: перенос на каждый из следующих 6 дней после разбираемой даты (сама дата = «оставить»);
+//  • «🎲 30–60 дн»: случайный перенос на 30–60 дней вперёд (у каждой задачи свой день);
+//  • поле «комментарий»: текст сохраняется вместе с любым действием, либо кнопкой «💬 только коммент» без переноса;
+//  • «✓ сделано» и «↩ вернуть».
+// Каждое действие пишется в трекер (POST /api/tasks), потом страница перечитывает задачу и проверяет,
+// что значение реально сохранилось; при 409/таймауте повторяет до 4 раз.
+const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const WD=['вс','пн','вт','ср','чт','пт','сб'];
+const qs=new URLSearchParams(location.search);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number);return ymd(new Date(y,m-1,d+n))}
+function human(iso){const [y,m,d]=iso.split('-').map(Number);return d+' '+MON[m-1]+', '+WD[new Date(y,m-1,d).getDay()]}
+function short(iso){const [y,m,d]=iso.split('-').map(Number);return WD[new Date(y,m-1,d).getDay()]+' '+d}
+function dm(iso){return iso.slice(8)+'.'+iso.slice(5,7)}
+let DAY=qs.get('d')||addDays(ymd(new Date()),1);
+let onlyFin=false;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function title(s){
+  s=(s||'').replace(/\s+/g,' ').trim();
+  for(let i=0;i<15;i++){
+    const m=s.replace(/^(⏭|🕒|🗑|🔗|🔎|📌|✅|🔀|⏮|💬)[^()»]*?(\([^)]*\)|»[^.]*)\.?\s*/,'');
+    if(m===s)break;s=m;
+  }
+  const cut=s.slice(40).search(/[.:;]\s/);
+  return (cut>=0&&40+cut<150)?s.slice(0,40+cut+1):s.slice(0,130);
+}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
+
+// ---------- сохранение с проверкой ----------
+async function getAll(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw new Error('GET '+r.status);return r.json()}
+async function post(d){
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),40000);
+  try{
+    const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d),signal:ctl.signal});
+    return r.status;
+  }catch(e){return 0}finally{clearTimeout(to)}
+}
+async function mutate(id,fn,check){
+  let last='';
+  for(let a=0;a<4;a++){
+    const d=await getAll();
+    const t=d.tasks.find(x=>String(x.id)===String(id));
+    if(!t)throw new Error('задача не найдена');
+    if(check(t))return t;
+    fn(t,d);
+    d.rev=(d.rev||0)+1;
+    const st=await post(d);
+    last='ответ сервера '+st;
+    await sleep(250);
+    try{
+      const v=await getAll();
+      const vt=v.tasks.find(x=>String(x.id)===String(id));
+      if(vt&&check(vt))return vt;
+    }catch(e){}
+    if(st>=200&&st<300)last='сервер принял, но значение не подтвердилось';
+    await sleep(500*(a+1));
+  }
+  throw new Error('не сохранилось: '+last);
+}
+let queue=Promise.resolve(),pending=0;
+function setPend(){const e=$('pend');e.textContent=pending?'сохраняю: '+pending:'все сохранено';e.classList.toggle('busy',pending>0)}
+function enqueue(job){pending++;setPend();const p=queue.then(job);queue=p.catch(()=>{});return p.finally(()=>{pending--;setPend()})}
+
+const PREFIX={},DEST={};   // id -> добавленная к тексту строка (для «вернуть»), id -> куда перенесли
+const COUNTS={};           // дата -> сколько открытых задач
+function li(id){return document.querySelector('li[data-id="'+id+'"]')}
+function setMsg(id,text,cls){const l=li(id);if(!l)return;const m=l.querySelector('.msg');m.textContent=text;m.className='msg'+(cls?' '+cls:'')}
+function lock(id,on){const l=li(id);if(!l)return;l.querySelectorAll('button,input').forEach(b=>b.disabled=on)}
+function comment(id){const l=li(id);return l?l.querySelector('input.cm').value.trim():''}
+function clearComment(id){const l=li(id);if(l)l.querySelector('input.cm').value=''}
+function bump(date,k){COUNTS[date]=(COUNTS[date]||0)+k;renderLoad()}
+function renderLoad(){
+  const days=[];for(let i=0;i<7;i++)days.push(addDays(DAY,i));
+  $('load').innerHTML=days.map(d=>'<span class="chip">'+short(d)+': <b>'+(COUNTS[d]||0)+'</b></span>').join('')
+    +'<span class="chip">30–60 дн: <b>'+Object.entries(COUNTS).filter(([d])=>d>=addDays(DAY,30)&&d<=addDays(DAY,60)).reduce((s,[,v])=>s+v,0)+'</b></span>';
+}
+function afterMove(id,newDate,pre,label){
+  PREFIX[id]=pre;DEST[id]=newDate;
+  const l=li(id);l.classList.remove('fail');l.classList.add('gone');
+  setMsg(id,'✓ сохранено: '+label,'saved');
+  const m=l.querySelector('.msg');
+  const u=document.createElement('button');u.textContent='↩ вернуть';u.style.marginLeft='10px';u.onclick=()=>undo(id);m.appendChild(u);
+  lock(id,true);u.disabled=false;
+  bump(DAY,-1);bump(newDate,1);
+  toast('Сохранено: '+label);cnt();
+}
+function move(id,n,random){
+  const newDate=addDays(DAY,n);
+  const cm=comment(id);
+  lock(id,true);setMsg(id,'сохраняю…');
+  enqueue(async()=>{
+    try{
+      const pre='⏭ '+dm(DAY)+' → '+dm(newDate)+(random?' (кнопка «30–60 д», выпало +'+n+')':' (страница разбора)')+(cm?'; 💬 '+cm:'')+'. ';
+      await mutate(id,(t,d)=>{
+        t.txt=pre+t.txt;t.date=newDate;
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'triage2'});
+      },t=>t.date===newDate&&!t.done&&t.txt.startsWith(pre));
+      afterMove(id,newDate,pre,'перенесено на '+human(newDate)+(random?' (+'+n+' дн.)':''));
+    }catch(e){fail(id,e)}
+  });
+}
+function rnd(id){move(id,30+Math.floor(Math.random()*31),true)}
+function onlyComment(id){
+  const cm=comment(id);
+  if(!cm){toast('Введите комментарий');return}
+  lock(id,true);setMsg(id,'сохраняю…');
+  enqueue(async()=>{
+    try{
+      const pre='💬 '+dm(ymd(new Date()))+': '+cm+'. ';
+      await mutate(id,(t,d)=>{
+        t.txt=pre+t.txt;
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'edit',id:t.id,txt:t.txt.slice(0,70),src:'triage2'});
+      },t=>t.txt.startsWith(pre));
+      PREFIX[id]=pre;DEST[id]=DAY;
+      const l=li(id);l.classList.remove('fail');lock(id,false);clearComment(id);
+      setMsg(id,'✓ комментарий сохранён (задача осталась на '+human(DAY)+')','saved');
+      const m=l.querySelector('.msg');
+      const u=document.createElement('button');u.textContent='↩ убрать коммент';u.style.marginLeft='10px';u.onclick=()=>undo(id);m.appendChild(u);
+      toast('Комментарий сохранён');
+    }catch(e){fail(id,e)}
+  });
+}
+function done(id){
+  const cm=comment(id);
+  lock(id,true);setMsg(id,'сохраняю…');
+  enqueue(async()=>{
+    try{
+      const pre=cm?'💬 '+dm(ymd(new Date()))+': '+cm+'. ':'';
+      await mutate(id,(t,d)=>{if(pre)t.txt=pre+t.txt;t.done=true;(d.log=d.log||[]).push({ts:new Date().toISOString(),k:'done',id:t.id,txt:(t.txt||'').slice(0,70),src:'triage2'})},t=>t.done===true);
+      PREFIX[id]=pre;DEST[id]=DAY;
+      const l=li(id);l.dataset.wasdone='1';l.classList.remove('fail');l.classList.add('gone');setMsg(id,'✓ сохранено: сделано','saved');
+      const m=l.querySelector('.msg');
+      const u=document.createElement('button');u.textContent='↩ вернуть';u.style.marginLeft='10px';u.onclick=()=>undo(id);m.appendChild(u);
+      lock(id,true);u.disabled=false;
+      bump(DAY,-1);toast('Сохранено: сделано');cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function undo(id){
+  setMsg(id,'возвращаю…');
+  enqueue(async()=>{
+    try{
+      const pre=PREFIX[id],was=DEST[id];
+      await mutate(id,(t,d)=>{
+        if(pre&&t.txt.startsWith(pre))t.txt=t.txt.slice(pre.length);
+        t.date=DAY;t.done=false;
+        (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:('↩ '+t.txt).slice(0,70),src:'triage2'});
+      },t=>t.date===DAY&&!t.done&&!(pre&&t.txt.startsWith(pre)));
+      const l=li(id);l.classList.remove('gone');lock(id,false);setMsg(id,'↩ возвращено на '+human(DAY),'');
+      if(was&&was!==DAY){bump(was,-1);bump(DAY,1)}else if(was===DAY&&l.dataset.wasdone==='1'){bump(DAY,1);l.dataset.wasdone=''}
+      cnt();
+    }catch(e){fail(id,e)}
+  });
+}
+function fail(id,e){
+  const l=li(id);if(!l)return;l.classList.add('fail');lock(id,false);
+  setMsg(id,'⚠️ НЕ СОХРАНИЛОСЬ: '+e.message+'. Нажмите кнопку ещё раз.','err');toast('Не сохранилось, повторите');
+}
+
+// ---------- список ----------
+function cnt(){
+  const all=[...document.querySelectorAll('li.t')];
+  const left=all.filter(e=>!e.classList.contains('gone')&&e.style.display!=='none').length;
+  $('cnt').textContent='Осталось '+left+' из '+all.length;
+}
+function filt(){
+  const q=$('q').value.toLowerCase();
+  document.querySelectorAll('li.t').forEach(e=>{
+    const ok=(!q||e.dataset.q.includes(q))&&(!onlyFin||e.dataset.fin==='1');
+    e.style.display=ok?'':'none';
+  });cnt();
+}
+function item(x,i){
+  const full=esc((x.txt||'').trim());
+  const days=[1,2,3,4,5,6].map(n=>'<button data-n="'+n+'" title="'+human(addDays(DAY,n))+'">'+short(addDays(DAY,n))+'</button>').join('');
+  return '<li class="t" data-id="'+x.id+'" data-fin="'+(x.fin?1:0)+'" data-q="'+esc((x.txt||'').toLowerCase().slice(0,600))+'">'
+    +'<div class="head"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'+(x.fin?'<span class="fin">₽</span>':'')+'</div>'
+    +'<div class="act">'+days+'<button class="rnd" data-rnd="1" title="случайный день через 30–60 дней">🎲 30–60 дн</button><button class="cmb" data-cm="1">💬 только коммент</button><button class="ok" data-ok="1">✓ сделано</button></div>'
+    +'<div class="cmrow"><input class="cm" placeholder="комментарий (сохранится вместе с любым действием; «оставить на '+short(DAY)+'» = просто напишите коммент и нажмите «только коммент»)"></div>'
+    +'<div class="msg"></div>'
+    +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
+}
+async function load(){
+  $('day').value=DAY;
+  try{
+    const d=await getAll();
+    for(const k in COUNTS)delete COUNTS[k];
+    d.tasks.filter(x=>!x.done&&!x.archived&&x.date).forEach(x=>COUNTS[x.date]=(COUNTS[x.date]||0)+1);
+    const open=d.tasks.filter(x=>!x.done&&!x.archived&&x.date===DAY);
+    const timed=x=>/\d{1,2}:\d{2}|\b(в|с) \d{1,2}[–-]\d{1,2}|ДР|ПОЗДРАВ/i.test(x.txt||'')?0:1;
+    open.sort((a,b)=>timed(a)-timed(b)||(b.fin?1:0)-(a.fin?1:0));
+    $('h').textContent='Разбор задач: '+human(DAY);
+    $('sub').textContent=open.length+' открытых на эту дату. Кнопки дней переносят на '+short(addDays(DAY,1))+' … '+short(addDays(DAY,6))+', «🎲 30–60 дн» ставит случайный день через 30–60 дней ('+human(addDays(DAY,30))+' … '+human(addDays(DAY,60))+'). Чтобы оставить на '+short(DAY)+', ничего не нажимайте или оставьте комментарий. Каждое нажатие сохраняется в трекер и проверяется.';
+    $('lists').innerHTML='<ol>'+open.map((x,i)=>item(x,i)).join('')+'</ol>';
+    document.querySelectorAll('li.t').forEach(l=>{
+      const id=l.dataset.id;
+      l.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):b.dataset.rnd?rnd(id):b.dataset.cm?onlyComment(id):move(id,+b.dataset.n,false));
+    });
+    renderLoad();filt();
+  }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/triage2.html'}
+}
+function setDay(iso){DAY=iso;history.replaceState(null,'','?d='+iso);load()}
+$('q').oninput=filt;
+$('hf').onclick=function(){onlyFin=!onlyFin;this.classList.toggle('on',onlyFin);filt()};
+$('rl').onclick=load;
+$('day').onchange=function(){setDay(this.value)};
+$('d0').onclick=()=>setDay(ymd(new Date()));
+$('d1').onclick=()=>setDay(addDays(ymd(new Date()),1));
+window.addEventListener('beforeunload',e=>{if(pending){e.preventDefault();e.returnValue=''}});
+setPend();load();
+</script>
+</body>
+</html>
