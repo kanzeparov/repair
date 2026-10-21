@@ -1132,7 +1132,7 @@ const VOL_ZK_QTY=154888.537888;    // ZK, цена живая (CoinGecko zksync)
 const VOL_STRK_QTY=21832.760166;   // STRK, цена живая (CoinGecko starknet)
 const VOL_USDT=6.3689;             // мелочь на бирже, курс к доллару 1:1
 const VOL_PLZL_QTY=198;            // акции Полюс, цена живая из plzlPx()
-const VOL_MEGA_QTY=3*4167;         // MegaETH: три оставшихся разлока по 4 167 токенов
+const VOL_MEGA_QTY=4167;           // MegaETH: остался один разлок 30.10, 4 167 токенов (22.10.2026)
 function volatileAssets(){
   const fx=fxRate(true);                                    // активы продаём → ЦБ−5%
   const crypto=VOL_CRYPTO_USD*fx;
