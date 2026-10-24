@@ -75,6 +75,7 @@ details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;wo
   <button id="hc">Только с комментарием</button>
   <button id="hf">Только деньги ₽</button>
   <button id="rl">Обновить</button>
+  <button id="rndall" title="Каждой показанной задаче своя случайная дата через 30–60 дней">🎲 Все показанные на 30–60 дней</button>
 </div>
 <p class="cnt" id="cnt"></p>
 <div id="lists"></div>
@@ -88,7 +89,8 @@ details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;wo
 //  • кнопки +1 / +2 / +7 / +31 день переносят задачу (даты считаются от СЕГОДНЯ) и, если в поле есть текст, сохраняют его вместе с переносом;
 //  • «сделано» тоже сохраняет комментарий, если он есть; «вернуть» откатывает перенос.
 // Каждое действие пишется в трекер и затем перечитывается: зелёное «сохранено» только после проверки.
-const STEPS=[[1,'+1 день'],[2,'+2 дня'],[7,'+7 дней'],[31,'+31 день']];
+const STEPS=[[1,'+1 день'],[2,'+2 дня'],[7,'+7 дней'],[31,'+31 день'],['rnd','🎲 30–60 дней']];
+const rnd3060=()=>30+Math.floor(Math.random()*31);
 const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
 const $=id=>document.getElementById(id);
@@ -272,7 +274,7 @@ function item(x,i){
     +(x.fin?'<span class="fin">₽</span>':'')+'<span class="dt'+(over?' over':'')+'">'+(x.date?human(x.date):'без даты')+'</span></div>'
     +'<textarea placeholder="Комментарий к задаче (необязательно). Сохранится вместе с переносом или отдельной кнопкой.">'+esc(x.cmt||'')+'</textarea>'
     +'<div class="act"><button class="cm" data-cm="1">💬 Сохранить комментарий</button>'
-    +STEPS.map(([n,l])=>'<button data-n="'+n+'" title="'+human(addDays(BASE,n))+'">'+l+'</button>').join('')
+    +STEPS.map(([n,l])=>'<button data-n="'+n+'" title="'+(n==='rnd'?'случайно с '+human(addDays(BASE,30))+' по '+human(addDays(BASE,60)):human(addDays(BASE,n)))+'">'+l+'</button>').join('')
     +'<button class="ok" data-ok="1">✓ сделано</button></div>'
     +'<div class="msg"></div>'
     +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
@@ -293,7 +295,7 @@ async function load(){
     }).join('');
     document.querySelectorAll('li.t').forEach(l=>{
       const id=l.dataset.id;
-      l.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):b.dataset.cm?saveComment(id):move(id,+b.dataset.n));
+      l.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):b.dataset.cm?saveComment(id):move(id,b.dataset.n==='rnd'?rnd3060():+b.dataset.n));
     });
     filt();
   }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/alltasks.html'}
@@ -303,6 +305,33 @@ $('q').oninput=filt;$('rng').onchange=filt;
 $('hf').onclick=function(){onlyFin=!onlyFin;this.classList.toggle('on',onlyFin);filt()};
 $('hc').onclick=function(){onlyC=!onlyC;this.classList.toggle('on',onlyC);filt()};
 $('rl').onclick=load;
+// 🎲 все показанные (с учётом фильтров) — каждой своя случайная дата через 30–60 дней, одним сохранением с проверкой
+$('rndall').onclick=function(){
+  const ids=[...document.querySelectorAll('li.t')].filter(e=>!e.classList.contains('gone')&&e.style.display!=='none').map(e=>e.dataset.id);
+  if(!ids.length){toast('Нет показанных задач');return}
+  if(!confirm('Перенести '+ids.length+' показанных задач на случайные даты через 30–60 дней?'))return;
+  const plan={};ids.forEach(id=>plan[id]=addDays(BASE,rnd3060()));
+  const btn=this;btn.disabled=true;btn.textContent='🎲 сохраняю '+ids.length+'…';
+  enqueue(async()=>{
+    try{
+      for(let a=0;a<4;a++){
+        const d=await getAll(),ts=new Date().toISOString();
+        for(const t of d.tasks){
+          const nd=plan[String(t.id)];if(!nd||t.done||t.date===nd)continue;
+          const o=t.date?dm(t.date):'без даты';
+          t.txt='⏭ '+o+' → '+dm(nd)+' (кнопка «🎲 30–60 д» на странице всех задач). '+t.txt;t.date=nd;
+          (d.log=d.log||[]).push({ts:ts,k:'move',id:t.id,txt:t.txt.slice(0,70),src:'alltasks'});
+        }
+        d.rev=(d.rev||0)+1;await post(d);await sleep(300);
+        const v=await getAll(),bad=v.tasks.filter(t=>plan[String(t.id)]&&!t.done&&t.date!==plan[String(t.id)]).length;
+        if(!bad){ids.forEach(id=>{const l=li(id);if(l){l.classList.add('gone');setMsg(id,'✓ сохранено: перенесено на '+human(plan[id]),'saved');lock(id,true)}});
+          toast('Перенесено '+ids.length+' задач на 30–60 дней');cnt();btn.disabled=false;btn.textContent='🎲 Все показанные на 30–60 дней';return}
+        await sleep(600*(a+1));
+      }
+      throw new Error('не все даты подтвердились');
+    }catch(e){btn.disabled=false;btn.textContent='🎲 Все показанные на 30–60 дней';toast('⚠️ Не сохранилось: '+e.message)}
+  });
+};
 window.addEventListener('beforeunload',e=>{if(pending){e.preventDefault();e.returnValue=''}});
 setPend();load();
 </script>
