@@ -46,6 +46,12 @@ h2{font-size:16px;margin:22px 0 8px}
 h2 small{color:var(--mut);font-weight:400}
 li.over{border-color:var(--fin)}
 .od{color:var(--fin);font-size:12px;border:1px solid var(--fin);border-radius:6px;padding:0 6px;height:22px;flex:none}
+.head input.sel{width:18px;height:18px;margin-top:3px;flex:none}
+.act input.pick{padding:4px 8px;font-size:13px;border-radius:10px}
+h2 .sa{padding:2px 8px;font-size:12px;margin-left:6px}
+.bulk{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px;display:none;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;z-index:5}
+.bulk.show{display:flex}
+.bulk input{padding:6px 8px;font-size:14px}
 @media (max-width:520px){.sch .r{flex-direction:column;gap:2px}.sch .tm{min-width:0}}
 </style>
 </head>
@@ -63,9 +69,13 @@ li.over{border-color:var(--fin)}
 <p class="cnt" id="cnt"></p>
 <div id="lists"></div>
 </main>
+<div class="bulk" id="bulkbar"><span id="bsel">Выбрано: 0</span>
+  <button onclick="bulk(addDays(DAY,1))">Завтра</button><button onclick="bulk(addDays(DAY,2))">+2</button><button onclick="bulk(addDays(DAY,7))">+7</button>
+  <input type="date" id="bdate"><button onclick="bulk($('bdate').value)">На дату</button>
+  <button onclick="document.querySelectorAll('input.sel:checked').forEach(c=>c.checked=false);selc()">Снять</button></div>
 <div class="toast" id="toast"></div>
 <script>
-const STEPS=[[1,'Завтра'],[7,'+7 дней'],[30,'+30 дней']];
+const STEPS=[[1,'Завтра'],[2,'+2 дня'],[7,'+7 дней'],[30,'+30 дней']];
 const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
 const qs=new URLSearchParams(location.search);
@@ -78,9 +88,13 @@ function addDays(iso,n){const [y,m,d]=iso.split('-').map(Number);return ymd(new 
 function human(iso){const [y,m,d]=iso.split('-').map(Number);return d+' '+MON[m-1]+', '+WD[new Date(y,m-1,d).getDay()]}
 function title(s){
   s=(s||'').replace(/\s+/g,' ').trim();
-  for(let i=0;i<15;i++){
-    const m=s.replace(/^(⏭|🕒|🗑|🔗|🔎|📌|✅|🔀|⏮)[^()»]*?(\([^)]*\)|»[^.]*)\.?\s*/,'');
-    if(m===s)break;s=m;
+  for(let k=0;k<20;k++){
+    if(!/^(⏭|🕒|🗑|🔀|⏮)/.test(s))break;
+    let dep=0,j=0;
+    for(;j<s.length;j++){const c=s[j];
+      if(c==='('||c==='«')dep++;else if(c===')'||c==='»')dep--;
+      else if(c==='.'&&dep<=0&&(j+1===s.length||s[j+1]===' ')&&!/\d/.test(s[j-1]||''))break;}
+    s=s.slice(j+1).trim();
   }
   const cut=s.slice(40).search(/[.:;]\s/);
   return (cut>=0&&40+cut<150)?s.slice(0,40+cut+1):s.slice(0,110);
@@ -97,14 +111,14 @@ async function mutate(id,fn){
   if(!r.ok)throw new Error('POST '+r.status+(r.status===409?' (вкладка устарела, нажмите «Обновить»)':''));
   return t;
 }
-async function move(id,n){
+async function move(id,n,to){
   const li=document.querySelector('li[data-id="'+id+'"]');
   try{
     let newDate;
     await mutate(id,(t,d)=>{
-      const old=t.date||DAY; newDate=addDays(DAY,n);
+      const old=t.date||DAY; newDate=to||addDays(DAY,n);
       const o=old.slice(8)+'.'+old.slice(5,7), nn=newDate.slice(8)+'.'+newDate.slice(5,7);
-      t.txt='⏭ '+o+' → '+nn+' (страница «Сегодня», +'+n+' д от '+DAY.slice(8)+'.'+DAY.slice(5,7)+'). '+t.txt;
+      t.txt='⏭ '+o+' → '+nn+' (страница «Сегодня», '+(to?'выбрана дата':'+'+n+' д от '+DAY.slice(8)+'.'+DAY.slice(5,7))+'). '+t.txt;
       t.date=newDate;
       (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});
     });
@@ -114,6 +128,25 @@ async function move(id,n){
     toast('Перенесено на '+human(newDate));cnt();
   }catch(e){toast('Ошибка: '+e.message)}
 }
+async function bulk(to){
+  const ids=[...document.querySelectorAll('li.t input.sel:checked')].map(c=>c.closest('li').dataset.id);
+  if(!ids.length){toast('Ничего не выбрано');return}
+  if(!to){toast('Выберите дату');return}
+  try{
+    const d=await getAll();const nn=to.slice(8)+'.'+to.slice(5,7);
+    ids.forEach(id=>{const t=d.tasks.find(x=>String(x.id)===String(id));if(!t)return;
+      const old=t.date||DAY;const o=old.slice(8)+'.'+old.slice(5,7);
+      t.txt='⏭ '+o+' → '+nn+' (страница «Сегодня», массовый перенос). '+t.txt;t.date=to;
+      (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});});
+    d.rev=(d.rev||0)+1;
+    const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    if(!r.ok)throw new Error('POST '+r.status);
+    ids.forEach(id=>{const li=document.querySelector('li[data-id="'+id+'"]');li.classList.add('gone');
+      li.querySelector('.msg').textContent='Перенесено на '+human(to);li.querySelectorAll('.act button,.act input,input.sel').forEach(b=>b.disabled=true);li.querySelector('input.sel').checked=false;});
+    toast('Перенесено '+ids.length+' на '+human(to));cnt();selc();
+  }catch(e){toast('Ошибка: '+e.message)}
+}
+function selc(){const n=document.querySelectorAll('li.t input.sel:checked').length;$('bsel').textContent='Выбрано: '+n;$('bulkbar').classList.toggle('show',n>0)}
 async function done(id){
   const li=document.querySelector('li[data-id="'+id+'"]');
   try{
@@ -137,9 +170,9 @@ function filt(){
 function item(x,i,over){
   const full=esc((x.txt||'').trim());
   return '<li class="t'+(over?' over':'')+'" data-id="'+x.id+'" data-fin="'+(x.fin?1:0)+'" data-q="'+esc((x.txt||'').toLowerCase().slice(0,600))+'">'
-    +'<div class="head"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'
+    +'<div class="head"><input type="checkbox" class="sel"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'
     +(over?'<span class="od">просрочено · '+human(x.date)+'</span>':'')+(x.fin?'<span class="fin">₽</span>':'')+'</div>'
-    +'<div class="act">'+STEPS.map(([n,l])=>'<button data-n="'+n+'">'+l+'</button>').join('')+'<button class="ok" data-ok="1">✓ сделано</button></div>'
+    +'<div class="act">'+STEPS.map(([n,l])=>'<button data-n="'+n+'">'+l+'</button>').join('')+'<input type="date" class="pick" title="Перенести на дату"><button class="ok" data-ok="1">✓ сделано</button></div>'
     +'<div class="msg"></div>'
     +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
 }
@@ -168,14 +201,17 @@ async function load(){
     $('schwrap').innerHTML=sc.html;
     let k=0;
     $('lists').innerHTML=
-      '<h2>Просроченные <small>('+O.length+')</small></h2><ol>'+O.map(x=>item(x,k++,true)).join('')+'</ol>'
-      +'<h2>На сегодня <small>('+T.length+')</small></h2><ol>'+T.map((x,i)=>item(x,i,false)).join('')+'</ol>'
+      '<h2>Просроченные <small>('+O.length+')</small> <button class="sa" data-g="o">выбрать все</button></h2><ol id="go">'+O.map(x=>item(x,k++,true)).join('')+'</ol>'
+      +'<h2>На сегодня <small>('+T.length+')</small> <button class="sa" data-g="t">выбрать все</button></h2><ol id="gt">'+T.map((x,i)=>item(x,i,false)).join('')+'</ol>'
       +(N.length?'<h2>Без даты <small>('+N.length+')</small></h2><ol>'+N.map((x,i)=>item(x,i,false)).join('')+'</ol>':'');
     document.querySelectorAll('li.t').forEach(li=>{
       const id=li.dataset.id;
       li.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):move(id,+b.dataset.n));
+      li.querySelector('.pick').onchange=function(){if(this.value)move(id,0,this.value)};
+      li.querySelector('.sel').onchange=selc;
     });
-    filt();
+    document.querySelectorAll('button.sa').forEach(b=>b.onclick=()=>{const cs=[...document.querySelectorAll('#g'+b.dataset.g+' li.t:not(.gone) input.sel')].filter(c=>c.closest('li').style.display!=='none');const all=cs.every(c=>c.checked);cs.forEach(c=>c.checked=!all);selc()});
+    selc();filt();
   }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/today.html'}
 }
 $('q').oninput=filt;
