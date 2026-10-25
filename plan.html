@@ -845,6 +845,10 @@ function calc(){
 // Храним две величины: base — итог на конец предыдущего дня, last — последний увиденный.
 // В новый день last становится base. localStorage — чтобы пережить перезагрузку страницы.
 const DAILY_KEY='kAllDaily';
+// 25.10.2026: базу пишем только когда план с сервера И курсы уже загружены. Раньше первый
+// build() шёл по старым данным до /api/plan и запоминал ложную базу (+5,8 млн «за день»).
+let PLAN_READY=false;
+const localDay=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 function readDaily(key){
   try{ const s=JSON.parse(localStorage.getItem(key||DAILY_KEY)||'null');
        return (s && s.day && Number.isFinite(s.base) && Number.isFinite(s.last)) ? s : null; }
@@ -854,7 +858,7 @@ function writeDaily(s,key){ try{ localStorage.setItem(key||DAILY_KEY,JSON.string
 // Универсальная база «на конец предыдущего дня». Один и тот же механизм для «Всего» и
 // для метрик расхода: снапшот в localStorage, в новый день last становится base.
 function dayBaseline(all,key){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDay();
   const s=readDaily(key);
   if(!s){ writeDaily({day:today,base:all,last:all},key); return all; }   // первый запуск
   if(s.day!==today){                                                     // наступил новый день
@@ -868,6 +872,7 @@ function dayBaseline(all,key){
 function renderMetricDelta(elId,value,key,fmt,invert){
   const el=document.getElementById(elId);
   if(!el || !Number.isFinite(value)) return;
+  if(!PLAN_READY){ el.textContent=''; return; }
   const base=dayBaseline(value,key), d=value-base;
   if(!d){ el.textContent=''; el.className='kdelta'; el.removeAttribute('title'); return; }
   const up=d>0, bad=invert?up:!up;
@@ -876,17 +881,20 @@ function renderMetricDelta(elId,value,key,fmt,invert){
   el.title=`С конца предыдущего дня: было ${fmt(base)}, стало ${fmt(value)}.`
     +` Двойной клик — сбросить точку отсчёта.`;
   el.ondblclick=e=>{ e.stopPropagation();
-    writeDaily({day:new Date().toISOString().slice(0,10),base:value,last:value},key); render(); };
+    writeDaily({day:localDay(),base:value,last:value},key); render(); };
 }
 function resetDayBaseline(){                    // двойной клик по дельте — начать отсчёт заново
   const all=projectedTotal(data);
-  writeDaily({day:new Date().toISOString().slice(0,10),base:all,last:all});
+  writeDaily({day:localDay(),base:all,last:all});
   renderTotalDelta(all);
 }
 function renderTotalDelta(all){
   const el=document.getElementById('kAllDelta');
   if(!el || !Number.isFinite(all)) return;
-  const base=dayBaseline(all), d=all-base;
+  if(!PLAN_READY){ el.textContent=''; return; }
+  let base=dayBaseline(all), d=all-base;
+  // база, отличающаяся больше чем на 20% от итога, — след старой ошибки: сбрасываем на текущее
+  if(Math.abs(d)>Math.abs(all)*0.2){ writeDaily({day:localDay(),base:all,last:all}); base=all; d=0; }
   if(!d){                                       // с начала дня итог не сдвинулся
     el.textContent=''; el.className='kdelta'; el.removeAttribute('title'); return;
   }
@@ -1765,6 +1773,7 @@ async function loadRate(){
       if(rp.moved) autoSave(); } }
 }catch(e){}
   await loadRate();          // курс — после плана, иначе пересчёт лёг бы на старые данные
+  PLAN_READY=true; build();  // только теперь итог честный — можно писать базу дня
   await checkCrypto();       // крипта протухла? предложить пересчёт
 })();
 
