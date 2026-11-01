@@ -70,12 +70,13 @@ h2 .sa{padding:2px 8px;font-size:12px;margin-left:6px}
 <div id="lists"></div>
 </main>
 <div class="bulk" id="bulkbar"><span id="bsel">Выбрано: 0</span>
-  <button onclick="bulk(addDays(DAY,1))">Завтра</button><button onclick="bulk(addDays(DAY,2))">+2</button><button onclick="bulk(addDays(DAY,7))">+7</button>
+  <button onclick="bulk(addDays(DAY,1))">Завтра</button><button onclick="bulk(addDays(DAY,7))">+7</button><button onclick="bulk(null,true)">🎲 30–60</button>
   <input type="date" id="bdate"><button onclick="bulk($('bdate').value)">На дату</button>
   <button onclick="document.querySelectorAll('input.sel:checked').forEach(c=>c.checked=false);selc()">Снять</button></div>
 <div class="toast" id="toast"></div>
 <script>
-const STEPS=[[1,'Завтра'],[2,'+2 дня'],[7,'+7 дней'],[30,'+30 дней']];
+const STEPS=[[1,'Завтра'],[7,'+7 дней'],[0,'🎲 30–60 дней']];
+const rnd=()=>30+Math.floor(Math.random()*31);
 const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
 const qs=new URLSearchParams(location.search);
@@ -112,13 +113,14 @@ async function mutate(id,fn){
   return t;
 }
 async function move(id,n,to){
+  const R=n===0&&!to; if(R)n=rnd();
   const li=document.querySelector('li[data-id="'+id+'"]');
   try{
     let newDate;
     await mutate(id,(t,d)=>{
       const old=t.date||DAY; newDate=to||addDays(DAY,n);
       const o=old.slice(8)+'.'+old.slice(5,7), nn=newDate.slice(8)+'.'+newDate.slice(5,7);
-      t.txt='⏭ '+o+' → '+nn+' (страница «Сегодня», '+(to?'выбрана дата':'+'+n+' д от '+DAY.slice(8)+'.'+DAY.slice(5,7))+'). '+t.txt;
+      t.txt='⏭ '+o+' → '+nn+' (страница «Сегодня», '+(to?'выбрана дата':'+'+n+' д'+(R?' (рандом 30–60)':'')+' от '+DAY.slice(8)+'.'+DAY.slice(5,7))+'). '+t.txt;
       t.date=newDate;
       (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});
     });
@@ -128,13 +130,15 @@ async function move(id,n,to){
     toast('Перенесено на '+human(newDate));cnt();
   }catch(e){toast('Ошибка: '+e.message)}
 }
-async function bulk(to){
+async function bulk(to,R){
   const ids=[...document.querySelectorAll('li.t input.sel:checked')].map(c=>c.closest('li').dataset.id);
   if(!ids.length){toast('Ничего не выбрано');return}
-  if(!to){toast('Выберите дату');return}
+  if(!to&&!R){toast('Выберите дату');return}
   try{
-    const d=await getAll();const nn=to.slice(8)+'.'+to.slice(5,7);
+    const d=await getAll();let nn=to?to.slice(8)+'.'+to.slice(5,7):'';
+    const dates={};
     ids.forEach(id=>{const t=d.tasks.find(x=>String(x.id)===String(id));if(!t)return;
+      if(R){to=addDays(DAY,rnd());nn=to.slice(8)+'.'+to.slice(5,7);}dates[id]=to;
       const old=t.date||DAY;const o=old.slice(8)+'.'+old.slice(5,7);
       t.txt='⏭ '+o+' → '+nn+' (страница «Сегодня», массовый перенос). '+t.txt;t.date=to;
       (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});});
@@ -142,8 +146,8 @@ async function bulk(to){
     const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
     if(!r.ok)throw new Error('POST '+r.status);
     ids.forEach(id=>{const li=document.querySelector('li[data-id="'+id+'"]');li.classList.add('gone');
-      li.querySelector('.msg').textContent='Перенесено на '+human(to);li.querySelectorAll('.act button,.act input,input.sel').forEach(b=>b.disabled=true);li.querySelector('input.sel').checked=false;});
-    toast('Перенесено '+ids.length+' на '+human(to));cnt();selc();
+      li.querySelector('.msg').textContent='Перенесено на '+human(dates[id]);li.querySelectorAll('.act button,.act input,input.sel').forEach(b=>b.disabled=true);li.querySelector('input.sel').checked=false;});
+    toast('Перенесено '+ids.length+(R?' на 30–60 дней вразброс':' на '+human(to)));cnt();selc();
   }catch(e){toast('Ошибка: '+e.message)}
 }
 function selc(){const n=document.querySelectorAll('li.t input.sel:checked').length;$('bsel').textContent='Выбрано: '+n;$('bulkbar').classList.toggle('show',n>0)}
@@ -196,13 +200,15 @@ async function load(){
     const T=rest.filter(x=>x.date===DAY).sort((a,b)=>(b.fin?1:0)-(a.fin?1:0));
     const O=rest.filter(x=>x.date&&x.date<DAY).sort((a,b)=>a.date<b.date?-1:1);
     const N=rest.filter(x=>!x.date);
+    const TM=rest.filter(x=>x.date===addDays(DAY,1)).sort((a,b)=>(b.fin?1:0)-(a.fin?1:0));
     $('h').textContent='Сегодня, '+human(DAY);
-    $('sub').textContent=T.length+' на сегодня, '+O.length+' просроченных'+(N.length?', '+N.length+' без даты':'')+'. Кнопки считают от сегодняшней даты: «Завтра» = '+human(addDays(DAY,1))+', «+7 дней» = '+human(addDays(DAY,7))+', «+30 дней» = '+human(addDays(DAY,30))+'.';
+    $('sub').textContent=T.length+' на сегодня, '+O.length+' просроченных, '+TM.length+' на завтра'+(N.length?', '+N.length+' без даты':'')+'. Кнопки считают от сегодняшней даты: «Завтра» = '+human(addDays(DAY,1))+', «+7 дней» = '+human(addDays(DAY,7))+', «🎲 30–60 дней» = случайная дата с '+human(addDays(DAY,30))+' по '+human(addDays(DAY,60))+'.';
     $('schwrap').innerHTML=sc.html;
     let k=0;
     $('lists').innerHTML=
       '<h2>Просроченные <small>('+O.length+')</small> <button class="sa" data-g="o">выбрать все</button></h2><ol id="go">'+O.map(x=>item(x,k++,true)).join('')+'</ol>'
       +'<h2>На сегодня <small>('+T.length+')</small> <button class="sa" data-g="t">выбрать все</button></h2><ol id="gt">'+T.map((x,i)=>item(x,i,false)).join('')+'</ol>'
+      +(TM.length?'<h2>На завтра, '+human(addDays(DAY,1))+' <small>('+TM.length+')</small> <button class="sa" data-g="m">выбрать все</button></h2><ol id="gm">'+TM.map((x,i)=>item(x,i,false)).join('')+'</ol>':'')
       +(N.length?'<h2>Без даты <small>('+N.length+')</small></h2><ol>'+N.map((x,i)=>item(x,i,false)).join('')+'</ol>':'');
     document.querySelectorAll('li.t').forEach(li=>{
       const id=li.dataset.id;

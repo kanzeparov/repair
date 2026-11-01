@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Календарь до конца года</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mut:#777;--line:#e2e0da;--we:#faf3ee;--today:#2f6fed;
+--trip:#e8f0ff;--tripb:#2f6fed;--med:#e9f7ee;--medb:#1f9d55;--work:#fff4e0;--workb:#d98a00;--off:#f3e8ff;--offb:#8b5cf6;--study:#eef2f6;--studyb:#64748b;--dr:#ffe9ec;--drb:#d6336c;--dl:#fdecea;--dlb:#c0392b}
+@media(prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececec;--mut:#9a9a9a;--line:#303034;--we:#221d1b;
+--trip:#1b2740;--med:#15301f;--work:#33280f;--off:#2a1f3d;--study:#232a33;--dr:#3a1d24;--dl:#3a1f1c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 -apple-system,system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}h1{margin:0 0 4px;font-size:22px}.sub{color:var(--mut);margin:0 0 14px}
+.leg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.leg span{padding:3px 9px;border-radius:20px;font-size:12px;border-left:4px solid}
+h2{margin:22px 0 8px;font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.hd{font-size:11px;color:var(--mut);text-align:center;padding:2px 0}
+.d{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:92px;padding:5px}
+.d.we{background:var(--we)}.d.empty{background:transparent;border:0}.d.today{outline:2px solid var(--today)}
+.n{font-size:12px;font-weight:700;color:var(--mut)}
+.e{margin-top:3px;padding:2px 5px;border-radius:5px;font-size:11.5px;border-left:3px solid;line-height:1.25}
+.trip{background:var(--trip);border-color:var(--tripb)}.med{background:var(--med);border-color:var(--medb)}
+.work{background:var(--work);border-color:var(--workb)}.off{background:var(--off);border-color:var(--offb)}
+.study{background:var(--study);border-color:var(--studyb)}.java{background:transparent;border-color:color-mix(in srgb,#e76f00 35%,transparent);border-left-width:2px;font-weight:400;font-size:10.5px;color:var(--mut);opacity:.75;padding:1px 4px;margin-top:2px}.java.fe{border-color:color-mix(in srgb,#0ea5e9 35%,transparent)}.java.pc{border-color:color-mix(in srgb,#16a34a 35%,transparent)}.java.brk{opacity:.5;text-decoration:line-through}.dl{background:var(--dl);border-color:var(--dlb)}.drl{background:transparent;border-color:var(--drb)}.dr{background:var(--dr);border-color:var(--drb)}
+.q{opacity:.75;font-style:italic}
+.list{margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.list li{margin:3px 0}.warn{color:var(--drb)}
+@media(max-width:700px){.d{min-height:64px;padding:3px}.e{font-size:10px;padding:1px 3px}.n{font-size:11px}}
+</style></head><body><main>
+<h1>Ноябрь 2026 — февраль 2027</h1>
+<p class="sub">Походы, поездки, работа и выходные. Собрано 01.11.2026 из трекера, памяти и твоих слов. Пунктир курсивом = под вопросом.</p>
+<div class="leg"><span class="e med">врачи</span><span class="e trip">поездки</span><span class="e work">работа</span><span class="e off">выходные и отпуск</span><span class="e study">учёба</span><span class="e dr">ДР с подарком</span><span class="e drl">ДР, поздравить</span><span class="e dl">сроки</span><span class="e java">☕ Java ≥45 мин, в выходные ≥1 ч, с 20.12 по 4 ч</span><span class="e java fe">🎨 Frontend ≥30 мин, в выходные ≥1 ч, с 20.12 по 2 ч</span><span class="e java pc">💻 Устройство компьютера 1 ч, с 20.12</span></div>
+<div id="cal"></div>
+<div class="list"><b>Требует уточнения</b><ul>
+<li class="warn">Чистка зубов: даты нет ни в трекере, ни в памяти. Назови день, поставлю. В декабре ещё висит «удалить зуб мудрости, записаться» (задача на 20.12).</li>
+<li class="warn">Analyst Days: ты написал 27–28, а в программе конференции и в трекере (запись от сегодня) выступление 21.11 в 11:00 мск (13:00 Алматы). На календаре стоит 21.11, проверь.</li>
+<li>Командировка 12.11: в Астану (сегодняшняя запись) или в Ярославль (упоминается в задаче «план на ноябрь»)?</li>
+<li>Поезд Москва → Уфа 17.12 12:52 куплен 06.10 (5 830,70 ₽, возврат до отправления). Отпуск с 17.12, но ты в Алматы: поездка в силе?</li>
+</ul></div>
+</main>
+<script>
+const EV={
+'2026-11-02':[['trip q','Ozon: курьер R10 на Шенкурский (кто-то дома)'],['dl','Ozon: хранение заказов на Декабристов до 02–04.11']],
+'2026-11-04':[['off','Day off']],
+'2026-11-10':[['study','Синергия: история и философия науки 19:00–22:10 мск (21:00–00:10 Алм)'],['dl','Иви: бонус кончается, автопродление']],
+'2026-11-11':[['study','Синергия: история и философия науки 19:00–22:10 мск (21:00–00:10 Алм)']],
+'2026-11-12':[['trip q','Возможна командировка в Астану']],
+'2026-11-16':[['dr','ДР Бориса Макаева (10 000 ₽)']],
+'2026-11-17':[['study','Синергия: история и философия науки 19:00–22:10 мск (21:00–00:10 Алм)'],['drl','ДР Нестора Архангельского']],
+'2026-11-18':[['study','Синергия: история и философия науки 19:00–22:10 мск (21:00–00:10 Алм)']],
+'2026-11-19':[['med','Доктор по линзам 14:30, Алматы']],
+'2026-11-20':[['work','Analyst Days, день 1'],['dl','СберПрайм: бонус кончается (оставить, скидка Самоката)']],
+'2026-11-21':[['work','Analyst Days: доклад онлайн 11:00 мск (13:00 Алм)']],
+'2026-11-24':[['dr','ДР Вити (10 000 ₽)']],
+'2026-11-26':[['study','Синергия: история и философия науки 19:00–22:10 мск (21:00–00:10 Алм)']],
+'2026-11-28':[['dr','ДР Даши Солодовниковой (10 000 ₽)']],
+'2026-12-11':[['work','Корпоратив, Алматы']],
+'2026-12-14':[['dr','ДР папы (10 000 ₽)']],
+'2026-12-17':[['off','Отпуск начинается'],['trip q','Поезд Москва → Уфа 12:52']],
+'2026-12-18':[['trip q','Прибытие в Уфу 20:04']],
+'2026-12-20':[['med q','Зуб мудрости: записаться']],
+'2026-11-08':[['drl','ДР Кежик']],
+'2026-11-15':[['drl','ДР Александра Плетнёва']],
+'2026-11-22':[['drl','ДР Leo @vantoluck']],
+'2026-11-27':[['drl','ДР Дарьи Бородиной']],
+'2026-11-29':[['drl','ДР Ивана Фёдорова']],
+'2026-12-01':[['study','🎓 Аспирантура: сдать следующую главу'],['dl','Авито: крайний срок распродать вещи'],['dl','Линзы: оплата ~30 000 ₽ (декабрь)']],
+'2026-12-21':[['drl','ДР Вани (Бауманка)']],
+'2026-12-31':[['dl','StandX: последний день клейма DUSD 11:00 мск']],
+};
+const OFF_FROM='2026-12-17';
+// Офис каждый четверг до отпуска (17.12): на метро, с качалкой
+for(let d=new Date('2026-11-05T12:00');d<new Date('2026-12-17T12:00');d.setDate(d.getDate()+7)){const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');(EV[k]=EV[k]||[]).unshift(['work','🏢 Офис (метро + качалка)']);}
+// Синергия: производственная (педагогическая) практика 19.01–01.02.2027, 10:10–17:00 мск
+for(let d=new Date('2027-01-19T12:00');d<=new Date('2027-02-01T12:00');d.setDate(d.getDate()+1)){const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');(EV[k]=EV[k]||[]).push(['study','🎓 Практика (педагогическая) 10:10–17:00 мск (12:10–19:00 Алм)']);}
+// Java ≥45 мин и frontend ≥30 мин каждый день: 02.11–16.12, перерыв 17–19.12, снова 20–31.12
+(function(){const JAVA=[['2026-11-02','2026-12-16'],['2026-12-20','2026-12-31']];
+for(const [a,b] of JAVA){for(let d=new Date(a+'T12:00');d<=new Date(b+'T12:00');d.setDate(d.getDate()+1)){
+const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const we=d.getDay()===0||d.getDay()===6;(EV[k]=EV[k]||[]).unshift(...(k>='2026-12-20'?[['java','☕ Java 4 ч'],['java fe','🎨 Frontend 2 ч'],['java pc','💻 Устройство компьютера 1 ч']]:[['java','☕ Java ≥'+(we?'1 ч':'45 мин')],['java fe','🎨 Frontend ≥'+(we?'1 ч':'30 мин')]]));}}
+['2026-12-17','2026-12-18','2026-12-19'].forEach(k=>(EV[k]=EV[k]||[]).unshift(['java brk','Java и frontend: перерыв']));})();
+const WD=['пн','вт','ср','чт','пт','сб','вс'],MN=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=ymd(new Date());const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let h='';
+[[2026,10],[2026,11],[2027,0],[2027,1]].forEach(([Y,m])=>{
+  const first=new Date(Y,m,1),days=new Date(Y,m+1,0).getDate(),pad=(first.getDay()+6)%7;
+  h+='<h2>'+MN[m]+' '+Y+'</h2><div class="grid">'+WD.map(w=>'<div class="hd">'+w+'</div>').join('');
+  for(let k=0;k<pad;k++)h+='<div class="d empty"></div>';
+  for(let dd=1;dd<=days;dd++){
+    const dt=new Date(Y,m,dd),k=ymd(dt),we=dt.getDay()===0||dt.getDay()===6;
+    let ev=(EV[k]||[]).map(([c,t])=>'<div class="e '+c+'">'+esc(t)+'</div>').join('');
+    if(k>OFF_FROM&&k<='2026-12-31')ev='<div class="e off">отпуск</div>'+ev;
+    h+='<div class="d'+(we?' we':'')+(k===today?' today':'')+'"><div class="n">'+dd+'</div>'+ev+'</div>';
+  }
+  h+='</div>';
+});
+document.getElementById('cal').innerHTML=h;
+</script></body></html>
