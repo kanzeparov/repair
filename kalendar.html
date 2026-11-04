@@ -70,8 +70,8 @@ const EV={
 const OFF_FROM='2026-12-17';
 (EV['2026-11-02']=EV['2026-11-02']||[]).unshift(['trip','🎒 Забрать у родителей вещи для зала'],['dl','🏋️ Купить DDX со скидкой (первый взнос)']);
 // Неделя 02–08.11: вт только качалка с утра, чт офис с утра (слово Руслана 01.11)
-(EV['2026-11-03']=EV['2026-11-03']||[]).unshift(['trip','🏋️ Качалка с утра (без офиса)']);
 // Офис каждый четверг до отпуска (17.12): на метро, с качалкой
+(EV['2026-11-03']=EV['2026-11-03']||[]).unshift(['trip','🏋️ Качалка с утра (без офиса)']);
 for(let d=new Date('2026-11-05T12:00');d<new Date('2026-12-17T12:00');d.setDate(d.getDate()+7)){const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');(EV[k]=EV[k]||[]).unshift(['work',k==='2026-11-05'?'🏢 Офис с утра (метро + качалка)':'🏢 Офис (метро + качалка)']);}
 // Синергия: производственная (педагогическая) практика 19.01–01.02.2027, 10:10–17:00 мск
 for(let d=new Date('2027-01-19T12:00');d<=new Date('2027-02-01T12:00');d.setDate(d.getDate()+1)){const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');(EV[k]=EV[k]||[]).push(['study','🎓 Практика (педагогическая) 10:10–17:00 мск (12:10–19:00 Алм)']);}
@@ -80,6 +80,10 @@ for(let d=new Date('2027-01-19T12:00');d<=new Date('2027-02-01T12:00');d.setDate
 for(const [a,b] of JAVA){for(let d=new Date(a+'T12:00');d<=new Date(b+'T12:00');d.setDate(d.getDate()+1)){
 const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const we=d.getDay()===0||d.getDay()===6;(EV[k]=EV[k]||[]).unshift(...(k>='2026-12-20'?[['java','☕ Java 4 ч'],['java fe','🎨 Frontend 2 ч'],['java pc','💻 Устройство компьютера 1 ч']]:[['java','☕ Java ≥'+(we?'1 ч':'45 мин')],['java fe','🎨 Frontend ≥'+(we?'1 ч':'30 мин')]]));}}
 ['2026-12-17','2026-12-18','2026-12-19'].forEach(k=>(EV[k]=EV[k]||[]).unshift(['java brk','Java и frontend: перерыв']));})();
+EV['2026-11-03']=(EV['2026-11-03']||[]).concat((EV['2026-11-02']||[]).filter(e=>!/^java/.test(e[0])));delete EV['2026-11-02'];
+EV['2026-11-04']=(EV['2026-11-04']||[]).filter(e=>!/^java/.test(e[0]));EV['2026-11-04'].unshift(['java','☕ Java 3 ч'],['java fe','🎨 Frontend 2 ч']);
+EV['2026-11-04']=EV['2026-11-04'].concat((EV['2026-11-03']||[]).filter(e=>!/^java/.test(e[0])));delete EV['2026-11-03'];
+EV['2026-11-03']=[['trip','💻 08:00 Онлайн-тренировка с Яном']];
 const WD=['пн','вт','ср','чт','пт','сб','вс'],MN=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const today=ymd(new Date());const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
