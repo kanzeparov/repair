@@ -34,6 +34,11 @@ details{margin:6px 0 0 36px}
 summary{color:var(--acc);cursor:pointer;font-size:13px}
 details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;word-break:break-word}
 .cnt{color:var(--mut);font-size:14px}
+.sel{display:none;position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--acc);border-radius:12px;padding:10px 12px;margin:0 0 10px;gap:6px;flex-wrap:wrap;align-items:center}
+.sel.show{display:flex}
+.ck{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:var(--acc)}
+.od{color:var(--fin);font-size:12px;border:1px solid var(--fin);border-radius:6px;padding:0 6px;flex:none;height:20px}
+.act input[type=date]{padding:4px 8px;font-size:13px;border-radius:8px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
 .toast.show{opacity:1}
 @media (max-width:520px){.act,.msg,details{margin-left:0}}
@@ -47,9 +52,16 @@ details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;wo
   <input type="date" id="day">
   <input type="search" id="q" placeholder="Поиск по задачам">
   <button id="hf">Только деньги ₽</button>
+  <button id="ov">С просроченными</button>
+  <button id="sa">Выбрать все</button>
   <button id="rl">Обновить</button>
 </div>
 <p class="cnt" id="cnt"></p>
+<div class="sel" id="selbar"><b id="seln"></b>
+  <button data-bn="1">+1 д</button><button data-bn="2">+2 д</button><button data-bn="7">+7 д</button><button data-bn="30">+30 д</button>
+  <button data-bw="6">в сб</button><button data-bw="0">в вс</button>
+  <input type="date" id="bdate"><button id="bgo">на дату</button>
+  <button class="ok" id="bok">✓ сделано</button><button id="bclr">снять выбор</button></div>
 <ol id="list"></ol>
 </main>
 <div class="toast" id="toast"></div>
@@ -57,7 +69,9 @@ details p{margin:8px 0 0;color:var(--mut);font-size:14px;white-space:pre-wrap;wo
 const STEPS=[1,2,7,15,30,60];
 const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 const qs=new URLSearchParams(location.search);
-let DAY=qs.get('d')||'2026-10-09';
+let DAY=qs.get('d')||ymd(new Date());
+let withOver=qs.get('over')!=='0';
+const sel=new Set();
 let onlyFin=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -90,15 +104,15 @@ async function move(id,n){
   try{
     let newDate;
     await mutate(id,(t,d)=>{
-      const old=t.date||DAY; newDate=addDays(old,n);
+      const old=t.date||DAY; newDate=typeof n==='string'?n:addDays(old<DAY?DAY:old,n);
       const o=old.slice(8)+'.'+old.slice(5,7), nn=newDate.slice(8)+'.'+newDate.slice(5,7);
-      t.txt='⏭ '+o+' → '+nn+' (страница задач дня, +'+n+' д). '+t.txt;
+      t.txt='⏭ '+o+' → '+nn+' (страница задач дня'+(typeof n==='string'?', на дату':', +'+n+' д')+'). '+t.txt;
       t.date=newDate;
       (d.log=d.log||[]).push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});
     });
     li.classList.add('gone');
-    li.querySelector('.msg').textContent='Перенесено на '+human(newDate)+' (+'+n+' д)';
-    li.querySelectorAll('.act button').forEach(b=>b.disabled=true);
+    li.querySelector('.msg').textContent='Перенесено на '+human(newDate);sel.delete(String(id));
+    li.querySelectorAll('.act button,.act input,.ck').forEach(b=>b.disabled=true);selUpd();
     toast('Перенесено на '+human(newDate));cnt();
   }catch(e){toast('Ошибка: '+e.message)}
 }
@@ -107,7 +121,7 @@ async function done(id){
   try{
     await mutate(id,(t,d)=>{t.done=true;(d.log=d.log||[]).push({ts:new Date().toISOString(),k:'done',id:t.id,txt:(t.txt||'').slice(0,70),src:'page'})});
     li.classList.add('gone');li.querySelector('.msg').textContent='Сделано';
-    li.querySelectorAll('.act button').forEach(b=>b.disabled=true);toast('Отмечено выполненным');cnt();
+    sel.delete(String(id));li.querySelectorAll('.act button,.act input,.ck').forEach(b=>b.disabled=true);selUpd();toast('Отмечено выполненным');cnt();
   }catch(e){toast('Ошибка: '+e.message)}
 }
 function cnt(){
@@ -126,25 +140,54 @@ async function load(){
   $('day').value=DAY;
   try{
     const d=await getAll();
-    const L=d.tasks.filter(x=>!x.done&&!x.archived&&x.date===DAY);
-    L.sort((a,b)=>(b.fin?1:0)-(a.fin?1:0));
+    const L=d.tasks.filter(x=>!x.done&&!x.archived&&x.date&&(x.date===DAY||(withOver&&x.date<DAY)));
+    L.sort((a,b)=>(a.date<DAY?0:1)-(b.date<DAY?0:1)||(b.fin?1:0)-(a.fin?1:0));
+    sel.clear();selUpd();$('ov').classList.toggle('on',withOver);
     $('h').textContent='Задачи на '+human(DAY);
-    $('sub').textContent=L.length+' задач, из них '+L.filter(x=>x.fin).length+' про деньги. Кнопки переносят задачу в трекере на +1, +2, +7, +15, +30, +60 дней от даты задачи.';
+    $('sub').textContent=L.length+' задач, из них '+L.filter(x=>x.fin).length+' про деньги'+(withOver?', просроченных '+L.filter(x=>x.date<DAY).length:'')+'. Перенос считается от выбранного дня (у просроченных) или от даты задачи. Галочки слева: массовый перенос.';
     $('list').innerHTML=L.map((x,i)=>{
       const full=esc((x.txt||'').trim());
       return '<li class="t" data-id="'+x.id+'" data-fin="'+(x.fin?1:0)+'" data-q="'+esc((x.txt||'').toLowerCase().slice(0,600))+'">'
-        +'<div class="head"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'+(x.fin?'<span class="fin">₽</span>':'')+'</div>'
-        +'<div class="act">'+STEPS.map(n=>'<button data-n="'+n+'">+'+n+' д</button>').join('')+'<button class="ok" data-ok="1">✓ сделано</button></div>'
+        +'<div class="head"><input type="checkbox" class="ck"><span class="n">'+(i+1)+'</span><span class="tt">'+esc(title(x.txt))+'</span>'+(x.date<DAY?'<span class="od">'+x.date.slice(8)+'.'+x.date.slice(5,7)+'</span>':'')+(x.fin?'<span class="fin">₽</span>':'')+'</div>'
+        +'<div class="act">'+STEPS.map(n=>'<button data-n="'+n+'">+'+n+' д</button>').join('')+'<button data-w="6">в сб</button><button data-w="0">в вс</button><input type="date" class="pd"><button class="ok" data-ok="1">✓ сделано</button></div>'
         +'<div class="msg"></div>'
         +'<details><summary>полностью</summary><p>'+full+'</p></details></li>';
     }).join('');
     document.querySelectorAll('li.t').forEach(li=>{
       const id=li.dataset.id;
-      li.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):move(id,+b.dataset.n));
+      li.querySelectorAll('.act button').forEach(b=>b.onclick=()=>b.dataset.ok?done(id):b.dataset.w?move(id,nextWd(+b.dataset.w)):move(id,+b.dataset.n));
+      li.querySelector('.pd').onchange=function(){if(this.value)move(id,this.value)};
+      li.querySelector('.ck').onchange=function(){this.checked?sel.add(id):sel.delete(id);selUpd()};
     });
     filt();
   }catch(e){$('sub').textContent='Не удалось загрузить из трекера: '+e.message+'. Откройте страницу через http://localhost:8765/day-tasks.html'}
 }
+function nextWd(w){const t=new Date();const [y,m,d]=DAY.split('-').map(Number);const x=new Date(y,m-1,d);const base=x<new Date(t.getFullYear(),t.getMonth(),t.getDate())?new Date(t.getFullYear(),t.getMonth(),t.getDate()):x;let k=(w-base.getDay()+7)%7;if(k===0)k=7;base.setDate(base.getDate()+k);return ymd(base)}
+function selUpd(){$('selbar').classList.toggle('show',sel.size>0);$('seln').textContent='Выбрано '+sel.size+':'}
+async function bulk(kind,val){
+  const ids=[...sel];if(!ids.length)return;
+  try{
+    const d=await getAll();d.log=d.log||[];let n=0;const res={};
+    ids.forEach(id=>{const t=d.tasks.find(x=>String(x.id)===String(id));if(!t)return;
+      if(kind==='done'){t.done=true;d.log.push({ts:new Date().toISOString(),k:'done',id:t.id,txt:(t.txt||'').slice(0,70),src:'page'});res[id]='Сделано'}
+      else{const old=t.date||DAY;const nd=typeof val==='string'?val:addDays(old<DAY?DAY:old,val);
+        t.txt='⏭ '+old.slice(8)+'.'+old.slice(5,7)+' → '+nd.slice(8)+'.'+nd.slice(5,7)+' (страница задач дня, массово). '+t.txt;t.date=nd;
+        d.log.push({ts:new Date().toISOString(),k:'move',id:t.id,txt:t.txt.slice(0,70),src:'page'});res[id]='Перенесено на '+human(nd)}
+      n++});
+    d.rev=(d.rev||0)+1;
+    const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    if(!r.ok)throw new Error('POST '+r.status);
+    Object.entries(res).forEach(([id,m])=>{const li=document.querySelector('li[data-id="'+id+'"]');li.classList.add('gone');li.querySelector('.msg').textContent=m;li.querySelectorAll('.act button,.act input,.ck').forEach(b=>{b.disabled=true;if(b.type==='checkbox')b.checked=false})});
+    sel.clear();selUpd();cnt();toast((kind==='done'?'Отмечено: ':'Перенесено: ')+n);
+  }catch(e){toast('Ошибка: '+e.message)}
+}
+document.querySelectorAll('[data-bn]').forEach(b=>b.onclick=()=>bulk('move',+b.dataset.bn));
+document.querySelectorAll('[data-bw]').forEach(b=>b.onclick=()=>bulk('move',nextWd(+b.dataset.bw)));
+$('bgo').onclick=()=>{const v=$('bdate').value;if(v)bulk('move',v);else toast('Выберите дату')};
+$('bok').onclick=()=>bulk('done');
+$('bclr').onclick=()=>{sel.clear();document.querySelectorAll('.ck').forEach(c=>c.checked=false);selUpd()};
+$('ov').onclick=()=>{withOver=!withOver;load()};
+$('sa').onclick=()=>{document.querySelectorAll('li.t').forEach(li=>{if(li.style.display==='none'||li.classList.contains('gone'))return;li.querySelector('.ck').checked=true;sel.add(li.dataset.id)});selUpd()};
 $('q').oninput=filt;
 $('hf').onclick=function(){onlyFin=!onlyFin;this.classList.toggle('on',onlyFin);filt()};
 $('rl').onclick=load;
