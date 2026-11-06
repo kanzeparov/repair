@@ -41,9 +41,14 @@ function cbrUsd(){ return (FX&&FX.cbr) || data.cbrUsd || 0; }
 function cbrKzt(){ return (FX&&FX.kzt&&FX.kzt.cbr) || data.cbrKzt || 0; }
 function cbrGbp(){ return (FX&&FX.gbp&&FX.gbp.cbr) || data.cbrGbp || 0; }
 const side=isInc=> isInc ? (1-SPREAD) : (1+SPREAD);
-function fxRate(isInc){  return cbrUsd()*side(isInc); }
-function kztRate(isInc){ return cbrKzt()*side(isInc); }
-function gbpRate(isInc){ return cbrGbp()*side(isInc); }
+// Пополнение Freedom из рублей: фиксированный курс покупки, заданный пользователем.
+// Продажа активов по-прежнему оценивается отдельно, по ЦБ минус спред.
+function fundingRate(){ return Number(data.fxFunding && data.fxFunding.rubPerUsd)>0
+  ? Number(data.fxFunding.rubPerUsd) : cbrUsd()*(1+SPREAD); }
+function fundingNote(){ return data.fxFunding ? 'Т-Банк → Freedom, '+fundingRate()+' ₽/$' : 'ЦБ+5%'; }
+function fxRate(isInc){ return isInc ? cbrUsd()*side(true) : fundingRate(); }
+function kztRate(isInc){ return isInc ? cbrKzt()*side(true) : (cbrUsd() ? cbrKzt()/cbrUsd()*fundingRate() : 0); }
+function gbpRate(isInc){ return isInc ? cbrGbp()*side(true) : (cbrUsd() ? cbrGbp()/cbrUsd()*fundingRate() : 0); }
 function ethUsd(){  return (CR&&CR.eth&&CR.eth.usd) || data.ethUsd || 0; }
 function megaUsd(){ return (CR&&CR.mega&&CR.mega.usd) || data.megaUsd || 0; }
 // ZK и STRK — остатки на биржах. Раньше их цены были константами в plan.html и протухали;
@@ -210,8 +215,8 @@ function runBalance(){
         const f=flow.get(dkey(x))||{i:0,e:0,ui:0,ue:0};
         run+=f.i-f.e;
         usd+=(f.ui||0)-(f.ue||0);
-        if(usd<0){                         // валюты не хватило — докупаем по ЦБ+5%
-          const need=-usd, cost=need*cbrUsd()*(1+SPREAD);
+        if(usd<0){                         // единственный расход рублей на пополнение валюты
+          const need=-usd, cost=need*fundingRate();
           run-=cost; bought+=cost; usd=0;
         }
         const d=new Date(x); d.setHours(0,0,0,0);
