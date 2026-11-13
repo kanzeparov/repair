@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Разбор задач</title>
+<style>
+:root{color-scheme:light dark;--bg:#f6f5f2;--card:#fff;--ink:#202420;--mut:#72776f;--line:#dedfd8;--acc:#285b48}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}main{max-width:1000px;margin:auto;padding:28px 18px 70px}h1{font-size:28px;margin:0}h2{font-size:21px;margin:30px 0 10px}p{margin:8px 0}.muted,small{color:var(--mut)}nav,.bar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:16px 0}a{color:var(--acc)}button,input{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px}input{flex:1;min-width:180px}button{cursor:pointer}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 18px;margin:10px 0}.body{white-space:pre-wrap;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--mut);margin-bottom:6px}.badge{padding:2px 7px;border-radius:5px;background:var(--bg);margin-left:8px}.empty{color:var(--mut);padding:12px 0}summary{cursor:pointer;color:var(--acc)}details .body{margin-top:10px}.error{color:#b33}.note{border-left:3px solid var(--acc);padding-left:12px}@media(prefers-color-scheme:dark){:root{--bg:#151815;--card:#202520;--ink:#ecede7;--mut:#a7afa3;--line:#384038;--acc:#9bceb3}}@media print{.bar,nav,button{display:none}.card{break-inside:avoid}body{background:white;color:black}}
+</style></head><body><main>
+<h1>Сегодня, просроченные и суббота</h1><p id="status" class="muted" role="status">Загружаются…</p>
+<nav><a href="#overdue">Просроченные</a><a href="#saturday">Суббота</a><a href="#today">Сегодня</a><a href="#future">Другие будущие</a><a href="#undated">Без точной даты</a><a href="/kalendar.html">Календарь</a><a href="/tasks.html">Трекер</a></nav>
+<div class="bar"><input id="search" type="search" aria-label="Поиск по задачам" placeholder="Поиск по всем разделам"><button id="refresh">Обновить</button></div>
+<p class="muted">Дата «сегодня» определяется по Москве. Показаны все открытые задачи, в том числе временно скрытые. Изменения сохраняются кнопками. Перенос считается от сегодняшнего дня; месяц — календарный.</p>
+<section id="overdue"><h2>Просроченные <span id="overdue-count"></span></h2><div id="overdue-list"></div></section>
+<section id="today"><h2>Сегодня <span id="today-count"></span></h2><div id="today-list"></div></section>
+<section id="saturday"><h2>Суббота <span id="saturday-count"></span></h2><div id="saturday-list"></div></section>
+<details id="other-dates"><summary>Остальные перенесённые и будущие задачи</summary><section id="moved"><h2>Перенесённые и старые хвосты <span id="moved-count"></span></h2><p class="muted">Открытые задачи с переносом в журнале или отметкой переноса в тексте. Будущая дата не убирает их из этого раздела. Задачи на сегодня и просроченные показаны в своих разделах.</p><div id="moved-list"></div></section>
+
+<section id="future"><h2>Другие будущие задачи <span id="future-count"></span></h2><div id="future-list"></div></section></details>
+<section id="undated"><h2>Без точной даты <span id="undated-count"></span></h2><div id="undated-list"></div><h3>Заметки из календаря без назначенного дня</h3><p class="muted">Эти заметки ещё не оформлены как отдельные задачи трекера. Они могут пересекаться с существующими карточками.</p><div id="notes-list"></div></section>
+</main><script>
+const $=id=>document.getElementById(id);
+function moscowDate(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(k=>p.find(x=>x.type===k).value).join('-');}
+function exactDate(s){if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const d=new Date(s+'T12:00:00Z');return !isNaN(d)&&d.toISOString().slice(0,10)===s;}
+function classify(tasks,day,log=[]){
+ const g={overdue:[],today:[],saturday:[],moved:[],future:[],undated:[]};
+ const sat=new Date(day+'T12:00:00Z');sat.setUTCDate(sat.getUTCDate()+(6-sat.getUTCDay()+7)%7);const saturday=sat.toISOString().slice(0,10);
+ const moves=new Map();
+ for(const entry of log){if(!['move','rollover'].includes(entry.k))continue;const id=String(entry.id);if(!moves.has(id))moves.set(id,[]);moves.get(id).push(entry);}
+ for(const original of tasks){
+  if(original.done||original.arch||original.archived)continue;
+  const history=moves.get(String(original.id))||[];
+  const dates=history.map(x=>x.from).filter(exactDate).sort();
+  const marked=/⏭|перенес[её]н|перенос карточки|rollover/i.test(original.txt||'');
+  const moved=history.length>0||marked;
+  const task={...original,_moveInfo:moved?(dates.length?'Переносы: прежняя дата '+dates[0]+', текущая '+(original.date||'без даты'):'Перенос отмечен в тексте; текущая дата '+(original.date||'без даты')):''};
+  if(!exactDate(task.date))g.undated.push(task);
+  else if(task.date<day)g.overdue.push(task);
+  else if(task.date===day)g.today.push(task);
+  else if(task.date===saturday)g.saturday.push(task);
+  else if(moved)g.moved.push(task);
+  else g.future.push(task);
+ }
+ for(const key of ['overdue','moved','future'])g[key].sort((a,b)=>a.date.localeCompare(b.date));return g;
+}
+let groups={overdue:[],today:[],saturday:[],moved:[],future:[],undated:[]},notes=[],allTasks=[],day=moscowDate(),busy=false;
+function cleanDescription(value){
+ let s=String(value||'').trim();
+ // Strip only leading move annotations, balancing parentheses in their provenance.
+ while(s.startsWith('⏭')){
+  const open=s.indexOf('('),newline=s.indexOf('\n');
+  if(open<0||(newline>=0&&newline<open))break;
+  let depth=0,end=-1;
+  for(let i=open;i<s.length;i++){if(s[i]==='(')depth++;else if(s[i]===')'&&--depth===0){end=i+1;break;}}
+  if(end<0)break;
+  s=s.slice(end).replace(/^[.\s]+/,'');
+ }
+ // Remove leading merge bookkeeping, keeping the actual merged task description.
+ s=s.replace(/^🔗\s*слито[^:]*:\s*/i,'');
+ return s.trim()||String(value||'');
+}
+function appendDescription(el,text){
+ const original=String(text||'Без описания'),clean=cleanDescription(original);
+ const body=document.createElement('div');body.className='body';body.textContent=clean;el.append(body);
+ if(clean!==original){const more=document.createElement('details'),title=document.createElement('summary'),full=document.createElement('div');title.textContent='Исходный текст и история';full.className='body';full.textContent=original;more.append(title,full);el.append(more);}
+}
+function card(t,index){
+ const el=document.createElement('article');el.className='card';
+ const meta=document.createElement('div');meta.className='meta';
+ meta.textContent=(index+1)+'. '+(t.date||'Без даты')+(t.fin?' · Финансы':'')+(t.hideUntil&&t.hideUntil>day?' · Скрыта в трекере до '+t.hideUntil:'');
+ el.append(meta);appendDescription(el,t.txt);addActions(el,t);return el;
+}
+function render(){const q=$('search').value.trim().toLocaleLowerCase('ru');for(const key of Object.keys(groups)){const all=groups[key],filtered=all.filter(t=>(t.txt||'').toLocaleLowerCase('ru').includes(q));$(key+'-count').textContent='('+filtered.length+(q?' из '+all.length:'')+')';const list=$(key+'-list');list.replaceChildren();filtered.forEach((t,i)=>list.append(card(t,i)));if(!filtered.length){const p=document.createElement('p');p.className='empty';p.textContent=q?'Совпадений нет':key==='overdue'?'Просроченных по текущим датам нет. Перенесённые задачи показаны отдельно ниже.':'Задач нет';list.append(p);}}
+const list=$('notes-list');list.replaceChildren();let n=0;for(const item of notes){if(allTasks.some(t=>t.savedNoteKey===noteKey(item)))continue;if(!item.text.toLocaleLowerCase('ru').includes(q))continue;const el=document.createElement('article');el.className='card';const meta=document.createElement('div');meta.className='meta';meta.textContent=(++n)+'. '+item.group;const body=document.createElement('div');body.className='body';body.textContent=item.text;el.append(meta,body);addActions(el,{txt:item.text,note:item});list.append(el);}if(!n)list.textContent=q?'Совпадений нет':'Заметок нет';}
+async function refresh(){day=moscowDate();$('status').textContent='Загружаются…';const results=await Promise.allSettled([fetch('/api/tasks',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!Array.isArray(d.tasks))throw Error('Нет списка задач');return d;}),fetch('/kalendar.html',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('HTTP '+r.status);const doc=new DOMParser().parseFromString(await r.text(),'text/html');const section=doc.getElementById('saved-notes');if(!section)throw Error('Раздел заметок не найден');return [...section.querySelectorAll('details')].flatMap(d=>[...d.querySelectorAll('li')].map(li=>({group:d.querySelector('summary')?.textContent||'Заметки',text:li.textContent})));})]);const errors=[];if(results[0].status==='fulfilled'){allTasks=results[0].value.tasks;groups=classify(allTasks,day,results[0].value.log||[]);}else errors.push('Трекер не обновлён: '+results[0].reason.message);if(results[1].status==='fulfilled')notes=results[1].value;else errors.push('Заметки не обновлены: '+results[1].reason.message);render();$('status').textContent=day.split('-').reverse().join('.')+' · На разбор: '+(groups.overdue.length+groups.today.length+groups.saturday.length)+' · Всего открытых: '+Object.values(groups).reduce((n,x)=>n+x.length,0)+' · Заметок: '+notes.length+' заметок · '+(errors.length?errors.join('; '):'Данные обновлены');$('status').className=errors.length?'error':'muted';}
+
+function noteKey(item){return 'saved-20261113:'+item.group+':'+item.text;}
+function targetDate(kind){const now=moscowDate(),d=new Date(now+'T12:00:00Z');if(kind==='jan')return '2027-01-01';if(kind==='month'){const wanted=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+1);const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(wanted,last));}else d.setUTCDate(d.getUTCDate()+Number(kind));return d.toISOString().slice(0,10);}
+function addActions(el,task){
+ const label=document.createElement('label');label.textContent='Комментарий / дополнительная информация';label.className='meta';label.style.display='block';label.style.marginTop='12px';
+ const input=document.createElement('textarea');input.rows=2;input.placeholder='Дополнительная информация';input.value=task.comment||'';input.style.cssText='width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit';label.append(input);el.append(label);
+ const bar=document.createElement('div');bar.className='bar';const status=document.createElement('div');status.className='meta';status.setAttribute('role','status');
+ for(const [title,action] of [['Сохранить комментарий','comment'],['Сделал','done'],['Неактуально','archive'],['+1 день','1'],['+2 дня','2'],['+Неделя','7'],['+Месяц','month'],['1 января 2027','jan']]){
+  const button=document.createElement('button');button.type='button';button.textContent=title;
+  button.onclick=async()=>{if(busy){status.textContent='Дождитесь сохранения предыдущей задачи';return;}busy=true;bar.querySelectorAll('button').forEach(b=>b.disabled=true);status.textContent='Сохраняется…';try{await mutateTask(task,action,input.value);await refresh();}catch(e){status.textContent='Не сохранено: '+e.message;}finally{busy=false;bar.querySelectorAll('button').forEach(b=>b.disabled=false);}};bar.append(button);
+ }
+ el.append(bar,status);
+}
+async function readTasks(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw Error('GET '+r.status);const d=await r.json();if(!Array.isArray(d.tasks)||!Number.isFinite(d.rev))throw Error('Некорректные данные трекера');return d;}
+async function mutateTask(original,action,comment){
+ const date=['comment','done','archive'].includes(action)?null:targetDate(action);
+ for(let attempt=0;attempt<3;attempt++){
+  const data=await readTasks();let task=original.note?data.tasks.find(t=>t.savedNoteKey===noteKey(original.note)):data.tasks.find(t=>String(t.id)===String(original.id));
+  const ts=new Date().toISOString();data.log=data.log||[];
+  if(!task){if(!original.note)throw Error('Задача удалена или изменена в другой вкладке');task={id:'review-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),txt:original.txt,date:null,done:false,fin:false,savedNoteKey:noteKey(original.note)};data.tasks.push(task);data.log.push({ts,k:'add',id:task.id,txt:task.txt,src:'task-review'});}
+  if((task.comment||'')!==comment){data.log.push({ts,k:'edit',id:task.id,field:'comment',from:task.comment||'',to:comment,src:'task-review'});task.comment=comment;}
+  if(action==='done'){task.done=true;data.log.push({ts,k:'done',id:task.id,txt:task.txt,src:'task-review'});}
+  else if(action==='archive'){task.arch=true;task.archived=true;data.log.push({ts,k:'archive',id:task.id,txt:task.txt,reason:'Неактуально',src:'task-review'});}
+  else if(date){const old=task.date;task.date=date;task.hideUntil=null;data.log.push({ts,k:'move',id:task.id,from:old,to:date,txt:task.txt,src:'task-review'});}
+  data.rev+=1;const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  if(r.status===409)continue;if(!r.ok)throw Error('POST '+r.status);const result=await r.json();if(!result.ok)throw Error('Сервер не подтвердил сохранение');
+  const saved=(await readTasks()).tasks.find(t=>String(t.id)===String(task.id));
+  if(!saved||(saved.comment||'')!==comment||(date&&saved.date!==date)||(action==='done'&&!saved.done)||(action==='archive'&&!saved.arch))throw Error('Не удалось подтвердить сохранение; обновите список перед повтором');
+  return;
+ }
+ throw Error('Данные параллельно меняются. Повторите сохранение');
+}
+$('search').addEventListener('input',render);$('refresh').addEventListener('click',refresh);refresh();
+</script></body></html>
