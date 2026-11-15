@@ -1,23 +1,49 @@
 {
-  "updated": "2026-11-15T16:35:31.227816+03:00",
+  "updated": "2026-11-15T18:55:45.261638+03:00",
   "five": {
-    "files": 62,
-    "bytes": 5000001964,
-    "received_bytes": 3862606538,
-    "verified_files": 38,
+    "files": 41,
+    "bytes": 5002015052,
+    "received_bytes": 5002015052,
+    "verified_files": 41,
     "finished": true,
-    "result": null,
-    "download_failed": true,
+    "result": {
+      "at": "2026-11-15T18:55:44.333112+03:00",
+      "downloaded_files": 41,
+      "downloaded_bytes": 5002015052,
+      "deleted_files": 41,
+      "deleted_bytes": 5002015052,
+      "errors": [],
+      "local_root": "/Users/user/yadisk-extra-20261114",
+      "quota": {
+        "total_space": 497142464512,
+        "used_space": 194391012351,
+        "trash_size": 0
+      }
+    },
+    "download_failed": false,
     "local_root": "/Users/user/yadisk-extra-20261114"
   },
   "fifty_two": {
-    "files": 284,
-    "bytes": 52000080275,
-    "received_bytes": 38062532189,
-    "verified_files": 243,
+    "files": 429,
+    "bytes": 52005373944,
+    "received_bytes": 52005373944,
+    "verified_files": 429,
     "finished": true,
-    "result": null,
-    "download_failed": true,
+    "result": {
+      "at": "2026-11-15T18:26:50.073017+03:00",
+      "downloaded_files": 429,
+      "downloaded_bytes": 52005373944,
+      "deleted_files": 429,
+      "deleted_bytes": 52005373944,
+      "errors": [],
+      "local_root": "/Users/user/yadisk-extra-52gb-20261114",
+      "quota": {
+        "total_space": 497142464512,
+        "used_space": 199545766969,
+        "trash_size": 0
+      }
+    },
+    "download_failed": false,
     "local_root": "/Users/user/yadisk-extra-52gb-20261114"
   },
   "old_remaining": 34,

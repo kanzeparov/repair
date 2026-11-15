@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-15T18:58:37.449679+03:00",
+  "cloud_files": 62546,
+  "cloud_bytes": 194391012351,
+  "quota": {
+    "total_space": 497142464512,
+    "used_space": 194391012351,
+    "trash_size": 0
+  },
+  "cloud_sum_matches_quota": true,
+  "verified_local_files": 2495,
+  "cloud_files_with_verified_mac_content": 110,
+  "cloud_bytes_with_verified_mac_content": 400244241,
+  "toshiba": "not connected; copies not verified"
+}

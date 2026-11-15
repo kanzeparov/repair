@@ -2,19 +2,21 @@
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Разбор задач</title>
 <style>
 :root{color-scheme:light dark;--bg:#f6f5f2;--card:#fff;--ink:#202420;--mut:#72776f;--line:#dedfd8;--acc:#285b48}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}main{max-width:1000px;margin:auto;padding:28px 18px 70px}h1{font-size:28px;margin:0}h2{font-size:21px;margin:30px 0 10px}p{margin:8px 0}.muted,small{color:var(--mut)}nav,.bar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:16px 0}a{color:var(--acc)}button,input{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px}input{flex:1;min-width:180px}button{cursor:pointer}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 18px;margin:10px 0}.body{white-space:pre-wrap;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--mut);margin-bottom:6px}.badge{padding:2px 7px;border-radius:5px;background:var(--bg);margin-left:8px}.empty{color:var(--mut);padding:12px 0}summary{cursor:pointer;color:var(--acc)}details .body{margin-top:10px}.error{color:#b33}.note{border-left:3px solid var(--acc);padding-left:12px}@media(prefers-color-scheme:dark){:root{--bg:#151815;--card:#202520;--ink:#ecede7;--mut:#a7afa3;--line:#384038;--acc:#9bceb3}}@media print{.bar,nav,button{display:none}.card{break-inside:avoid}body{background:white;color:black}}
+.card.from-note{border:2px solid #8464d4;background:#f4efff}.card.in-notes{border-left:6px solid #ce8a16;background:#fff7e5}.origin{font-size:13px;font-weight:650;padding:7px 0}.legend{padding:12px;border:1px solid var(--line);border-radius:8px}.origin a{margin-right:10px}@media(prefers-color-scheme:dark){.card.from-note{background:#30263f;border-color:#b89bf5}.card.in-notes{background:#392f1b;border-left-color:#eab95d}}
 </style></head><body><main>
-<h1>Сегодня, просроченные и суббота</h1><p id="status" class="muted" role="status">Загружаются…</p>
-<nav><a href="#overdue">Просроченные</a><a href="#saturday">Суббота</a><a href="#today">Сегодня</a><a href="#future">Другие будущие</a><a href="#undated">Без точной даты</a><a href="/kalendar.html">Календарь</a><a href="/tasks.html">Трекер</a></nav>
+<h1>Разбор всех задач</h1><p id="status" class="muted" role="status">Загружаются…</p>
+<nav><a href="#notes-list">Заметки</a><a href="#screenshots">Скриншоты</a><a href="#overdue">Просроченные</a><a href="#saturday">Суббота</a><a href="#today">Сегодня</a><a href="#future">Другие будущие</a><a href="#undated">Без точной даты</a><a href="/kalendar.html">Календарь</a><a href="/tasks.html">Трекер</a></nav>
 <div class="bar"><input id="search" type="search" aria-label="Поиск по задачам" placeholder="Поиск по всем разделам"><button id="refresh">Обновить</button></div>
-<p class="muted">Дата «сегодня» определяется по Москве. Показаны все открытые задачи, в том числе временно скрытые. Изменения сохраняются кнопками. Перенос считается от сегодняшнего дня; месяц — календарный.</p>
-<section id="overdue"><h2>Просроченные <span id="overdue-count"></span></h2><div id="overdue-list"></div></section>
+<p class="muted">Дата «сегодня» определяется по Москве. Показаны все открытые задачи, в том числе временно скрытые. Изменения сохраняются кнопками. Перенос считается от сегодняшнего дня; +30 — ровно 30 дней. «Оставить» сохраняет текущую дату. «1 января» — начало следующего года. Предложения ниже применяются только твоими кнопками.</p>
+<p class="legend">🟣 Фиолетовый — пункт из заметок. 🟠 Золотой — задача, связанная с пунктом в заметках; это не всегда точный дубль. Кнопка «Убрать из разбора» архивирует пункт на этой странице; оригинал в Telegram и календаре остаётся.</p><section id="screenshots"><h2>Из скриншотов · С1</h2><p>Две части ответа Райффайзена. Обновление существующей задачи предлагается отдельно от изменения даты.</p><details><summary>Показать скриншоты из Избранного</summary><a href="/task-review-assets/952531.jpg" target="_blank"><img src="/task-review-assets/952531.jpg" alt="Ответ банка, начало" loading="lazy" style="max-width:45%;vertical-align:top"></a> <a href="/task-review-assets/952532.jpg" target="_blank"><img src="/task-review-assets/952532.jpg" alt="Ответ банка, продолжение" loading="lazy" style="max-width:45%;vertical-align:top"></a></details><div id="screenshots-list"></div></section><section id="overdue"><h2>Просроченные <span id="overdue-count"></span></h2><div id="overdue-list"></div></section>
 <section id="today"><h2>Сегодня <span id="today-count"></span></h2><div id="today-list"></div></section>
 <section id="saturday"><h2>Суббота <span id="saturday-count"></span></h2><div id="saturday-list"></div></section>
-<details id="other-dates"><summary>Остальные перенесённые и будущие задачи</summary><section id="moved"><h2>Перенесённые и старые хвосты <span id="moved-count"></span></h2><p class="muted">Открытые задачи с переносом в журнале или отметкой переноса в тексте. Будущая дата не убирает их из этого раздела. Задачи на сегодня и просроченные показаны в своих разделах.</p><div id="moved-list"></div></section>
+<details id="other-dates" open><summary>Остальные перенесённые и будущие задачи</summary><section id="moved"><h2>Будущие задачи с историей переносов <span id="moved-count"></span></h2><p class="muted">Это задачи на будущие даты, которые хотя бы раз переносились. После выбора +1, +2, +7, +30 дней или 1 января карточка может попасть сюда. Перенос не означает выполнение; эти задачи не просрочены. Сегодняшние и просроченные показаны отдельно.</p><div id="moved-list"></div></section>
 
 <section id="future"><h2>Другие будущие задачи <span id="future-count"></span></h2><div id="future-list"></div></section></details>
 <section id="undated"><h2>Без точной даты <span id="undated-count"></span></h2><div id="undated-list"></div><h3>Заметки из календаря без назначенного дня</h3><p class="muted">Эти заметки ещё не оформлены как отдельные задачи трекера. Они могут пересекаться с существующими карточками.</p><div id="notes-list"></div></section>
-</main><script>
+</main><script src="/task-review-insights.js"></script><script>
+const NOTE_TASK_LINKS={"машиноместо и план по кредиту за него": ["1783696460956", "1790707173716", "1793375822499", "1794254862095"], "финансы этот год": ["1794755652558"], "финансы след год": ["1794755652558"], "ревизия подписок": ["1794755652558"], "ревизия коммуналки дел и вещей на меня": ["1790963599381"], "все счета закрыть до конца года (отпуск)": ["1788719500907", "1789225393489"], "ревизия крпт": ["1790018657919", "1792176233091", "1792578411539", "1792579292133", "1793375757842"], "аспирантура": ["1786980547681", "1788171367369", "1790108144183"], "план аспы и задачи + оплата": ["1790108144183"], "след год java + english докачать": ["1790107645359", "1792176233100"], "суперкомп": ["1791997702279", "1794254862096"], "ai land - группа": ["1790706035950"], "допилить прилу": ["c1793379960649"], "контент ферма": ["1793375838644"], "задача - подарок борису": ["1791028877306"], "авито - вещи допродать": ["1790108144193", "1793375735179"], "ревизия вещей доделатьь": ["1790961609213", "1792321663329"], "ревизия вещей на зиму": ["1792321663329"], "аналист дейс финальная преза": ["1792054518849", "1792054600560", "1792054600561", "1792174954727", "1794252223874"], "аналист презу скинуть": ["1794603746919"], "дозакрыть задачи до конца года": ["1792176233100"]};
 const $=id=>document.getElementById(id);
 function moscowDate(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(k=>p.find(x=>x.type===k).value).join('-');}
 function exactDate(s){if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const d=new Date(s+'T12:00:00Z');return !isNaN(d)&&d.toISOString().slice(0,10)===s;}
@@ -63,20 +65,51 @@ function appendDescription(el,text){
 function card(t,index){
  const el=document.createElement('article');el.className='card';
  const meta=document.createElement('div');meta.className='meta';
- meta.textContent=(index+1)+'. '+(t.date||'Без даты')+(t.fin?' · Финансы':'')+(t.hideUntil&&t.hideUntil>day?' · Скрыта в трекере до '+t.hideUntil:'');
- el.append(meta);appendDescription(el,t.txt);addActions(el,t);return el;
+ meta.textContent=(REVIEW_INSIGHTS[String(t.id)]?.number||('ID '+t.id))+'. '+(t.date||'Без даты')+(t.fin?' · Финансы':'')+(t.hideUntil&&t.hideUntil>day?' · Скрыта в трекере до '+t.hideUntil:'');
+ el.id='task-'+t.id;el.append(meta);markNoteOrigin(el,t);appendDescription(el,t.txt);appendInsight(el,t);addActions(el,t);return el;
 }
+function normalizeNote(s){return String(s||'').toLocaleLowerCase('ru').replace(/ё/g,'е').replace(/[^\p{L}\p{N}]+/gu,' ').trim();}
+let notesByTask=new Map(), tasksByNote=new Map();
+function rebuildNoteIndex(tasks){
+ const keyed=new Map(), exact=new Map(), explicit=new Map();
+ notesByTask=new Map();tasksByNote=new Map();
+ for(const note of notes){
+  keyed.set(noteKey(note),note);
+  const norm=normalizeNote(note.text);if(!exact.has(norm))exact.set(norm,[]);exact.get(norm).push(note);
+  for(const id of NOTE_TASK_LINKS[note.text]||[]){if(!explicit.has(String(id)))explicit.set(String(id),[]);explicit.get(String(id)).push(note);}
+ }
+ for(const task of tasks){
+  if(task.done||task.arch||task.archived)continue;
+  const found=new Set(explicit.get(String(task.id))||[]);
+  const source=keyed.get(task.savedNoteKey);if(source)found.add(source);
+  for(const note of exact.get(normalizeNote(task.txt))||[])found.add(note);
+  const matches=[...found];notesByTask.set(String(task.id),matches);
+  for(const note of matches){const key=noteKey(note);if(!tasksByNote.has(key))tasksByNote.set(key,[]);tasksByNote.get(key).push(task);}
+ }
+}
+function relatedNotes(task){return notesByTask.get(String(task.id))||[];}
+function markNoteOrigin(el,task){const matches=relatedNotes(task);if(!matches.length&&!task.savedNoteKey)return;el.classList.add(task.savedNoteKey?'from-note':'in-notes');const p=document.createElement('div');p.className='origin';p.textContent=task.savedNoteKey?'🟣 Создано из заметок':'🟠 Есть связанный пункт в заметках';el.append(p);for(const note of matches){const a=document.createElement('a');a.href='#notes-list';a.textContent='«'+note.text+'»';a.style.display='block';el.append(a);}}
 function render(){const q=$('search').value.trim().toLocaleLowerCase('ru');for(const key of Object.keys(groups)){const all=groups[key],filtered=all.filter(t=>(t.txt||'').toLocaleLowerCase('ru').includes(q));$(key+'-count').textContent='('+filtered.length+(q?' из '+all.length:'')+')';const list=$(key+'-list');list.replaceChildren();filtered.forEach((t,i)=>list.append(card(t,i)));if(!filtered.length){const p=document.createElement('p');p.className='empty';p.textContent=q?'Совпадений нет':key==='overdue'?'Просроченных по текущим датам нет. Перенесённые задачи показаны отдельно ниже.':'Задач нет';list.append(p);}}
-const list=$('notes-list');list.replaceChildren();let n=0;for(const item of notes){if(allTasks.some(t=>t.savedNoteKey===noteKey(item)))continue;if(!item.text.toLocaleLowerCase('ru').includes(q))continue;const el=document.createElement('article');el.className='card';const meta=document.createElement('div');meta.className='meta';meta.textContent=(++n)+'. '+item.group;const body=document.createElement('div');body.className='body';body.textContent=item.text;el.append(meta,body);addActions(el,{txt:item.text,note:item});list.append(el);}if(!n)list.textContent=q?'Совпадений нет':'Заметок нет';}
-async function refresh(){day=moscowDate();$('status').textContent='Загружаются…';const results=await Promise.allSettled([fetch('/api/tasks',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!Array.isArray(d.tasks))throw Error('Нет списка задач');return d;}),fetch('/kalendar.html',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('HTTP '+r.status);const doc=new DOMParser().parseFromString(await r.text(),'text/html');const section=doc.getElementById('saved-notes');if(!section)throw Error('Раздел заметок не найден');return [...section.querySelectorAll('details')].flatMap(d=>[...d.querySelectorAll('li')].map(li=>({group:d.querySelector('summary')?.textContent||'Заметки',text:li.textContent})));})]);const errors=[];if(results[0].status==='fulfilled'){allTasks=results[0].value.tasks;groups=classify(allTasks,day,results[0].value.log||[]);}else errors.push('Трекер не обновлён: '+results[0].reason.message);if(results[1].status==='fulfilled')notes=results[1].value;else errors.push('Заметки не обновлены: '+results[1].reason.message);render();$('status').textContent=day.split('-').reverse().join('.')+' · На разбор: '+(groups.overdue.length+groups.today.length+groups.saturday.length)+' · Всего открытых: '+Object.values(groups).reduce((n,x)=>n+x.length,0)+' · Заметок: '+notes.length+' заметок · '+(errors.length?errors.join('; '):'Данные обновлены');$('status').className=errors.length?'error':'muted';}
+const screen=$('screenshots-list');screen.replaceChildren();const st=allTasks.find(t=>String(t.id)==='1793984884345');if(st&&!st.done&&!st.arch&&!st.archived)screen.append(card(st,0));else screen.textContent='Связанная задача закрыта или отсутствует в трекере.';const list=$('notes-list');list.replaceChildren();let n=0;for(const item of notes){if(allTasks.some(t=>t.savedNoteKey===noteKey(item)))continue;if(!item.text.toLocaleLowerCase('ru').includes(q))continue;const el=document.createElement('article');el.className='card from-note';const meta=document.createElement('div');meta.className='meta';meta.textContent='🟣 Заметка '+(++n)+' · '+item.group;const matches=tasksByNote.get(noteKey(item))||[];if(matches.length){const rel=document.createElement('p');rel.className='origin';rel.textContent='Связанные задачи (проверь перед удалением): ';for(const t of matches){const a=document.createElement('a');a.href='#task-'+t.id;a.textContent=String(REVIEW_INSIGHTS[String(t.id)]?.number||t.id)+' ';rel.append(a);}el.append(rel);}const body=document.createElement('div');body.className='body';body.textContent=item.text;el.append(meta,body);addActions(el,{txt:item.text,note:item});list.append(el);}if(!n)list.textContent=q?'Совпадений нет':'Заметок нет';}
+async function refresh(){day=moscowDate();$('status').textContent='Загружаются…';const results=await Promise.allSettled([fetch('/api/tasks',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!Array.isArray(d.tasks))throw Error('Нет списка задач');return d;}),fetch('/kalendar.html',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('HTTP '+r.status);const doc=new DOMParser().parseFromString(await r.text(),'text/html');const section=doc.getElementById('saved-notes');if(!section)throw Error('Раздел заметок не найден');return [...section.querySelectorAll('details')].flatMap(d=>[...d.querySelectorAll('li')].map(li=>({group:d.querySelector('summary')?.textContent||'Заметки',text:li.textContent})));})]);const errors=[];if(results[0].status==='fulfilled'){allTasks=results[0].value.tasks;groups=classify(allTasks,day,results[0].value.log||[]);}else errors.push('Трекер не обновлён: '+results[0].reason.message);if(results[1].status==='fulfilled')notes=results[1].value;else errors.push('Заметки не обновлены: '+results[1].reason.message);rebuildNoteIndex(allTasks);render();$('status').textContent=day.split('-').reverse().join('.')+' · На разбор: '+(groups.overdue.length+groups.today.length+groups.saturday.length)+' · Всего открытых: '+Object.values(groups).reduce((n,x)=>n+x.length,0)+' · Заметок в источнике: '+notes.length+' · '+(errors.length?errors.join('; '):'Данные обновлены');$('status').className=errors.length?'error':'muted';}
 
+function reviewDay(){return day;}
 function noteKey(item){return 'saved-20261113:'+item.group+':'+item.text;}
-function targetDate(kind){const now=moscowDate(),d=new Date(now+'T12:00:00Z');if(kind==='jan')return '2027-01-01';if(kind==='month'){const wanted=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+1);const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(wanted,last));}else d.setUTCDate(d.getUTCDate()+Number(kind));return d.toISOString().slice(0,10);}
+function targetDate(kind,base=moscowDate()){const d=new Date(base+'T12:00:00Z');if(kind==='jan')return (d.getUTCFullYear()+1)+'-01-01';d.setUTCDate(d.getUTCDate()+Number(kind));return d.toISOString().slice(0,10);}
+function appendInsight(el,t){
+ const info=REVIEW_INSIGHTS[String(t.id)];const block=document.createElement('div');block.className='note';block.style.marginTop='12px';
+ const label=document.createElement('strong');label.textContent=info?.label||'Нужен статус';
+ const text=document.createElement('p');text.textContent=info?.text||'В подробный разбор текущих 140 карточек эта задача не входила. Подтверждения выполнения нет; оцени её отдельно.';
+ block.append(label,text);
+ if(info?.source){const source=document.createElement('small');source.textContent=info.source;block.append(source);}
+ if(info?.proposal){const d=document.createElement('details'),sum=document.createElement('summary'),p=document.createElement('p');sum.textContent='Предлагаемый новый текст';p.textContent=info.proposal;d.append(sum,p);block.append(d);}
+ el.append(block);
+}
 function addActions(el,task){
  const label=document.createElement('label');label.textContent='Комментарий / дополнительная информация';label.className='meta';label.style.display='block';label.style.marginTop='12px';
  const input=document.createElement('textarea');input.rows=2;input.placeholder='Дополнительная информация';input.value=task.comment||'';input.style.cssText='width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit';label.append(input);el.append(label);
  const bar=document.createElement('div');bar.className='bar';const status=document.createElement('div');status.className='meta';status.setAttribute('role','status');
- for(const [title,action] of [['Сохранить комментарий','comment'],['Сделал','done'],['Неактуально','archive'],['+1 день','1'],['+2 дня','2'],['+Неделя','7'],['+Месяц','month'],['1 января 2027','jan']]){
+ for(const [title,action] of [['Оставить','keep'],['Сохранить комментарий','comment'],['Сделано','done'],[task.note||task.savedNoteKey?'Убрать из разбора':'Неактуально','archive'],['+1 день','1'],['+2 дня','2'],['+7 дней','7'],['+30 дней','30'],['1 января '+(Number(reviewDay().slice(0,4))+1),'jan'],...(REVIEW_INSIGHTS[String(task.id)]?.proposal?[['Принять обновление текста','update']]:[])]){
   const button=document.createElement('button');button.type='button';button.textContent=title;
   button.onclick=async()=>{if(busy){status.textContent='Дождитесь сохранения предыдущей задачи';return;}busy=true;bar.querySelectorAll('button').forEach(b=>b.disabled=true);status.textContent='Сохраняется…';try{await mutateTask(task,action,input.value);await refresh();}catch(e){status.textContent='Не сохранено: '+e.message;}finally{busy=false;bar.querySelectorAll('button').forEach(b=>b.disabled=false);}};bar.append(button);
  }
@@ -84,22 +117,28 @@ function addActions(el,task){
 }
 async function readTasks(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw Error('GET '+r.status);const d=await r.json();if(!Array.isArray(d.tasks)||!Number.isFinite(d.rev))throw Error('Некорректные данные трекера');return d;}
 async function mutateTask(original,action,comment){
- const date=['comment','done','archive'].includes(action)?null:targetDate(action);
+ const date=['keep','comment','done','archive','update'].includes(action)?null:targetDate(action);
  for(let attempt=0;attempt<3;attempt++){
   const data=await readTasks();let task=original.note?data.tasks.find(t=>t.savedNoteKey===noteKey(original.note)):data.tasks.find(t=>String(t.id)===String(original.id));
   const ts=new Date().toISOString();data.log=data.log||[];
+  try{localStorage.setItem('task-review-backup',JSON.stringify(data));}catch(e){throw Error('Не удалось сохранить резервную копию в браузере: '+e.message);}
+  if(task&&task.done&&!original.done)throw Error('Задача уже закрыта в другой вкладке; обнови страницу');
+  if(task&&((task.comment||'')!==(original.comment||'')&&comment!==(original.comment||'')))throw Error('Комментарий изменился в другой вкладке; обнови страницу');
+  if(task&&(action==='update')&&task.txt!==original.txt)throw Error('Текст изменился в другой вкладке; обнови страницу');
   if(!task){if(!original.note)throw Error('Задача удалена или изменена в другой вкладке');task={id:'review-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),txt:original.txt,date:null,done:false,fin:false,savedNoteKey:noteKey(original.note)};data.tasks.push(task);data.log.push({ts,k:'add',id:task.id,txt:task.txt,src:'task-review'});}
-  if((task.comment||'')!==comment){data.log.push({ts,k:'edit',id:task.id,field:'comment',from:task.comment||'',to:comment,src:'task-review'});task.comment=comment;}
-  if(action==='done'){task.done=true;data.log.push({ts,k:'done',id:task.id,txt:task.txt,src:'task-review'});}
+  if(comment!==(original.comment||'')&&(task.comment||'')!==comment){data.log.push({ts,k:'edit',id:task.id,field:'comment',from:task.comment||'',to:comment,src:'task-review'});task.comment=comment;}
+  if(action==='keep'){task.reviewedAt=ts;data.log.push({ts,k:'review',id:task.id,decision:'keep',src:'codex-review'});}
+  else if(action==='update'){const proposal=REVIEW_INSIGHTS[String(task.id)]?.proposal;if(!proposal)throw Error('Нет предложенного текста');const before=task.txt;task.txt=proposal;data.log.push({ts,k:'edit',id:task.id,field:'txt',from:before,to:proposal,src:'codex-review'});}
+  else if(action==='done'){task.done=true;data.log.push({ts,k:'done',id:task.id,txt:task.txt,src:'task-review'});}
   else if(action==='archive'){task.arch=true;task.archived=true;data.log.push({ts,k:'archive',id:task.id,txt:task.txt,reason:'Неактуально',src:'task-review'});}
   else if(date){const old=task.date;task.date=date;task.hideUntil=null;data.log.push({ts,k:'move',id:task.id,from:old,to:date,txt:task.txt,src:'task-review'});}
   data.rev+=1;const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   if(r.status===409)continue;if(!r.ok)throw Error('POST '+r.status);const result=await r.json();if(!result.ok)throw Error('Сервер не подтвердил сохранение');
   const saved=(await readTasks()).tasks.find(t=>String(t.id)===String(task.id));
-  if(!saved||(saved.comment||'')!==comment||(date&&saved.date!==date)||(action==='done'&&!saved.done)||(action==='archive'&&!saved.arch))throw Error('Не удалось подтвердить сохранение; обновите список перед повтором');
+  if(!saved||(comment!==(original.comment||'')&&(saved.comment||'')!==comment)||(action==='update'&&saved.txt!==REVIEW_INSIGHTS[String(task.id)].proposal)||(action==='keep'&&saved.reviewedAt!==ts)||(date&&saved.date!==date)||(action==='done'&&!saved.done)||(action==='archive'&&!saved.arch))throw Error('Не удалось подтвердить сохранение; обновите список перед повтором');
   return;
  }
  throw Error('Данные параллельно меняются. Повторите сохранение');
 }
-$('search').addEventListener('input',render);$('refresh').addEventListener('click',refresh);refresh();
+let searchTimer;$('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(render,120);});$('refresh').addEventListener('click',refresh);refresh();
 </script></body></html>
