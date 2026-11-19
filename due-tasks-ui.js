@@ -3,7 +3,8 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const store = DueTasksStore.create();
-  let all = [], mode = 'all', onlyFinancial = false, busy = false, loaded = false;
+  const requestedView = new URLSearchParams(window.location.search).get('view');
+  let all = [], mode = ['all','today','overdue'].includes(requestedView) ? requestedView : 'all', onlyFinancial = false, busy = false, loaded = false;
   const drafts = new Map();
   const descriptions = new Set();
   const cards = new Map();
@@ -163,7 +164,17 @@
     } finally {setBusy(false);}
   }
   $('search').addEventListener('input',filter);
-  for(const b of document.querySelectorAll('.tab')) b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));filter();});
+  for(const b of document.querySelectorAll('.tab')) {
+    b.setAttribute('aria-pressed',String(b.dataset.mode===mode));
+    b.addEventListener('click',()=>{
+      mode=b.dataset.mode;
+      document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+      const url=new URL(window.location.href);
+      url.searchParams.set('view',mode);
+      window.history.replaceState(null,'',url);
+      filter();
+    });
+  }
   $('financial').addEventListener('click',function(){onlyFinancial=!onlyFinancial;this.setAttribute('aria-pressed',String(onlyFinancial));filter();});
   $('expand').addEventListener('click',function(){const all=[...document.querySelectorAll('.task:not([hidden]) details')];const open=all.some(x=>!x.open);all.forEach(x=>x.open=open);this.textContent=open?'Свернуть все описания':'Раскрыть все описания';});
   $('refresh').addEventListener('click',refresh);
