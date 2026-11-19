@@ -1,0 +1,17 @@
+{
+ "day": "2026-11-19",
+ "mega": {
+  "usd": 0.055548
+ },
+ "eth": {
+  "usd": 1802.65
+ },
+ "zk": {
+  "usd": 0.00771494
+ },
+ "strk": {
+  "usd": 0.03248599
+ },
+ "src": "coingecko/megaeth+ethereum+zksync+starknet",
+ "updated": 1795070385
+}
