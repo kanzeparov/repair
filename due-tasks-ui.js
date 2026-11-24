@@ -3,6 +3,15 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const store = DueTasksStore.create();
+  const deadline = document.body.dataset.deadline;
+  const suggestions = [
+    ['1795081983011','Проверить аккредитацию Росэлторга','Результат уже есть в письме от 20 ноября. Осталось сверить его и закрыть карточку.'],
+    ['1791394640451','Поздравить Витю','День рождения 24 ноября. Достаточно одного личного сообщения.'],
+    ['1795074199292','Проверить возврат от Лизы','Достаточно проверить входящие на 10 000 ₽. Если перевода ещё нет, оставь задачу открытой.'],
+    ['1792921160264','Проверить списания Vultr','25 ноября достаточно сверить историю платежей за месяц.'],
+    ['1794842665933','Передать показания счётчиков','На 26 ноября. Если показания под рукой, задачу можно закрыть за один заход.'],
+    ['1791394640453','Поздравить Дарью Бородину','27 ноября. Одно поздравление закроет задачу в день рождения.']
+  ];
   const requestedView = new URLSearchParams(window.location.search).get('view');
   let all = [], mode = ['all','today','overdue'].includes(requestedView) ? requestedView : 'all', onlyFinancial = false, busy = false, loaded = false;
   const drafts = new Map();
@@ -61,10 +70,10 @@
   }
   function card(task, number, group) {
     const id = String(task.id), article = el('article','task');
-    article.dataset.id = id; article.dataset.group = group; article.dataset.fin = task.fin ? '1' : '0';
+    article.id = 'task-' + id; article.dataset.id = id; article.dataset.group = group; article.dataset.fin = task.fin ? '1' : '0';
     const top = el('div','task-top'), tags = el('div','tags');
     top.append(el('span','number',String(number).padStart(2,'0')));
-    tags.append(el('span','tag ' + group,group === 'today' ? 'Сегодня' : human(task.date)));
+    tags.append(el('span','tag ' + group,task.date === moscowDate() ? 'Сегодня' : human(task.date)));
     if (task.fin) tags.append(el('span','tag finance','Финансы'));
     if (task.hideUntil && task.hideUntil > moscowDate()) tags.append(el('span','tag','Скрыта до ' + human(task.hideUntil)));
     top.append(tags); article.append(top,el('h3','',cleanTitle(task.txt)));
@@ -102,19 +111,38 @@
   }
   function render() {
     const day = moscowDate();
-    const current = all.filter(t => !t.done && !t.arch && !t.archived && exactDate(t.date) && t.date <= day);
-    const today = current.filter(t => t.date === day), overdue = current.filter(t => t.date < day).sort((a,b) => a.date.localeCompare(b.date));
+    const current = all.filter(t => !t.done && !t.arch && !t.archived && exactDate(t.date) && t.date <= (deadline || day));
+    const today = current.filter(t => t.date >= day).sort((a,b) => a.date.localeCompare(b.date)), overdue = current.filter(t => t.date < day).sort((a,b) => a.date.localeCompare(b.date));
     $('heading').textContent = new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(new Date(day+'T12:00:00Z'));
     $('subtitle').textContent = 'Задачи на сегодня и просроченные · ' + day.slice(0,4) + ' · Москва';
+    if (deadline) {
+      $('heading').textContent = 'Задачи до пятницы, 27 ноября';
+      $('subtitle').textContent = 'Все открытые задачи со сроком по 27.11.2026 включительно · Москва';
+      const picks = $('quick-picks');
+      picks.replaceChildren();
+      for (const [id,title,reason] of suggestions) {
+        if (!current.some(task => String(task.id) === id && !(task.hideUntil > day))) continue;
+        const item = el('li'), link = el('a','',title);
+        link.href = '#task-' + id;
+        link.onclick = () => {
+          $('search').value = '';
+          if (onlyFinancial) $('financial').click();
+          $('tab-all').click();
+        };
+        item.append(link, document.createTextNode(' — ' + reason));
+        picks.append(item);
+      }
+      picks.parentElement.hidden = !picks.children.length;
+    }
     $('today-stat').textContent = today.length;$('overdue-stat').textContent = overdue.length;$('finance-stat').textContent = current.filter(t => t.fin).length;
-    for (const [k,n] of [['all',current.length],['today',today.length],['overdue',overdue.length]]) $('tab-'+k).textContent=({all:'Все',today:'Сегодня',overdue:'Просрочено'}[k])+' · '+n;
+    for (const [k,n] of [['all',current.length],['today',today.length],['overdue',overdue.length]]) $('tab-'+k).textContent=({all:'Все',today:deadline?'До пятницы':'Сегодня',overdue:'Просрочено'}[k])+' · '+n;
     cards.clear();let number=0;
     for (const [group,tasks] of [['today',today],['overdue',overdue]]) {
       const list=$(group+'-list');list.replaceChildren();
       for (const t of tasks) list.append(card(t,++number,group));
       if (!tasks.length) {
         const empty=el('div','zero');empty.append(el('span','zero-icon','✓'));
-        const text=el('div');text.append(el('h3','',group==='overdue'?'Просроченных задач нет':'На сегодня открытых задач нет'),el('p','',group==='overdue'?'По текущим датам карточек в трекере.':'Запланированные на сегодня задачи здесь появятся после обновления.'));empty.append(text);list.append(empty);
+        const text=el('div');text.append(el('h3','',group==='overdue'?'Просроченных задач нет':(deadline?'До пятницы открытых задач нет':'На сегодня открытых задач нет')),el('p','',group==='overdue'?'По текущим датам карточек в трекере.':'Запланированные на сегодня задачи здесь появятся после обновления.'));empty.append(text);list.append(empty);
       }
     }
     filter();setBusy(busy);
