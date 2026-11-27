@@ -116,12 +116,20 @@ function addActions(el,task){
  el.append(bar,status);
 }
 async function readTasks(){const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw Error('GET '+r.status);const d=await r.json();if(!Array.isArray(d.tasks)||!Number.isFinite(d.rev))throw Error('Некорректные данные трекера');return d;}
+async function backupTasks(data){
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open('task-review-backups',1);
+  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('snapshots'))req.result.createObjectStore('snapshots');};
+  req.onerror=()=>reject(req.error||Error('Не удалось открыть хранилище резервных копий'));
+  req.onsuccess=()=>{const db=req.result,tx=db.transaction('snapshots','readwrite');tx.objectStore('snapshots').put(data,'latest');tx.oncomplete=()=>{db.close();resolve();};tx.onerror=tx.onabort=()=>{const error=tx.error||Error('Не удалось записать резервную копию');db.close();reject(error);};};
+ });
+}
 async function mutateTask(original,action,comment){
  const date=['keep','comment','done','archive','update'].includes(action)?null:targetDate(action);
  for(let attempt=0;attempt<3;attempt++){
   const data=await readTasks();let task=original.note?data.tasks.find(t=>t.savedNoteKey===noteKey(original.note)):data.tasks.find(t=>String(t.id)===String(original.id));
   const ts=new Date().toISOString();data.log=data.log||[];
-  try{localStorage.setItem('task-review-backup',JSON.stringify(data));}catch(e){throw Error('Не удалось сохранить резервную копию в браузере: '+e.message);}
+  try{await backupTasks(data);}catch(e){throw Error('Не удалось сохранить резервную копию в браузере: '+e.message);}
   if(task&&task.done&&!original.done)throw Error('Задача уже закрыта в другой вкладке; обнови страницу');
   if(task&&((task.comment||'')!==(original.comment||'')&&comment!==(original.comment||'')))throw Error('Комментарий изменился в другой вкладке; обнови страницу');
   if(task&&(action==='update')&&task.txt!==original.txt)throw Error('Текст изменился в другой вкладке; обнови страницу');
